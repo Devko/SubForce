@@ -7,6 +7,7 @@
 - [Tests](#tests)
 - [Benchmarking on the device](#benchmarking-on-the-device)
 - [Packaging and installing](#packaging-and-installing)
+- [Release builds](#release-builds)
 - [Binary compatibility](#binary-compatibility)
 
 ---
@@ -18,12 +19,12 @@ SubForce builds on Linux or WSL; it is developed on Ubuntu 24.04.
 | Tool | Needed for |
 |---|---|
 | `g++` 13 | tests, demos and the x86 bench |
-| `arm-linux-gnueabihf-g++` 13 | the device build (the Force ships GCC 13's libstdc++, linked dynamically) |
+| `arm-linux-gnueabihf-g++` 11 or newer | the device build (libstdc++ is linked dynamically; MPC OS ships it). Release builds come from [CI](#release-builds) |
 | GNU make ≥ 4.3 | everything |
 | `python3` | generating the parameter list, layout and C++ headers from `surface/surface.py` |
 | `gcc` | the skin generator's C renderer |
 | Python 3 with Pillow (`PY=`) | the skin, the page previews and the release package |
-| `qemu-user` (`qemu-arm`) | `test-arm`, `test-arm-pgo` and the profile-guided device build |
+| `qemu-user` (`qemu-arm`) | `test-arm`, `test-arm-pgo` and the profile-guided device build (`qemu-user-static` works too; `ARM_RUN` says how ARM programs run) |
 | `ssh`, `scp` | `bench-device`, `plugin-install` |
 
 On Ubuntu 24.04, for example:
@@ -77,7 +78,9 @@ changes; it checks the layout and every factory preset before writing anything.
 | `FORCE` | The device's SSH address, `root@<ip>`; required by `bench-device` and `plugin-install` |
 | `SSH_KEY` | Private key for the device's root login (default: ssh's own keys and config) |
 | `PY` | Python 3 with Pillow, for `skin`, `preview` and `plugin-package` (default `python3`) |
-| `PGO` | `auto` (default): profile-guided when `qemu-arm` is installed; `1`: always; `0`: plain build |
+| `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
+| `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
+| `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
 | `PLUGIN_VERSION` | Version in the package name |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
@@ -146,11 +149,30 @@ Packages, copies the package to the device and runs its installer: it **stops MP
 project first), backs up and edits `MPC.settings`, and starts MPC again. A reinstall keeps the
 user's presets and favorites/recent lists.
 
+## Release builds
+
+Releases are built by CI (`.github/workflows/build.yml`) on every push, the way the plugin catalog's
+own ports are built: the device build runs in `arm32v7/gcc:11-bullseye` (GCC 11, glibc 2.31) under
+QEMU, profile-guided, with the test suite run against the objects the `.so` is linked from; the
+sanitizer suite runs on x86. The zip is checked with the catalog's own checker
+(`third_party/mpc-vst-plugins/tools/catalog_check.py --catalog`) and kept as the run's artifact.
+
+Pushing a tag `vX.Y.Z` also publishes it as a GitHub release, a prerelease while the version is 0.x
+(the catalog's beta channel). The catalog reads the major version as the parameter list's
+compatibility: bump X whenever parameter indices change.
+
+The same build outside CI, in an ARM environment: `make ARM_PREFIX= ARM_RUN= PGO=1 plugin-package`
+(`ARM_PREFIX` empty: the native compiler; `ARM_RUN` empty: ARM programs run directly).
+
+A local build with a newer distribution's cross compiler (Ubuntu 24.04: glibc 2.39, the C23
+`__isoc23_sscanf`) needs glibc 2.38. That loads on the Force and other MPC OS 3.x devices, fine for
+testing, but the catalog refuses it.
+
 ## Binary compatibility
 
 - The `.so` exports only `VSTPluginMain` (a linker version script; the build counts every defined
   dynamic symbol and fails otherwise) and links with `--no-undefined`: an unresolved symbol would
   otherwise only show as MPC crashing on load. `-fno-gnu-unique` keeps it unloadable.
-- It needs glibc 2.38 (`__isoc23_sscanf`, from the C library headers of the toolchain), which is
-  too new for devices still on MPC OS 2.x. The device build prints the highest glibc version it
-  needs.
+- The [release build](#release-builds) needs glibc 2.31 or less, so it loads on MPC OS 2.x and 3.x.
+  Built with a newer toolchain it needs that toolchain's glibc (Ubuntu 24.04: 2.38). The device build
+  prints the highest glibc version it needs.

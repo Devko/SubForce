@@ -54,7 +54,9 @@ points into `build/demos-out/` (WAV), the way MPC plays it — no device needed.
 - An **Akai Force**. Other first-generation (32-bit ARM) MPC OS devices may work but are untested.
 - **Root SSH access** to the device (for example through MockbaMod). Stock MPC OS has no way to
   install third-party plugins.
-- A recent MPC OS: the plugin needs glibc 2.38, which MPC OS 2.x doesn't have.
+- **MPC OS 3.x** for the touchscreen pages. Release builds need glibc 2.31 or less, so MPC OS 2.x
+  loads them too, but it doesn't draw third-party plugin pages yet. A local build with a newer cross
+  compiler needs glibc 2.38 (MPC OS 3.x only; see [Building](docs/BUILDING.md#release-builds)).
 
 ## Installation
 
