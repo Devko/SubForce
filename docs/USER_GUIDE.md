@@ -6,6 +6,7 @@
 - [Keys, glide and Duo](#keys-glide-and-duo)
 - [The mod busses](#the-mod-busses)
 - [Presets](#presets)
+- [Melodic techno](#melodic-techno)
 - [MIDI](#midi)
 
 ---
@@ -14,8 +15,10 @@
 
 One voice, played like an analog monosynth: two oscillators and a sub into a mixer, a 4-pole
 transistor ladder, two envelopes and two mod busses, with the panel's habits kept — push the mixer
-and the filter overdrives, turn the resonance up and the bass thins out, take it past 90% and the
-filter sings on its own.
+and the filter overdrives, turn the resonance up and the bass thins out, take it past 70% and the
+filter sings on its own. Where the Sub 37's manual says how its panel behaves, SubForce does the
+same: the feedback loop, the resonance knob, Multidrive's character, the envelopes' attack and
+loop, the pink noise.
 
 ## The screen
 
@@ -57,19 +60,24 @@ All oscillators are band-limited (polyBLEP) and run at twice the sample rate.
 ### Mixer
 
 Osc 1, Sub, Osc 2, Noise and **Feedback** levels. The knobs have an audio taper. Several sources
-up high drive the filter harder — on purpose. **Feedback** sends the synth's own output (after the
-VCA) back into the mixer: a little thickens and growls, a lot with resonance howls. **Noise
-Colour** darkens the noise from white.
+up high drive the filter harder — on purpose. **Feedback** takes the mixer's own output back into
+the mixer, as the Sub 37's FEEDBACK knob does with nothing in EXT IN: up to about 85% it thickens
+and pushes the filter harder, past that the loop runs over unity and gets gritty, and the last
+tenth is the chaos of an overdriven loop (+5 dB louder at full: turn the volume down). With
+resonance it howls. **Noise Colour** goes from white (0) through pink (the middle, the Sub 37's
+noise, the default) to dark (1), at the same loudness.
 
 ### Filter
 
 A 4-pole transistor ladder, modelled with its nonlinearities.
 
-- **Cutoff** 20 Hz–20 kHz. **Resonance**: from about 90% the filter oscillates by itself, a sine at
-  the cutoff (play it with Key Track at 100%; it tracks the keyboard, a little flat at the top of the
-  resonance, like the circuit). Resonance also thins the bass, as on the hardware.
-- **Multidrive**: drives the ladder and a second stage after it; from warm to fuzzy. Louder too,
-  but by a few dB, not a jump.
+- **Cutoff** 20 Hz–20 kHz. **Resonance**: past 70% the filter oscillates by itself, a sine at the
+  cutoff, as the Sub 37's "settings above 7" (play it with Key Track at 100%; it tracks the
+  keyboard, a little flat at the top of the resonance, like the circuit). Resonance also thins the
+  bass, as on the hardware: about 13 dB just under the edge.
+- **Multidrive**: drives the ladder and a second stage after it, as the Sub 37's OTA and FET stages
+  between the filter and the VCA: asymmetric, tube-like warmth (even harmonics) in the middle of
+  its range, toward hard clipping at full. Louder too, but by a few dB, not a jump.
 - **Slope**: 6, 12, 18 or 24 dB per octave (the outputs of the ladder's four stages).
 - **EG Amount**: the filter EG's sweep, up to ±10 octaves (the value shows octaves).
 - **Key Track**: 0–200%; 100% makes the cutoff follow the keyboard exactly (around middle C).
@@ -79,11 +87,12 @@ A 4-pole transistor ladder, modelled with its nonlinearities.
 ### Envelopes
 
 Both are **DAHDSR**: Delay, Attack, Hold, Decay, Sustain, Release (attack to 10 s, the others to
-10 s, delay and hold from 0). The curves are an analog EG's: attack charges like a capacitor aiming
-past the top (toward 1.2) and stops at 1, the convex rise of a real attack; decay and release fall
-exponentially (the times are to −60 dB).
+10 s, delay and hold from 0). As the Sub 37's: the attack is linear (its default curve), decay and
+release fall exponentially (the times are to −60 dB).
 
-- **Loop**: while the key is held the envelope cycles delay → attack → hold → decay.
+- **Loop**: while the key is held the envelope cycles delay → attack → hold → decay → release and
+  round again, the release stage included, as on the hardware. With Sustain at 0 that is a plain
+  D-A-H-D cycle; with Sustain up, decay falls to it and release takes it the rest of the way.
 - **Reset**: a new note's attack starts from 0. Off, it starts from wherever the envelope is (smooth
   legato, the analog way).
 - **Velocity** and **Key Track** as above; the amp EG's are on the AMP tab.
@@ -130,8 +139,9 @@ triangle to Wave 1 with the wave near square.
 
 ## Presets
 
-27 factory presets in five categories (Templates, Bass, Lead, Keys, FX), all level-matched (−18 LUFS
-on their demo phrase). Pick them on the BROWSE tab or step through them on KEYS.
+57 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
+level-matched (−18 LUFS on their demo phrase). Pick them on the BROWSE tab or step through them on
+KEYS.
 
 - **SAVE** writes `User NNN.sfp` to `<plugin folder>/Presets/User/` (there is no text entry on the
   device, so presets are numbered; a number is never used twice). Rename them on a computer; the
@@ -144,6 +154,38 @@ on their demo phrase). Pick them on the BROWSE tab or step through them on KEYS.
 - Presets on the SSD: `/media/AkaiForce/SubForce Presets/` (any folders inside become categories).
 - A preset file is plain text (`subforce 1` and `key=value` lines of real values), the same as an MPC
   project stores.
+
+## Melodic techno
+
+The Sub 37 is all over melodic techno, Stephan Bodzin's above all: two of them in his studio, a
+Subsequent 37 on stage, "the backbone of his music and his live set" — basslines sequenced from
+the computer, leads played by hand, and constant rides of cutoff, resonance, drive and glide.
+These presets are built on what is documented about that way of playing (no artist's patch is
+copied; the names are SubForce's own):
+
+| Preset | What it is | Play it |
+|---|---|---|
+| **Bass / Rolling Sixteen** | Saw and sub, a 160 ms filter snap, KB Reset: the driving 16th bassline | 16ths from the sequencer, A1–D2; open FEG Decay through the build |
+| **Bass / Horizon Drift** | Two detuned saws, the sub, feedback and resonance holding a growl under a low cutoff | Long legato roots, Bb0–F2; ride Cutoff and Resonance (FILTER Q-Links) |
+| **Bass / Fifth Engine** | Saw plus a saw a fifth up, sub, feedback: the one-finger power chord | Legato, Bb0–C2; ride Osc 2 Freq between +7 and 0 |
+| **Bass / Glide Smear** | Constant-rate glide (big leaps slide longer) on a singing bass | Overlap keys to slide; ride Glide Time in the phrase |
+| **Bass / Grit Roller** | Multidrive and feedback; velocity drives it harder | Play the velocity: soft is round, hard is torn |
+| **Sequence / Resonant Steps** | Resonance just under the edge, a bar-locked filter sweep | The Force's arpeggiator or sequencer at 1/16, C2–C4 |
+| **Sequence / Ladder Acid** | An acid line through the round 24 dB ladder, legato slides | 16ths, overlap for slides, accents for the squelch |
+| **Lead / Afterglow Lead** | Two detuned saws, a little feedback, exp legato glide, wheel vibrato | C4–C6, legato, into a long reverb |
+| **Lead / Resonant Cry** | Resonance at the edge, feedback and drive; aftertouch opens it | Lean into the keys (pressure), wheel for vibrato |
+| **Lead / Swell Lead** | Opens over a second as it is held; single trigger | Slow phrases, long notes |
+| **Pad / Slow Bloom Duo** | Duo: two keys, two oscillators, a slow bloom | Hold two-note intervals |
+| **Pad / Tidal Loop** | A looping filter EG breathing every ~4 s | Hold one note |
+| **FX / Riser Engine** | A 4-bar synced rise of pitch, cutoff and feedback | Start it 4 bars before the drop |
+
+The rest of the new ones are the Sub 37's classics: Foundation Bass, Sub Pressure, Offbeat Knock,
+Knuckle Pluck, Glass Arpeggio, Sync Arpeggio, Duo Intervals, Solo Brass, Breath Flute, Tearing
+Sync, Fuzz Square, Hollow Haze, Downlifter, Impact Boom, Feedback Howl, Data Burble, Loop Ticker.
+
+Tips: 121–125 BPM; basslines live between about A0 and F2; put Cutoff, Resonance, Multidrive and
+EG Amount on the FILTER Q-Links and ride them; use MPC's delay and reverb on the track (SubForce has
+no effects of its own, on purpose).
 
 ## MIDI
 

@@ -1,0 +1,25 @@
+subforce 1
+volume=-7.9
+o2_sync=1
+mix_o1=0.3
+mix_o2=0.85
+o2_freq=7
+m1_rate=0.6
+m1_pitch=0.54
+m1_pdest=2
+m2_rate=5.5
+m2_pitch=0.13
+m2_ctl=2
+f_cut=3000
+f_res=0.161
+f_drive=0.55
+f_env=0.15
+fe_d=0.6
+fe_s=0.4
+ae_a=0.003
+ae_s=1
+ae_r=0.2
+trig=1
+glide_mode=2
+glide_type=2
+glide=0.05

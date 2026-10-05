@@ -1,10 +1,10 @@
 subforce 1
-volume=-1.1
+volume=-0.5
 o1_wave=0.6667
 mix_o1=0.7
 mix_sub=0.75
 f_cut=140
-f_res=0.1
+f_res=0.08
 f_drive=0.35
 f_env=0.35
 fe_d=0.16

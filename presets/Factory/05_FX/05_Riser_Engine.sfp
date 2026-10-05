@@ -1,0 +1,21 @@
+subforce 1
+volume=3.5
+mix_o1=0.6
+mix_noise=0.6
+noise_color=0.15
+mix_fb=0.6
+f_cut=900
+f_res=0.483
+f_drive=0.4
+f_env=0
+ae_a=0.5
+ae_s=1
+ae_r=1.5
+m2_src=3
+m2_sync=1
+m2_div=1
+m2_trig=1
+m2_pitch=0.6
+m2_filter=0.85
+m2_dest=8
+m2_amt=0.3

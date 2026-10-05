@@ -2,9 +2,9 @@
 // The SubForce engine: one analog-style voice in the spirit of a classic American monosynth.
 //
 //   Osc 1 (+ square sub) ─┐
-//   Osc 2 (hard sync) ────┤ mixer ─► Multidrive ─► 4-pole ladder (6/12/18/24 dB) ─► drive ─► VCA ─┬─► out
-//   Noise ────────────────┤   ▲                                                                   │
-//                         └── feedback ◄──────────────────────────────────────────────────────────┘
+//   Osc 2 (hard sync) ────┤ mixer ─┬─► Multidrive ─► 4-pole ladder (6/12/18/24 dB) ─► drive ─► VCA ─► out
+//   Noise (white..pink..dark) ────┤ │
+//                         └── feedback ◄┘ (the mixer's own output back into it, as on the Sub 37)
 //
 // Mono, or Duo (paraphonic: each oscillator its own key, one filter and VCA). Two DAHDSR
 // envelopes (filter, amp), two mod busses (an LFO or the filter envelope to pitch, cutoff and
@@ -43,6 +43,13 @@ enum SubOctave : int { SO_ONE, SO_TWO };
 constexpr int kOctaveMin = -2;   // 32' .. 2' (8' = 0)
 constexpr int kOctaveMax = 2;
 constexpr float kResMax = 4.6f;  // ladder feedback at full resonance (self-oscillation from ~4)
+constexpr float kResEdge = 0.7f; // the knob where it reaches 4: "settings above 7 cause the filter
+                                 // to self-oscillate" (the Sub 37's manual)
+
+// Resonance knob 0..1 -> ladder feedback: 0..4 up to kResEdge, on to kResMax at full.
+inline float resFeedback(float k) {
+    return k < kResEdge ? 4.0f * k / kResEdge : 4.0f + (kResMax - 4.0f) * (k - kResEdge) / (1.0f - kResEdge);
+}
 
 struct OscPatch {
     int   octave = 0;      // kOctaveMin..kOctaveMax
@@ -75,7 +82,7 @@ struct Patch {
     float osc2Semis = 0.0f;   // Osc 2 frequency against osc 1, -7..+7 semitones
     bool  sync = false;       // Osc 2 hard-synced to osc 1
     int   subOctave = SO_ONE;
-    float noiseColor = 0.0f;  // 0 white .. 1 dark
+    float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the Sub 37's) .. 1 dark
     bool  kbReset = false;    // oscillators restart their cycle at each new note
     float drift = 0.25f;      // 0..1 analog pitch and cutoff drift
     // Mixer, 0..1 (audio taper). Several sources up high drive the filter, as on the hardware.
@@ -224,8 +231,9 @@ private:
     Env     fenv_, aenv_;
     EnvCoef fc_, ac_;
     uint32_t rng_ = 0x2545F491u, noiseRng_ = 0x9E3779B9u;
-    float   noiseLp_ = 0.0f;
-    float   fbIn_ = 0.0f, fbX1_ = 0.0f, fbY1_ = 0.0f;   // feedback: DC-blocked VCA output, one sample late
+    float   noiseLp_ = 0.0f, noiseHp_ = 0.0f, pink_[3] = {};   // noiseHp_: the 30 Hz high-pass's low part
+    float   fbIn_ = 0.0f, fbX1_ = 0.0f, fbY1_ = 0.0f;   // feedback: the mixer's output, overloaded,
+    float   fbLp_ = 0.0f;                                // band-limited and DC-blocked, a sample late
     float   dcX1_ = 0.0f, dcY1_ = 0.0f;                  // output DC blocker
     float   fPrev_ = 0.1f, aePrev_ = 0.0f;               // last base sample's cutoff coefficient and VCA
     bool    fPrevValid_ = false;                         // fPrev_ is from this note's sound (not before a silence)
@@ -246,7 +254,8 @@ private:
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff
     float noteDrift_[2] = {}; // per-note offsets, cents
-    float noiseK_ = 1.0f, noiseComp_ = 1.0f;
+    float noiseK_ = 1.0f, noisePink_ = 1.0f, noiseComp_ = 1.0f;   // colour: dark one-pole, pink mix, level
+    float driveBias_ = 0.0f;   // Multidrive's asymmetry (its tube-like even harmonics)
     double beats_ = 0.0, bpm_ = 120.0, beatsPerSample_ = 120.0 / 60.0 / 44100.0;
     bool  playing_ = false, beatsValid_ = false;
 };

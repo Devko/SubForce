@@ -1,0 +1,14 @@
+subforce 1
+volume=-2.2
+o1_wave=0.6667
+f_cut=1200
+f_res=0.563
+f_env=0
+f_kb=1
+ae_s=1
+ae_r=0.3
+m2_src=4
+m2_sync=1
+m2_div=12
+m2_filter=0.75
+m2_pitch=0.5

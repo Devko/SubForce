@@ -45,6 +45,20 @@ std::vector<float> play(const Patch& p, int note, size_t n, size_t skip = 11025,
 
 double noteHzD(double note) { return 440.0 * std::pow(2.0, (note - 69.0) / 12.0); }
 
+// The amplitude of the component at `hz` (a Hann-windowed correlation at 44.1 kHz).
+double toneAmp(const std::vector<float>& x, double hz) {
+    double re = 0.0, im = 0.0, wsum = 0.0;
+    const double n = static_cast<double>(x.size());
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double w = 0.5 - 0.5 * std::cos(2.0 * M_PI * static_cast<double>(i) / n);
+        const double ph = 2.0 * M_PI * hz * static_cast<double>(i) / 44100.0;
+        re += w * x[i] * std::cos(ph);
+        im += w * x[i] * std::sin(ph);
+        wsum += w;
+    }
+    return 2.0 * std::sqrt(re * re + im * im) / wsum;
+}
+
 void testMath() {
     std::printf("== fast math\n");
     double e2 = 0, et = 0, eh = 0, eh12 = 0;
@@ -241,9 +255,15 @@ void testLadder() {
         std::printf("  resonance 100%%, cutoff %5.0f Hz: oscillates at %.1f Hz (%+.0f ct), rms %.3f\n", hz, f, cents, rms(x));
         CHECK(std::fabs(cents) < 60.0 && rms(x) > 0.03 && rms(x) < 0.5);
     }
-    p.res = 0.8f;   // below the edge: no oscillation of its own
+    // The edge at 70% of the knob, as the Sub 37's "settings above 7 cause the filter to
+    // self-oscillate": under it, no oscillation of its own; over it, it sings.
     p.cutoffHz = 1000.0f;
-    CHECK(rms(play(p, 60, 22050, 44100)) < 0.001);
+    p.res = 0.65f;
+    const double under = rms(play(p, 60, 22050, 44100));
+    p.res = 0.76f;
+    const double over = rms(play(p, 60, 22050, 44100));
+    std::printf("  resonance 65%%: rms %.5f, 76%%: rms %.3f\n", under, over);
+    CHECK(under < 0.001 && over > 0.03);
     // Key track 100%: the oscillation follows the keyboard.
     p.res = 1.0f;
     p.keyTrack = 1.0f;
@@ -267,8 +287,9 @@ void testLadder() {
     s.cutoffHz = 3000.0f;
     s.res = 0.0f;
     const double clean = rms(play(s, 45, 16384));
-    s.res = 0.85f;
+    s.res = 0.65f;   // just under the edge
     const double thin = rms(play(s, 45, 16384));
+    std::printf("  bass loss at 65%% resonance: %.1f dB\n", 20 * std::log10(clean / thin));
     CHECK(20 * std::log10(clean / thin) > 8.0);
     // Multidrive: louder and denser, never more than a few dB.
     Patch d = plain();
@@ -279,6 +300,33 @@ void testLadder() {
     const double d1 = rms(play(d, 36, 16384));
     std::printf("  Multidrive 0 -> 100%%: %+.1f dB\n", 20 * std::log10(d1 / d0));
     CHECK(d1 > d0 && 20 * std::log10(d1 / d0) < 9.0);
+    // Multidrive's asymmetry, the Sub 37's "tube-like warmth": a triangle (odd harmonics only)
+    // picks up even ones at moderate drive, none clean.
+    auto evenDb = [](float drive) {
+        Patch t = plain();
+        t.osc[0].wave = 0.0f;
+        t.drive = drive;
+        const auto x = play(t, 45, 44100, 22050);   // A2, 110 Hz
+        return 20.0 * std::log10(toneAmp(x, 220.0) / toneAmp(x, 110.0));
+    };
+    const double e0 = evenDb(0.0f), e5 = evenDb(0.5f);
+    std::printf("  2nd harmonic: %.1f dB clean, %.1f dB at Multidrive 50%%\n", e0, e5);
+    CHECK(e0 < -60.0 && e5 > -45.0);
+    // Feedback, the mixer's output back into it: louder and grittier (more upper harmonics) as it
+    // comes up, bounded.
+    auto fb = [](float level, double* hf) {
+        Patch t = plain();
+        t.cutoffHz = 2000.0f;
+        t.mixFeedback = level;
+        const auto x = play(t, 36, 44100, 22050);
+        *hf = toneAmp(x, 65.41 * 9) / toneAmp(x, 65.41);   // the 9th harmonic against the fundamental
+        return rms(x);
+    };
+    double h0 = 0, h1 = 0;
+    const double f0 = fb(0.0f, &h0), f1 = fb(1.0f, &h1);
+    std::printf("  feedback 0 -> 100%%: %+.1f dB, 9th harmonic %+.1f dB against the fundamental\n",
+                20 * std::log10(f1 / f0), 20 * std::log10(h1 / h0));
+    CHECK(f1 > f0 && 20 * std::log10(f1 / f0) < 15.0 && 20 * std::log10(h1 / h0) > 3.0 && std::isfinite(f1));
 }
 
 void testEnvelopes() {
@@ -414,14 +462,15 @@ void testIdleAndStability() {
     hard.render(a.data(), junk.data(), 22050);
     soft.render(b.data(), junk.data(), 22050);
     CHECK(std::fabs(20.0 * std::log10(rms(a, 11025) / rms(b, 11025)) - 20.0 * std::log10(127.0 / 32.0)) < 0.5);
-    // Noise: about the same loudness at every colour.
+    // Noise: about the same loudness at every colour, white through pink to dark.
     double lo = 1e9, hi = 0.0;
-    for (float c : {0.0f, 0.25f, 0.5f, 1.0f}) {
+    for (float c : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         Patch n = plain();
         n.mixOsc1 = 0.0f;
         n.mixNoise = 0.8f;
         n.noiseColor = c;
         const double r = rms(play(n, 60, 22050));
+        std::printf("  noise colour %.2f: rms %.3f\n", c, r);
         lo = std::min(lo, r);
         hi = std::max(hi, r);
     }

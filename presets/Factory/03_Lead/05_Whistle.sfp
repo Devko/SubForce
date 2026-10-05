@@ -2,7 +2,7 @@ subforce 1
 volume=-2.7
 mix_o1=0
 mix_noise=0.15
-noise_color=0.3
+noise_color=0.5
 f_res=1
 f_kb=1
 f_cut=269.6

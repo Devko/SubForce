@@ -1,5 +1,5 @@
 subforce 1
-volume=-1.4
+volume=-1.0
 o2_sync=1
 mix_o1=0.35
 mix_o2=0.8
@@ -11,7 +11,7 @@ m1_ctl=0
 fe_d=0.25
 fe_s=0.1
 f_cut=700
-f_res=0.3
+f_res=0.241
 f_env=0.25
 f_drive=0.4
 ae_s=0.9

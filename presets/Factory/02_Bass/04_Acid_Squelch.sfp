@@ -1,8 +1,8 @@
 subforce 1
-volume=-0.9
+volume=-0.4
 f_slope=2
 f_cut=260
-f_res=0.82
+f_res=0.66
 f_drive=0.55
 f_env=0.55
 fe_d=0.2

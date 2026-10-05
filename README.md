@@ -16,12 +16,16 @@ DSP and presets are all SubForce's own.
 ## Highlights
 
 - **Two oscillators** with a continuously variable wave (triangle → saw → square → narrow pulse),
-  32' to 2', hard sync, a square **sub oscillator** (−1 or −2 octaves) and **noise**
-- **Mixer with feedback** — the output fed back into the mixer, for grit and howl — and the
-  classic habit of overdriving the filter when the levels are high
-- **4-pole transistor ladder filter**: 6, 12, 18 or 24 dB, resonance up to self-oscillation, the
-  ladder's bass loss, **Multidrive**, keyboard tracking up to 200%
-- **Two DAHDSR envelopes** (filter, amp) with velocity, keyboard tracking, loop and reset
+  32' to 2', hard sync, a square **sub oscillator** (−1 or −2 octaves) and **noise** (white, pink
+  or dark)
+- **Mixer with feedback** — the mixer's output back into it, as on the Sub 37: thicker, then
+  gritty, then the chaos of an overdriven loop — and the classic habit of overdriving the filter
+  when the levels are high
+- **4-pole transistor ladder filter**: 6, 12, 18 or 24 dB, resonance self-oscillating past 70% of
+  the knob, the ladder's bass loss, **Multidrive** (asymmetric, tube-like warmth to hard clipping),
+  keyboard tracking up to 200%
+- **Two DAHDSR envelopes** (filter, amp) with a linear attack, velocity, keyboard tracking, reset,
+  and a loop that runs through the release as the hardware's does
 - **Two mod busses**: triangle, square, saw, ramp, S&H, smooth random or the filter EG, free or
   locked to MPC's tempo, to pitch, cutoff and one more destination, scaled by the mod wheel,
   pressure or velocity
@@ -29,8 +33,11 @@ DSP and presets are all SubForce's own.
   **glide** (rate, time or exponential)
 - **Band-limited and oversampled**: polyBLEP oscillators and the whole voice at 2× (88.2 kHz) with a
   halfband decimator; worst aliasing −53 dB up to C7, hard sync −65 dB
-- **27 factory presets** in 5 categories, level-matched; user presets, Init and Randomize
-- **Light on the CPU**: one voice, about 0.5% of a block on x86 (device numbers to come)
+- **57 factory presets** in 7 categories, level-matched, many of them for
+  [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
+  big leads); user presets, Init and Randomize
+- **Light on the CPU**: one voice, about 2.8% of a block on the Force (3.6% with everything on),
+  with NEON where the work is parallel
 
 Effects are deliberately left out: use MPC's insert effects on the track.
 
@@ -89,7 +96,9 @@ make plugin-package  # dist/SubForce-<version>-mpc-armv7.zip
 | Stage | |
 |---|---|
 | Phase 0 — engine, plugin, pages, presets, tests, package | ✅ |
-| On the device: install, play every page, `make bench-device` | 🔜 |
+| Release build in CI (glibc 2.31, profile-guided, catalog-checked) | ✅ |
+| On the device: installs, loads and benches (`make bench-device`) | ✅ |
+| On the device: play every page | 🔜 |
 | v0.1 — first release, parameter list frozen | ⬜ |
 
 Details in the [roadmap](docs/ROADMAP.md).

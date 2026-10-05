@@ -1,10 +1,10 @@
 subforce 1
-volume=-1.4
+volume=-1.0
 mix_o1=0.75
 mix_o2=0.55
 o2_freq=7
 f_cut=300
-f_res=0.25
+f_res=0.201
 f_env=0.45
 fe_d=0.25
 fe_s=0.1

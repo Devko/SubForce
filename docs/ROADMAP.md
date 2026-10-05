@@ -12,16 +12,32 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 ## What's next
 
-- 🔜 **On the device:** install (`make plugin-install`), play every page, check the Q-Link sets and
-  the preset browser; `make bench-device`, and add the numbers to
-  [Performance](PERFORMANCE.md#measurements).
+- 🔜 **On the device:** play every page, check the Q-Link sets and the preset browser (installs,
+  loads and benches: [Performance](PERFORMANCE.md#measurements)).
 - 🔜 **Automation on the device:** whether MPC plays recorded automation of the stepped controls
   (octaves, slopes, modes) back through `setParameter`, and from which thread; the stepping logic
   treats events under 300 ms apart as one turn.
-- 🔜 **Listening pass** on real speakers: every factory preset, the filter's drive and resonance
-  range, the feedback's character, glide feel; tune voicing constants (`dsp/synth.cpp`: input gain,
-  drive span, feedback gain, output gain) and the presets from it.
+- 🔜 **Listening pass** on real speakers, against a Sub 37 if one is at hand: every factory
+  preset, the new feedback loop's range, Multidrive's asymmetry, the linear attack; tune voicing
+  constants (`dsp/synth.cpp`: input gain, drive span and bias, feedback gain and clip, output gain)
+  and the presets from it.
 - ⬜ **v0.1**, the first release: parameter list frozen (append-only from then on).
+
+## Phase 1
+
+✅ (2026-10-05)
+
+- ✅ Release build in CI: armhf in `arm32v7/gcc:11-bullseye` (glibc 2.31), profile-guided, the ARM
+  suite against the shipped objects, catalog-checked; releases from `vX.Y.Z` tags
+- ✅ Performance on the Force: NEON ladder (four stages in vector lanes, the loop as an affine
+  chain), no divisions in the oscillators, four-lane cutoff coefficients, cheaper control and idle:
+  Init 3.64% → 2.79% of the block, idle 0.38% → 0.17%
+- ✅ Fixes: buttons and the preset stepper on the Force (PolyForce's device-run rules), Multi
+  trigger on key releases, poly aftertouch, CC 121, flush-to-zero scope, per-instance random seeds,
+  device diagnostics (`/tmp/subforce.trace`)
+- ✅ Sub 37 behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
+  past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
+- ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 
 ## Phase 0
 

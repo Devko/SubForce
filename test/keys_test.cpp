@@ -83,7 +83,7 @@ void testPriority() {
         r.run(44100);
         r.s.noteOn(48, 100);
         r.run(1323);
-        CHECK(r.s.info().ampEnv > 0.6f);
+        CHECK(r.s.info().ampEnv > 0.5f);   // 30 ms into the linear 50 ms attack
         // Back to a key still held when the newer one lifts: the oscillators move, the envelopes
         // don't start again (Multi retriggers on key presses, as on the hardware).
         r.run(22050);

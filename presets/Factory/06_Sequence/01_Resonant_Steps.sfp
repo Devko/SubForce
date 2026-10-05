@@ -1,0 +1,22 @@
+subforce 1
+volume=2.9
+mix_o2=0.45
+o2_freq=0.07
+f_cut=450
+f_res=0.58
+f_drive=0.5
+f_env=0.35
+f_kb=0.7
+fe_a=0.001
+fe_d=0.18
+fe_s=0.05
+fe_vel=0.6
+ae_a=0.001
+ae_d=0.3
+ae_s=0.25
+ae_r=0.08
+ae_vel=0.3
+kb_reset=1
+m2_sync=1
+m2_div=2
+m2_filter=0.35

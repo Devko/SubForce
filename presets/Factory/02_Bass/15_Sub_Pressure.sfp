@@ -1,0 +1,16 @@
+subforce 1
+volume=-4.9
+o1_wave=0
+mix_sub=0.6
+f_cut=700
+f_kb=1
+f_drive=0.25
+f_env=0.15
+fe_d=0.08
+fe_s=0
+ae_d=0.6
+ae_s=0.9
+ae_r=0.07
+ae_vel=0.1
+kb_reset=1
+drift=0.1

@@ -140,7 +140,7 @@ void testBasics() {
     CHECK(namesOk && autoOk);
     CHECK(h.display(sf::P_F_CUT) == "2.00 kHz" && h.display(sf::P_F_SLOPE) == "24 dB");
     CHECK(h.display(sf::P_O1_WAVE) == "Saw" && h.display(sf::P_O1_OCT) == "8'");
-    CHECK(h.display(sf::P_O2_FREQ) == "0.00 st" && h.display(sf::P_NOISE_COLOR) == "White");
+    CHECK(h.display(sf::P_O2_FREQ) == "0.00 st" && h.display(sf::P_NOISE_COLOR) == "Pink");
     h.set(sf::P_O1_WAVE, 1.0f);
     CHECK(h.display(sf::P_O1_WAVE) == "Pulse 6%");
     h.set(sf::P_O1_WAVE, 0.5f);

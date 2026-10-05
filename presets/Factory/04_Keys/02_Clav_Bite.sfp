@@ -1,8 +1,8 @@
 subforce 1
-volume=4.3
+volume=4.6
 o1_wave=0.85
 f_cut=900
-f_res=0.25
+f_res=0.201
 f_env=0.45
 fe_d=0.1
 fe_s=0.05

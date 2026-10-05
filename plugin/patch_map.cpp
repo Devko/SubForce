@@ -141,9 +141,11 @@ std::string paramDisplay(int id, float n) {
             std::snprintf(b, sizeof b, "%+.2f oct", oct);
             break;
         }
-        case Fmt::Noise:
+        case Fmt::Noise:   // white .. pink (the Sub 37's) at the middle .. dark
             if (v < 0.005f) return "White";
-            std::snprintf(b, sizeof b, "Dark %.0f%%", v * 100.0f);
+            if (std::fabs(v - 0.5f) < 0.005f) return "Pink";
+            if (v < 0.5f) std::snprintf(b, sizeof b, "Pink %.0f%%", 200.0f * v);
+            else std::snprintf(b, sizeof b, "Dark %.0f%%", 200.0f * v - 100.0f);
             break;
         default: return {};
     }

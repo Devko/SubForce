@@ -68,19 +68,24 @@ flowchart LR
   O1[Osc 1] --> M[Mixer]
   S[Sub] --> M
   O2[Osc 2 · sync] --> M
-  N[Noise] --> M
+  N[Noise · white..pink..dark] --> M
+  M -->|feedback: overload, 150 Hz-7 kHz| M
   M -->|Multidrive gain| L[Ladder 6/12/18/24]
-  L --> D[Drive stage] --> V[VCA] --> DEC[2x decimator] --> OUT[Out L = R]
-  V -->|feedback, DC-blocked| M
+  L --> D[Drive stage · asymmetric] --> V[VCA] --> DEC[2x decimator] --> OUT[Out L = R]
 ```
+
+The feedback is the Sub 37's: the mixer's own output back into its feedback channel, one high-rate
+sample late, through that channel's overload (a cubic clipper), AC coupled at 150 Hz and
+band-limited at 7 kHz like an analog stage; its loop gain reaches unity at 85% of the knob.
 
 Everything from the oscillators to the VCA runs at **88.2 kHz** (2x), in one loop per sample:
 
 1. **Every 8 samples (control step)**: glide, both mod busses, drift; the targets of every control
    value (the oscillators' phase increments and waves, the cutoff, resonance, drive, mixer levels,
    VCA gain). Each glides linearly to its target over the next 8 samples, so nothing steps.
-2. **Every sample (44.1 kHz)**: both envelopes, the cutoff they move (`exp2` and `tan` per sample,
-   so a 1 ms filter EG snaps), the oscillator shapes.
+2. **Every sample (44.1 kHz)**: both envelopes and the cutoff they move (`exp2` and `tan` per
+   sample, so a 1 ms filter EG snaps), four at a time and ahead of the audio for each control run;
+   the oscillator shapes (once per run while the wave knobs hold still).
 3. **Twice per sample (88.2 kHz)**: oscillators, sub and noise, the mixer with the feedback, the
    ladder, the drive stage, the VCA. Cutoff and VCA move halfway on the first half-step.
 4. The halfband decimator folds the two samples into one; a 5 Hz DC blocker; the volume.
@@ -89,7 +94,8 @@ The oscillators run one high-rate sample late (11 µs): a discontinuity between 
 corrects both, so hard sync and the keyboard reset are exact to the sub-sample.
 
 When the amp EG has finished and the output has died away, the engine stops rendering (the
-oscillators keep their free-running phase, the filter EG its release); a new note wakes it.
+oscillators keep their free-running phase, the filter EG its release, the control grid keeps time:
+glides, busses, drift); a new note wakes it, every control value starting at its target.
 
 ## Threads and real-time rules
 

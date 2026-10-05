@@ -15,7 +15,14 @@ namespace {
 
 constexpr float kInGain = 0.5f;          // mixer -> ladder at Multidrive 0 (one oscillator at full: mild warmth)
 constexpr float kDriveSpan = 7.0f;       // Multidrive 1: 8x that
-constexpr float kFeedbackGain = 1.6f;    // the feedback level knob at full
+// The feedback loop (the mixer's output back into it), tuned on renders of a saw through it: from
+// a slight thickening (+1 dB at half the knob) and more drive into the filter, through grit, to the
+// chaos of a loop over unity gain in the last tenth (+5 dB, the upper harmonics +15 dB).
+constexpr float kFeedbackGain = 1.4f;    // the loop's gain at full: unity at 85% of the knob
+constexpr float kFeedbackClip = 0.7f;    // where the loop's own stage (the EXT IN level amp) saturates
+constexpr float kFeedbackHp = 150.0f;    // Hz: AC coupled: no bass builds up around the loop
+constexpr float kFeedbackLp = 7000.0f;   // Hz: the loop's bandwidth, an analog stage's
+constexpr float kDriveBias = 0.3f;       // Multidrive's asymmetry at its middle (tube-like); subtle low, none at the ends
 constexpr float kOutGain = 1.2f;         // engine output at 0 dB volume
 constexpr float kMaxCutoff = 0.40f;      // of the 2x rate (35 kHz): the ladder's coefficient stays sane
 constexpr float kMinCutoff = 8.0f;       // Hz
@@ -29,6 +36,19 @@ inline float taper(float k) {
 }
 
 inline float noteOf(float hz) { return 69.0f + 12.0f * std::log2(std::max(hz, 1.0f) / 440.0f); }
+
+// Pink noise at the 2x rate: Paul Kellet's "economy" filter (three one-poles and a direct term,
+// within about 1 dB of -3 dB/oct from 10 Hz up), its corners moved to 88.2 kHz.
+constexpr float kPinkPole[3] = {0.998824309f, 0.981325634f, 0.754983444f};
+constexpr float kPinkGain[3] = {0.049552129f, 0.149655561f, 0.599829761f};
+constexpr float kPinkDirect = 0.1848f;
+constexpr float kNoiseHp = 0.002134856f;   // a one-pole high-pass at 30 Hz: no infrasonic rumble
+// The noise level that keeps every colour as loud as white was (RMS through the wide-open ladder,
+// the decimator and the output's DC blocker), colour 0..1 in 16 steps: white, toward pink at 0.5,
+// then darker. From the filters' responses.
+constexpr float kNoiseComp[17] = {2.000000f, 1.728349f, 1.428936f, 1.182656f, 0.994840f, 0.852474f, 0.742894f,
+                                  0.656807f, 0.587788f, 0.599895f, 0.621496f, 0.652295f, 0.691527f, 0.739680f,
+                                  0.800082f, 0.879364f, 0.987116f};
 
 } // namespace
 
@@ -63,10 +83,14 @@ void Synth::setPatch(const Patch& p) {
     }
     fc_ = envCoef(p.fenv, sr_, kbScale(p.fenv.kb));
     ac_ = envCoef(p.aenv, sr_, kbScale(p.aenv.kb));
-    noiseK_ = exp2Fast(-6.0f * clampf(p.noiseColor, 0.0f, 1.0f));   // white .. a ~220 Hz one-pole
-    // The same loudness at every colour: the one-pole's power (k / (2 - k) of white's), and the
-    // part of a bright noise above 22 kHz that the decimator takes away (up to half of white's).
-    noiseComp_ = std::sqrt((2.0f - noiseK_) / noiseK_) * (1.0f + noiseK_);
+    // Noise colour: white crossfading to pink up to 0.5, then pink through a one-pole down to ~220
+    // Hz; the same RMS at every colour (kNoiseComp).
+    const float nc = clampf(p.noiseColor, 0.0f, 1.0f);
+    noisePink_ = std::min(1.0f, 2.0f * nc);
+    noiseK_ = nc > 0.5f ? exp2Fast(-6.0f * (2.0f * nc - 1.0f)) : 1.0f;
+    const float at = nc * 16.0f;
+    const int i0 = std::min(static_cast<int>(at), 15);
+    noiseComp_ = kNoiseComp[i0] + (kNoiseComp[i0 + 1] - kNoiseComp[i0]) * (at - static_cast<float>(i0));
 }
 
 float Synth::kbScale(float kb) const { return exp2Fast(-clampf(kb, 0.0f, 1.0f) * static_cast<float>(note1_ - 60) / 12.0f); }
@@ -398,6 +422,8 @@ void Synth::control() {
         glide_[1].pitch + 12.0f * static_cast<float>(p.osc[1].octave) + p.osc2Semis + bend + pitchMod[1] + 0.01f * driftCents[1]};
     const float drive = clampf(p.drive + driveMod, 0.0f, 1.0f);
     const float driveGain = 1.0f + kDriveSpan * drive * drive;
+    const float sd = sinCycle(0.5f * drive);   // sin(pi drive)
+    driveBias_ = kDriveBias * sd * sd;          // no ramp: it only shapes the clipper
     const float aVel = 1.0f - p.aenv.vel + p.aenv.vel * vel_;
 
     const float target[] = {
@@ -407,7 +433,7 @@ void Synth::control() {
         clampf(p.osc[1].wave + waveMod[1], 0.0f, 1.0f),
         cutNote_ + p.keyTrack * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
         envSemis(p.envAmount) * fVel_,
-        kResMax * clampf(p.res + resMod, 0.0f, 1.0f),
+        resFeedback(clampf(p.res + resMod, 0.0f, 1.0f)),
         kInGain * driveGain,
         0.5f + drive,                  // Multidrive's second stage: into the clipper...
         2.0f / (1.0f + 2.0f * drive),  // ...and out of it
@@ -453,9 +479,9 @@ void Synth::goSilent() {
     idleSteps_ = 0;
     ladder_.reset();
     dec_.reset();
-    fbIn_ = fbX1_ = fbY1_ = 0.0f;
+    fbIn_ = fbX1_ = fbY1_ = fbLp_ = 0.0f;
     dcX1_ = dcY1_ = 0.0f;
-    noiseLp_ = 0.0f;
+    noiseLp_ = noiseHp_ = pink_[0] = pink_[1] = pink_[2] = 0.0f;
     aePrev_ = 0.0f;
 }
 
@@ -532,8 +558,16 @@ void Synth::renderRun(float* out, int n) {
     const int tap = tap_, tapFrom = tapFrom_;
     const int subOct = patch_.subOctave == SO_TWO ? 2 : 1;
     const bool sync = patch_.sync;
-    const float nk = noiseK_, nc = noiseComp_;
-    const float fbR = 1.0f - 2.0f * kPi * 15.0f * invOsr_;     // feedback DC blocker, 15 Hz
+    const float nk = noiseK_, np = noisePink_, nc = noiseComp_;
+    const float fbR = 1.0f - 2.0f * kPi * kFeedbackHp * invOsr_;   // the feedback loop's AC coupling
+    const float fbK = 1.0f - std::exp(-2.0f * kPi * kFeedbackLp * invOsr_);   // the loop's bandwidth
+    // Multidrive's second stage: softclip(g x + b) - softclip(b), tube-like (even harmonics) at
+    // moderate drive, toward symmetric hard clipping at full.
+    const float bias = driveBias_, biasOut = softclip(bias);
+    // Noise and feedback only cost when they are up (their level ramps sit at exactly 0 otherwise).
+    const bool noiseOn = lvl_[3].v != 0.0f || lvl_[3].d != 0.0f;
+    const bool fbOn = lvl_[4].v != 0.0f || lvl_[4].d != 0.0f;
+    if (!fbOn) fbIn_ = fbLp_ = fbX1_ = fbY1_ = 0.0f;   // off: it starts clean when it comes up
     const float dcR = 1.0f - 2.0f * kPi * 5.0f * invSr_;       // output DC blocker, 5 Hz
     // A still wave knob (no sweep, no bus on it): its shape once, not every sample.
     const bool morph1 = wave_[0].d != 0.0f, morph2 = wave_[1].d != 0.0f;
@@ -569,17 +603,36 @@ void Synth::renderRun(float* out, int n) {
                 vs = sub_.tick(w1, x1, subOct);
             }
             const float white = randBipolar(noiseRng_);
-            noiseLp_ += (white - noiseLp_) * nk;
-            const float mix = l0 * v1 + l1 * vs + l2 * v2 + l3 * noiseLp_ + l4 * fbIn_;
+            float mix = l0 * v1 + l1 * vs + l2 * v2;
+            if (noiseOn) {
+                pink_[0] = kPinkPole[0] * pink_[0] + kPinkGain[0] * white;
+                pink_[1] = kPinkPole[1] * pink_[1] + kPinkGain[1] * white;
+                pink_[2] = kPinkPole[2] * pink_[2] + kPinkGain[2] * white;
+                const float pink = pink_[0] + pink_[1] + pink_[2] + kPinkDirect * white;
+                const float src = white + (pink - white) * np;
+                noiseHp_ += (src - noiseHp_) * kNoiseHp;
+                noiseLp_ += (src - noiseHp_ - noiseLp_) * nk;
+                mix += l3 * noiseLp_;
+            }
+            // The mixer, its feedback channel taking the mixer's own output back in (one sample
+            // late): through that channel's overload (a cubic: no division in the loop), AC
+            // coupled and band-limited, as the Sub 37's FEEDBACK knob does with nothing in EXT IN.
+            // Over unity loop gain it saturates: grit, then the howl of an overdriven loop.
+            if (fbOn) {
+                mix += l4 * fbIn_;
+                // c - c^3 / 3: slope 1 at 0, flat at +-1, where it reads 2/3 of the scale: kFeedbackClip.
+                const float c = clampf(mix * (1.0f / (1.5f * kFeedbackClip)), -1.0f, 1.0f);
+                fbLp_ += (1.5f * kFeedbackClip * c * (1.0f - (1.0f / 3.0f) * c * c) - fbLp_) * fbK;
+                fbY1_ = fbLp_ - fbX1_ + fbR * fbY1_;
+                fbX1_ = fbLp_;
+                fbIn_ = fbY1_;
+            }
             float y[4];
             // The circuit's own noise floor (-80 dB): what starts a self-oscillating filter with
             // every source down, as on the hardware.
             ladder_.tick(mix * gain + kThermal * white, fk, r, y);
             const float yt = fade ? y[tap] + (y[tapFrom] - y[tap]) * xf : y[tap];
-            const float v = softclip(yt * postIn) * postOut * amp;   // Multidrive's second stage, VCA
-            fbY1_ = v - fbX1_ + fbR * fbY1_;   // the feedback path: DC blocked, back into the mixer next sample
-            fbX1_ = v;
-            fbIn_ = fbY1_;
+            const float v = (softclip(yt * postIn + bias) - biasOut) * postOut * amp;   // Multidrive's second stage, VCA
             hi[k] = v;
         }
         const float lo = dec_.process(hi[0], hi[1]);

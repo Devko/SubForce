@@ -1,8 +1,8 @@
 subforce 1
-volume=-5.8
-mix_fb=0.6
+volume=-9.5
+mix_fb=0.95
 f_drive=0.8
-f_res=0.6
+f_res=0.58
 f_cut=1200
 f_env=0.3
 fe_d=0.5

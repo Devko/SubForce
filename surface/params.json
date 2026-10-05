@@ -145,7 +145,7 @@
    "name": "Noise Colour",
    "min": 0,
    "max": 1,
-   "default": 0.0,
+   "default": 0.5,
    "display": "string"
   },
   {

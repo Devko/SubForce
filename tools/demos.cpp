@@ -9,8 +9,9 @@
 //                                  R128: K-weighting, 400 ms blocks, -70 LUFS and -10 LU gates)
 //
 // Phrases by category: Bass and Templates, a 16th-note line with legato steps (glide and Single
-// trigger show); Lead, a legato melody with the mod wheel up on the long notes; Keys, an 8th-note
-// arpeggio; anything else (FX), held notes. 120 BPM. The files are stereo, L = R, as the plugin
+// trigger show); Sequence, a melodic techno 16th-note sequence with accents and slides; Lead, a
+// legato melody with the mod wheel up on the long notes; Keys, an 8th-note arpeggio; Pad, held
+// two-note chords (Duo takes both keys); anything else (FX), held notes. 120 BPM. The files are stereo, L = R, as the plugin
 // plays: the loudness is that of the stereo pair.
 #include "../plugin/vst2.h"
 #include "factory_presets.h"
@@ -63,6 +64,22 @@ std::vector<Ev> phrase(const std::string& category, double& beats) {
             for (int k = 0; k < 16; ++k)
                 note(ev, line[k] - (bar ? 2 : 0), bar * 4.0 + k * 0.25, len[k], k % 4 == 0 ? 120 : 85);
         beats = 8.5;
+    } else if (category == "Sequence") {
+        // A minor, then G: two bars of 16ths, accents on the beats, two slides a bar (len > 0.25).
+        static const int seq[] = {45, 57, 52, 57, 48, 57, 52, 55, 45, 57, 52, 60, 48, 57, 55, 52};
+        static const double len[] = {0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.3, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.3, 0.2};
+        for (int bar = 0; bar < 2; ++bar)
+            for (int k = 0; k < 16; ++k)
+                note(ev, seq[k] - (bar ? 2 : 0), bar * 4.0 + k * 0.25, len[k], k % 4 == 0 ? 120 : 80 + (k % 2) * 15);
+        beats = 8.5;
+    } else if (category == "Pad") {
+        note(ev, 48, 0.0, 3.8, 100);
+        note(ev, 55, 0.0, 3.8, 100);
+        note(ev, 53, 4.0, 3.8, 100);
+        note(ev, 60, 4.0, 3.8, 100);
+        ev.push_back({4.0, 0xB0, 1, 90});
+        ev.push_back({7.8, 0xB0, 1, 0});
+        beats = 10.0;
     } else if (category == "Lead") {
         static const int mel[] = {60, 63, 67, 70, 72, 70, 67, 75};
         static const double at[] = {0, 1, 1.5, 2, 3, 5, 5.5, 6};
