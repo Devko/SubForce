@@ -65,6 +65,34 @@ void testMath() {
     std::printf("  exp2Fast %.1e, tanFast %.1e, tanhXdX %.1e to 5, %.2f to 12\n", e2, et, eh, eh12);
     CHECK(e2 < 2e-7 && et < 5e-7 && eh < 0.01 && eh12 < 0.2);
     CHECK(sf::softclip(10.0f) == 1.0f && sf::softclip(-10.0f) == -1.0f && std::fabs(sf::softclip(0.1f) - std::tanh(0.1f)) < 1e-4);
+    // log2Fast over many octaves; the reciprocals (NEON's estimate + Newton-Raphson on the device).
+    double el = 0, er1 = 0, er2 = 0;
+    for (int i = 0; i <= 4000; ++i) {
+        const float x = std::pow(2.0f, -10.0f + static_cast<float>(i) * 0.005f);
+        el = std::max(el, std::fabs(sf::log2Fast(x) - std::log2(static_cast<double>(x))));
+        er2 = std::max(er2, std::fabs(static_cast<double>(sf::recip1<2>(x)) * x - 1.0));
+        er1 = std::max(er1, std::fabs(static_cast<double>(sf::recip4<1>(sf::splat(x))[2]) * x - 1.0));
+    }
+    std::printf("  log2Fast %.1e, reciprocal %.1e (two steps), %.1e (one)\n", el, er2, er1);
+    CHECK(el < 3e-6 && er2 < 1e-6 && er1 < 5e-5);
+    // The four-lane versions against the scalar ones (the same polynomials).
+    double d2 = 0, dt = 0, dh = 0;
+    for (int i = 0; i < 1000; i += 4) {
+        float x[4], w[4], h[4];
+        for (int k = 0; k < 4; ++k) {
+            x[k] = -20.0f + 0.04f * static_cast<float>(i + k);
+            w[k] = 1.5f * static_cast<float>(i + k) / 1000.0f;
+            h[k] = -12.0f + 0.024f * static_cast<float>(i + k);
+        }
+        const sf::f4 e = sf::exp2Fast4(sf::load4(x)), t = sf::tanFast4(sf::load4(w)), th = sf::tanhXdX4(sf::load4(h));
+        for (int k = 0; k < 4; ++k) {
+            d2 = std::max(d2, static_cast<double>(std::fabs(e[k] / sf::exp2Fast(x[k]) - 1.0f)));
+            if (w[k] > 0.0f) dt = std::max(dt, static_cast<double>(std::fabs(t[k] / sf::tanFast(w[k]) - 1.0f)));
+            dh = std::max(dh, static_cast<double>(std::fabs(th[k] / sf::tanhXdX(h[k]) - 1.0f)));
+        }
+    }
+    std::printf("  four lanes against one: exp2 %.1e, tan %.1e, tanh(x)/x %.1e\n", d2, dt, dh);
+    CHECK(d2 < 1e-6 && dt < 1e-6 && dh < 5e-5);
 }
 
 void testDecimator() {

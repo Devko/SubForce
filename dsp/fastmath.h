@@ -1,6 +1,9 @@
 #pragma once
 // Small, branch-light math for the audio thread: libm's exp2f / tanf cost ~10x as much and the
 // engine calls these per sample. Error bounds are checked in test/engine_test.cpp.
+#include "simd.h"
+
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 
@@ -26,6 +29,25 @@ inline float exp2Fast(float x) {
     float scale;
     std::memcpy(&scale, &bits, sizeof scale);
     return p * scale;
+}
+
+// log2(x) for normal x > 0: the exponent by bits, a degree-6 polynomial on the mantissa (error
+// < 2.3e-6, continuous from one octave to the next).
+inline float log2Fast(float x) {
+    uint32_t bits;
+    std::memcpy(&bits, &x, sizeof bits);
+    const float e = static_cast<float>(static_cast<int>(bits >> 23) - 127);
+    bits = (bits & 0x007FFFFFu) | 0x3F800000u;
+    float m;
+    std::memcpy(&m, &bits, sizeof m);
+    const float u = m - 1.0f;
+    float p = -2.584141108e-2f;
+    p = p * u + 1.217977931e-1f;
+    p = p * u - 2.779052116e-1f;
+    p = p * u + 4.575491284e-1f;
+    p = p * u - 7.181452413e-1f;
+    p = p * u + 1.442544942e+0f;
+    return e + u * p;
 }
 
 // tan(w) for 0 <= w < pi/2 (filter coefficients): an odd polynomial on [0, pi/4], and
@@ -58,10 +80,24 @@ inline float sinCycle(float x) {
     return sinQuarter(6.283185307f * y);
 }
 
+// floor() without the library call (ARMv7 has no rounding instruction): through an int32, the
+// library only for |x| >= 2^31 or NaN (a host's wild song position).
+inline double floorFast(double x) {
+    if (!(x > -2147483648.0 && x < 2147483648.0)) return std::floor(x);
+    const double t = static_cast<double>(static_cast<int32_t>(x));
+    return t > x ? t - 1.0 : t;
+}
+inline float floorFast(float x) {
+    if (!(x > -2147483648.0f && x < 2147483648.0f)) return std::floor(x);
+    const float t = static_cast<float>(static_cast<int32_t>(x));
+    return t > x ? t - 1.0f : t;
+}
+
 // MIDI note (semitones, fractional) <-> Hz.
 inline float noteHz(float note) { return 440.0f * exp2Fast((note - 69.0f) * (1.0f / 12.0f)); }
 
 // tanh-like saturator, exactly +-1 from |x| = 3 on (a Pade fit: 1st and 3rd order match tanh).
+// A division: in a serial chain VFP's divider is quicker than a reciprocal through NEON.
 inline float softclip(float x) {
     x = clampf(x, -3.0f, 3.0f);
     return x * (27.0f + x * x) / (27.0f + 9.0f * x * x);

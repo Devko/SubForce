@@ -19,6 +19,7 @@ struct Shape {
     float tri = 0.0f, saw = 1.0f, pul = 0.0f;
     float pw = 0.5f;    // pulse width
     float dc = 0.0f;    // pul * (2 pw - 1): the pulse's mean, removed
+    bool  hasTri = false, hasPul = false;   // tri / pul != 0, worked out once (a float compare costs ~10 cycles)
 };
 
 constexpr float kMinPulse = 0.06f;
@@ -40,6 +41,8 @@ inline Shape shapeOf(float m) {
         s.pw = 0.5f - (m - 2.0f) * (0.5f - kMinPulse);
     }
     s.dc = s.pul * (2.0f * s.pw - 1.0f);
+    s.hasTri = s.tri != 0.0f;
+    s.hasPul = s.pul != 0.0f;
     return s;
 }
 
@@ -71,39 +74,40 @@ struct Blep {
     }
 };
 
-// Moves phase t forward by d (d <= dt, the phase per sample) on a stretch that ends `end`
-// samples before sample n, while the pulse width moves from pw0 to pw1 across it, correcting
-// every discontinuity on the way: the wrap, the triangle's corner at 0.5, and the pulse edge
-// wherever phase and width cross -- the phase passing the width (falling), or the width
-// sweeping past the phase (a modulated width: either way). Returns true if it wrapped; *wrapX
-// is then the wrap's distance to sample n.
-inline bool advance(float& t, float d, float dt, float pw0, float pw1, float end, const Shape& s, Blep& b,
-                    float* wrapX) {
-    const float len = d / dt;   // the stretch, in samples
+// Moves phase t forward over a stretch of `len` samples (0..1) that ends `end` samples before
+// sample n, while the pulse width moves from pw0 to pw1 across it, correcting every
+// discontinuity on the way: the wrap, the triangle's corner at 0.5, and the pulse edge wherever
+// phase and width cross -- the phase passing the width (falling), or the width sweeping past the
+// phase (a modulated width: either way). Returns true if it wrapped; *wrapX is then the wrap's
+// distance to sample n. No division on the way: the two it needs, only at a wrap or an edge, are
+// reciprocals (dsp/simd.h).
+SF_INLINE bool advance(float& t, float len, float dt, float pw0, float pw1, float end, const Shape& s, Blep& b,
+                       float* wrapX) {
+    const float d = len * dt;   // the phase it moves
     // Something at position u (0..1) along the stretch: its distance to sample n.
     auto xAt = [&](float u) { return clampf(end + (1.0f - u) * len, 0.0f, 1.0f); };
     const float t0 = t, t1 = t + d;
     const bool wraps = t1 >= 1.0f;
-    const float uw = wraps ? (1.0f - t0) / d : 1.0f;   // where it wraps (d > 0 if it does)
-    if (s.pul != 0.0f) {
+    const float uw = wraps ? (1.0f - t0) * recip1<2>(d) : 1.0f;   // where it wraps (d > 0 if it does)
+    if (s.hasPul) {
         // g = phase - width, linear on each side of the wrap: the edge is where it changes sign.
         auto edge = [&](float g0, float g1, float u0, float u1) {
             if ((g0 < 0.0f) == (g1 < 0.0f)) return;
-            const float u = u0 + (u1 - u0) * g0 / (g0 - g1);
+            const float u = u0 + (u1 - u0) * g0 * recip1<2>(g0 - g1);   // g0 - g1 != 0: the signs differ
             b.step(g0 < 0.0f ? -2.0f * s.pul : 2.0f * s.pul, xAt(u));
         };
         const float pwW = pw0 + (pw1 - pw0) * uw;
         edge(t0 - pw0, (wraps ? 1.0f : t1) - pwW, 0.0f, uw);
         if (wraps) edge(-pwW, t1 - 1.0f - pw1, uw, 1.0f);
     }
-    if (s.tri != 0.0f) {
+    if (s.hasTri) {
         if (t0 < 0.5f && t1 >= 0.5f) b.corner(-8.0f * s.tri * dt, xAt((0.5f - t0) / d));
         if (t1 >= 1.5f) b.corner(-8.0f * s.tri * dt, xAt((1.5f - t0) / d));
     }
     if (wraps) {
         const float x = xAt(uw);
         b.step(2.0f * (s.pul - s.saw), x);   // saw falls by 2, the pulse rises back above its width
-        if (s.tri != 0.0f) b.corner(8.0f * s.tri * dt, x);
+        if (s.hasTri) b.corner(8.0f * s.tri * dt, x);
         if (wrapX) *wrapX = x;
     }
     t = wraps ? t1 - 1.0f : t1;
@@ -119,7 +123,7 @@ struct Osc {
     // Free running. wrapX: where it wrapped (for sync and the sub), if it did.
     float tick(float dt, const Shape& s, bool& wrapped, float& wrapX) {
         b.cur = 0.0f;
-        wrapped = advance(t, dt, dt, pw, s.pw, 0.0f, s, b, &wrapX);
+        wrapped = advance(t, 1.0f, dt, pw, s.pw, 0.0f, s, b, &wrapX);
         pw = s.pw;
         const float out = b.pending;
         b.pending = waveValue(s, t) + b.cur;
@@ -133,11 +137,11 @@ struct Osc {
         Shape at = s;   // the shape at the reset, its width where the sweep has got to
         at.pw = pw + (s.pw - pw) * (1.0f - x);
         at.dc = at.pul * (2.0f * at.pw - 1.0f);
-        advance(t, (1.0f - x) * dt, dt, pw, at.pw, x, s, b, nullptr);   // up to the reset
+        advance(t, 1.0f - x, dt, pw, at.pw, x, s, b, nullptr);   // up to the reset
         b.step(waveValue(at, 0.0f) - waveValue(at, t), x);
         b.corner((waveSlope(at, 0.0f) - waveSlope(at, t)) * dt, x);
         t = 0.0f;
-        advance(t, x * dt, dt, at.pw, s.pw, 0.0f, s, b, nullptr);   // and on from 0
+        advance(t, x, dt, at.pw, s.pw, 0.0f, s, b, nullptr);   // and on from 0
         pw = s.pw;
         const float out = b.pending;
         b.pending = waveValue(s, t) + b.cur;

@@ -19,6 +19,17 @@ enum ModControl : int { MC_ALWAYS, MC_MODWHEEL, MC_AFTERTOUCH, MC_VELOCITY, MC_C
 constexpr int kNumSyncDivs = 17;
 constexpr double kSyncBeats[kNumSyncDivs] = {32.0, 16.0, 8.0, 4.0, 2.0, 4.0 / 3.0, 1.0, 2.0 / 3.0, 1.5,
                                              0.5, 1.0 / 3.0, 0.75, 0.25, 1.0 / 6.0, 0.375, 0.125, 1.0 / 12.0};
+// The same as cycles per beat: the audio thread multiplies (a double division costs ~30 cycles).
+constexpr double kSyncPerBeat[kNumSyncDivs] = {1.0 / 32.0, 1.0 / 16.0, 0.125, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0 / 3.0,
+                                               2.0, 3.0, 4.0 / 3.0, 4.0, 6.0, 8.0 / 3.0, 8.0, 12.0};
+constexpr bool syncTablesAgree() {
+    for (int i = 0; i < kNumSyncDivs; ++i) {
+        const double p = kSyncBeats[i] * kSyncPerBeat[i];
+        if (p < 1.0 - 1e-12 || p > 1.0 + 1e-12) return false;
+    }
+    return true;
+}
+static_assert(syncTablesAgree(), "kSyncPerBeat is 1 / kSyncBeats");
 
 // Amount curves (amount a in -1..1 -> a * |a| * range: fine near 0, wide at the ends).
 constexpr float kModPitchRange = 24.0f;    // semitones

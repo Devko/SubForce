@@ -22,6 +22,8 @@
 #include "mod.h"
 #include "osc.h"
 
+#include <array>
+#include <cmath>
 #include <cstdint>
 
 namespace sf {
@@ -136,17 +138,27 @@ public:
 
 private:
     struct Ramp {   // a control value gliding across a control step
-        float v = 0.0f, d = 0.0f;
-        void to(float target, float invN) { d = (target - v) * invN; }
-        void snap(float target) { v = target; d = 0.0f; }
+        float v = 0.0f, d = 0.0f, t = 0.0f;   // t: where it is going
+        void to(float target, float invN) {
+            // Arrived (the same target again, only float rounding apart): exactly there, still --
+            // a still wave shape is worked out once per run instead of every sample.
+            if (target == t && std::fabs(target - v) <= 1e-6f * std::fabs(target)) {
+                v = target;
+                d = 0.0f;
+            } else {
+                d = (target - v) * invN;
+            }
+            t = target;
+        }
+        void snap(float target) { v = t = target; d = 0.0f; }
         float next() { return v += d; }
-        void skip(int n) { v += d * static_cast<float>(n); }
+        void arrive() { snap(t); }
     };
     struct Glide {
         float pitch = 60.0f, from = 60.0f, target = 60.0f;
         int   len = 0, left = 0;   // linear glides, in samples; left 0 = arrived
         bool  exp = false;
-        float k = 1.0f;            // Exp: one-pole step per sample
+        float lk = 0.0f;           // Exp: log2 of what is left of the distance after one sample
     };
     struct Bus {
         float phase = 0.0f;
@@ -176,8 +188,15 @@ private:
     void goSilent();
     float driftStep(Drift& d, int n);
     float kbScale(float kb) const;
+    // Every control value, in the order control() works out their targets.
+    std::array<Ramp*, 17> ramps() {
+        return {&dt_[0], &dt_[1], &wave_[0], &wave_[1], &cut_, &egAmt_, &res_, &inGain_, &postIn_, &postOut_,
+                &lvl_[0], &lvl_[1], &lvl_[2], &lvl_[3], &lvl_[4], &vca_, &vol_};
+    }
 
-    float sr_, osr_, invOsr_;
+    float sr_, osr_, invOsr_, invSr_;
+    float driftK_;            // a drift's one-pole step per sample (0.6 s)
+    float cutNote_ = 0.0f;    // the cutoff knob, as a note
     Patch patch_;
     bool  havePatch_ = false;
 
@@ -218,14 +237,14 @@ private:
     int   sinceCtl_ = 0;      // samples since the last one
     bool  snap_ = false;      // pitch jumps: no glide from the old values
     bool  snapAll_ = true;    // the first step: every value starts at its target
-    Ramp  dt_[2], wave_[2], cut_, egAmt_, res_, inGain_, post_, lvl_[5], vca_, vol_;
+    Ramp  dt_[2], wave_[2], cut_, egAmt_, res_, inGain_, postIn_, postOut_, lvl_[5], vca_, vol_;
     Bus   bus_[2];
     float busOut_[2] = {};    // the busses' sources at the last control-rate time
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff
     float noteDrift_[2] = {}; // per-note offsets, cents
     float noiseK_ = 1.0f, noiseComp_ = 1.0f;
-    double beats_ = 0.0, bpm_ = 120.0;
+    double beats_ = 0.0, bpm_ = 120.0, beatsPerSample_ = 120.0 / 60.0 / 44100.0;
     bool  playing_ = false, beatsValid_ = false;
 };
 

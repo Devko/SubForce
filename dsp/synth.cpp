@@ -33,7 +33,9 @@ inline float noteOf(float hz) { return 69.0f + 12.0f * std::log2(std::max(hz, 1.
 } // namespace
 
 Synth::Synth(float sampleRate)
-    : sr_(sampleRate), osr_(sampleRate * kOversample), invOsr_(1.0f / (sampleRate * kOversample)) {
+    : sr_(sampleRate), osr_(sampleRate * kOversample), invOsr_(1.0f / (sampleRate * kOversample)),
+      invSr_(1.0f / sampleRate), driftK_(1.0f / (0.6f * sampleRate)) {
+    setTransport(120.0, 0.0, false, false);
     setPatch(Patch{});
 }
 
@@ -41,6 +43,7 @@ void Synth::setPatch(const Patch& p) {
     const bool repick = havePatch_ && (p.keyMode != patch_.keyMode || p.priority != patch_.priority);
     patch_ = p;
     havePatch_ = true;
+    cutNote_ = noteOf(p.cutoffHz);
     // A bus whose rate the other one modulates runs free even when synced (a locked phase can't
     // speed up and slow down).
     for (int b = 0; b < 2; ++b)
@@ -169,8 +172,9 @@ void Synth::trigger(int vel) {
         }
     if (patch_.kbReset) resetPending_ = true;
     for (float& d : noteDrift_) d = randBipolar(rng_) * patch_.drift * 3.0f;   // cents
-    if (silent_) {
+    if (silent_) {   // waking: nothing to glide from, every value starts where it belongs
         silent_ = false;
+        snapAll_ = true;
         aePrev_ = 0.0f;
         fPrevValid_ = false;
     }
@@ -186,9 +190,9 @@ void Synth::glideTo(Glide& g, float target, bool glide) {
         snap_ = true;
         return;
     }
-    if (patch_.glideType == GT_EXP) {   // RC: 99% of the way at glideTime
+    if (patch_.glideType == GT_EXP) {   // RC: 99% of the way at glideTime (e^-4.6)
         g.exp = true;
-        g.k = 1.0f - std::exp(-4.6f / (patch_.glideTime * sr_));
+        g.lk = -4.6f / (patch_.glideTime * sr_ * 0.693147181f);
         g.left = 1;
         return;
     }
@@ -202,7 +206,7 @@ void Synth::glideTo(Glide& g, float target, bool glide) {
 void Synth::stepGlide(Glide& g, int n) const {
     if (g.left <= 0) return;
     if (g.exp) {
-        g.pitch += (g.target - g.pitch) * (1.0f - std::pow(1.0f - g.k, static_cast<float>(n)));
+        g.pitch += (g.target - g.pitch) * (1.0f - exp2Fast(g.lk * static_cast<float>(n)));
         if (std::fabs(g.target - g.pitch) < 1e-3f) {
             g.pitch = g.target;
             g.left = 0;
@@ -254,6 +258,7 @@ void Synth::aftertouch(float amount) { pressure_ = clampf(amount, 0.0f, 1.0f); }
 
 void Synth::setTransport(double bpm, double beats, bool playing, bool beatsValid) {
     bpm_ = bpm > 1.0 ? bpm : 120.0;
+    beatsPerSample_ = bpm_ / 60.0 / static_cast<double>(sr_);
     playing_ = playing;
     beatsValid_ = beatsValid;
     if (playing && beatsValid) beats_ = beats;   // stopped: keep counting on our own
@@ -272,22 +277,22 @@ Synth::Info Synth::info() const {
 
 // One bus's source over n samples: its value at the end of them (-1..1; the filter envelope 0..1).
 float Synth::busValue(Bus& b, const ModPatch& m, int n) {
-    const double div = kSyncBeats[std::clamp(m.div, 0, kNumSyncDivs - 1)];
+    const double perBeat = kSyncPerBeat[std::clamp(m.div, 0, kNumSyncDivs - 1)];   // cycles
     auto newCycle = [&] {
         b.held = randBipolar(rng_);
         b.from = b.to;
         b.to = randBipolar(rng_);
     };
     if (m.sync && !m.retrig && playing_ && beatsValid_ && !b.rateModulated) {   // locked to MPC's bar position
-        double ph = beats_ / div;
-        ph -= std::floor(ph);
+        double ph = beats_ * perBeat;
+        ph -= floorFast(ph);
         if (static_cast<float>(ph) < b.phase) newCycle();
         b.phase = static_cast<float>(ph);
     } else {
-        const float hz = (m.sync ? static_cast<float>(bpm_ / 60.0 / div) : m.rateHz) * b.rateMul;
-        float next = b.phase + hz * static_cast<float>(n) / sr_;
+        const float hz = (m.sync ? static_cast<float>(bpm_ * (1.0 / 60.0) * perBeat) : m.rateHz) * b.rateMul;
+        float next = b.phase + hz * static_cast<float>(n) * invSr_;
         if (next >= 1.0f) {
-            next -= std::floor(next);
+            next -= floorFast(next);
             newCycle();
         }
         b.phase = next;
@@ -311,7 +316,7 @@ float Synth::driftStep(Drift& d, int n) {
         d.target = randBipolar(rng_);
         d.left = static_cast<int>(sr_ * (0.3f + 1.2f * static_cast<float>(xorshift(rng_) >> 8) / 16777216.0f));
     }
-    d.v += (d.target - d.v) * std::min(1.0f, static_cast<float>(n) / (0.6f * sr_));
+    d.v += (d.target - d.v) * std::min(1.0f, static_cast<float>(n) * driftK_);
     return d.v;
 }
 
@@ -320,7 +325,7 @@ float Synth::driftStep(Drift& d, int n) {
 // Time passes for everything that moves at the control rate: the song position, glides, the
 // busses' sources (their values kept in busOut_), drift. n may be 0 (only the values are read).
 void Synth::advance(int n) {
-    beats_ += static_cast<double>(n) * bpm_ / 60.0 / static_cast<double>(sr_);
+    beats_ += static_cast<double>(n) * beatsPerSample_;
     stepGlide(glide_[0], n);
     stepGlide(glide_[1], n);
     fVel_ = 1.0f - patch_.fenv.vel + patch_.fenv.vel * vel_;
@@ -383,28 +388,28 @@ void Synth::control() {
         clampf(noteHz(pitch[1]) * invOsr_, 1e-7f, 0.45f),
         clampf(p.osc[0].wave + waveMod[0], 0.0f, 1.0f),
         clampf(p.osc[1].wave + waveMod[1], 0.0f, 1.0f),
-        noteOf(p.cutoffHz) + p.keyTrack * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
+        cutNote_ + p.keyTrack * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
         envSemis(p.envAmount) * fVel_,
         kResMax * clampf(p.res + resMod, 0.0f, 1.0f),
         kInGain * driveGain,
-        1.0f + 2.0f * drive,
+        0.5f + drive,                  // Multidrive's second stage: into the clipper...
+        2.0f / (1.0f + 2.0f * drive),  // ...and out of it
         taper(p.mixOsc1 + lvlMod[0]),
         taper(p.mixSub + lvlMod[1]),
         taper(p.mixOsc2 + lvlMod[2]),
         taper(p.mixNoise + lvlMod[3]),
         taper(p.mixFeedback + lvlMod[4]) * kFeedbackGain,
-        kOutGain * aVel * volMul / std::pow(driveGain, 0.35f),
+        kOutGain * aVel * volMul * exp2Fast(-0.35f * log2Fast(driveGain)),   // / driveGain^0.35
         exp2Fast(clampf(p.volumeDb, -60.0f, 12.0f) * (1.0f / 6.0206f)) * (p.volumeDb <= -59.5f ? 0.0f : 1.0f),
     };
-    Ramp* ramps[] = {&dt_[0], &dt_[1], &wave_[0], &wave_[1], &cut_, &egAmt_, &res_, &inGain_, &post_,
-                     &lvl_[0], &lvl_[1], &lvl_[2], &lvl_[3], &lvl_[4], &vca_, &vol_};
-    static_assert(sizeof target / sizeof target[0] == sizeof ramps / sizeof ramps[0], "a target per ramp");
+    const auto rs = ramps();
+    static_assert(sizeof target / sizeof target[0] == std::tuple_size<decltype(rs)>::value, "a target per ramp");
     constexpr float invN = 1.0f / static_cast<float>(kControl);
-    for (size_t i = 0; i < sizeof ramps / sizeof ramps[0]; ++i) {
+    for (size_t i = 0; i < rs.size(); ++i) {
         // A pitch jump (a new note without glide) lands at once; everything else glides. The
         // very first step starts every value where it belongs.
-        if (snapAll_ || (snap_ && i < 2)) ramps[i]->snap(target[i]);
-        else ramps[i]->to(target[i], invN);
+        if (snapAll_ || (snap_ && i < 2)) rs[i]->snap(target[i]);
+        else rs[i]->to(target[i], invN);
     }
     // Another slope mid-note: crossfade the ladder's taps instead of switching.
     const int slope = std::clamp(p.slope, 0, 3);
@@ -444,7 +449,10 @@ void Synth::render(float* outL, float* outR, int n) {
     int pos = 0;
     while (pos < n) {
         if (ctlLeft_ <= 0) {
-            control();
+            // Silent: only time moves on (glides, busses, drift), on the same grid, so block sizes
+            // never change the sound; the values are worked out when a note wakes the voice.
+            if (silent_) catchUp();
+            else control();
             ctlLeft_ = kControl;
             clock.lap(STG_CONTROL);
         }
@@ -464,49 +472,71 @@ void Synth::render(float* outL, float* outR, int n) {
 }
 
 // Nothing sounds: the oscillators keep running (free phase), the filter envelope keeps its
-// release, the control values arrive where they were going.
+// release, the control values arrive where they were going (and snap to new ones on waking).
 void Synth::renderSilent(float* out, int n) {
     for (int i = 0; i < n; ++i) out[i] = 0.0f;
     for (int o = 0; o < 2; ++o) {
         const float d = dt_[o].v * static_cast<float>(kOversample * n);
-        osc_[o].t += d - std::floor(osc_[o].t + d);
+        osc_[o].t += d - floorFast(osc_[o].t + d);
     }
-    for (Ramp* r : {&dt_[0], &dt_[1], &wave_[0], &wave_[1], &cut_, &egAmt_, &res_, &inGain_, &post_,
-                    &lvl_[0], &lvl_[1], &lvl_[2], &lvl_[3], &lvl_[4], &vca_, &vol_})
-        r->skip(n);
-    for (int i = 0; i < n; ++i) fenv_.tick(fc_);
+    for (Ramp* r : ramps()) r->arrive();
+    if (fenv_.stage != E_IDLE)
+        for (int i = 0; i < n; ++i) fenv_.tick(fc_);
 }
 
+// n <= kControl samples of the voice, in two passes. First, per base sample: the envelopes, the
+// cutoff they move and its coefficient (four at a time: dsp/simd.h), the VCA. Then the audio, at
+// the 2x rate, with the coefficients ready.
 void Synth::renderRun(float* out, int n) {
+    // [0]: the previous base sample's, for the first half-step; [1..n]: this run's.
+    float fq[kControl + 1], ae[kControl + 1], cs[kControl];
+    for (int i = 0; i < n; ++i) {
+        const float fe = fenv_.tick(fc_);
+        ae[i + 1] = aenv_.tick(ac_);
+        cs[i] = cut_.next() + egAmt_.next() * fe;
+    }
+    for (int i = n; i < kControl; ++i) cs[i] = cs[n - 1];   // the last vector's spare lanes
+    {
+        const f4 lo = splat(kMinCutoff), hi = splat(kMaxCutoff * osr_), w = splat(kPi * invOsr_);
+        for (int i = 0; i < n; i += 4) {   // tan(pi fc / 2fs), fc = 440 * 2^((note - 69) / 12) clamped
+            const f4 hz = splat(440.0f) * exp2Fast4((load4(cs + i) - splat(69.0f)) * splat(1.0f / 12.0f));
+            float f[4];
+            store4(f, tanFast4(min4(max4(hz, lo), hi) * w));
+            for (int k = 0; k < 4 && i + k < n; ++k) fq[1 + i + k] = f[k];
+        }
+    }
+    if (!fPrevValid_) {   // just woken: no stale cutoff from before the silence
+        fPrev_ = fq[1];
+        fPrevValid_ = true;
+    }
+    fq[0] = fPrev_;
+    ae[0] = aePrev_;
+
     const int tap = tap_, tapFrom = tapFrom_;
     const int subOct = patch_.subOctave == SO_TWO ? 2 : 1;
     const bool sync = patch_.sync;
     const float nk = noiseK_, nc = noiseComp_;
     const float fbR = 1.0f - 2.0f * kPi * 15.0f * invOsr_;     // feedback DC blocker, 15 Hz
-    const float dcR = 1.0f - 2.0f * kPi * 5.0f / sr_;          // output DC blocker, 5 Hz
-    const float maxHz = kMaxCutoff * osr_;
+    const float dcR = 1.0f - 2.0f * kPi * 5.0f * invSr_;       // output DC blocker, 5 Hz
+    // A still wave knob (no sweep, no bus on it): its shape once, not every sample.
+    const bool morph1 = wave_[0].d != 0.0f, morph2 = wave_[1].d != 0.0f;
+    Shape s1 = shapeOf(wave_[0].v), s2 = shapeOf(wave_[1].v);
     float peak = peak_;
     for (int i = 0; i < n; ++i) {
         const float dt1 = dt_[0].next(), dt2 = dt_[1].next();
-        const Shape s1 = shapeOf(wave_[0].next()), s2 = shapeOf(wave_[1].next());
+        if (morph1) s1 = shapeOf(wave_[0].next());
+        if (morph2) s2 = shapeOf(wave_[1].next());
         const float l0 = lvl_[0].next(), l1 = lvl_[1].next(), l2 = lvl_[2].next(), l3 = lvl_[3].next() * nc,
                     l4 = lvl_[4].next();
-        const float fe = fenv_.tick(fc_);
-        const float ae = aenv_.tick(ac_);
-        const float cs = cut_.next() + egAmt_.next() * fe;
-        const float f = tanFast(kPi * clampf(noteHz(cs), kMinCutoff, maxHz) * invOsr_);
-        const float r = res_.next(), gain = inGain_.next(), post = post_.next(), vca = vca_.next();
-        const float postIn = 0.5f * post, postOut = 2.0f / post;
-        const float xf = xfLeft_ > 0 ? static_cast<float>(xfLeft_--) * (1.0f / kTapFade) : 0.0f;   // of the old tap
-        if (!fPrevValid_) {   // just woken: no stale cutoff from before the silence
-            fPrev_ = f;
-            fPrevValid_ = true;
-        }
+        const float r = res_.next(), gain = inGain_.next(), postIn = postIn_.next(), postOut = postOut_.next(),
+                    vca = vca_.next();
+        const bool fade = xfLeft_ > 0;   // a slope change, crossfading the taps
+        const float xf = fade ? static_cast<float>(xfLeft_--) * (1.0f / kTapFade) : 0.0f;   // of the old tap
         float hi[kOversample];
         for (int k = 0; k < kOversample; ++k) {
             // Cutoff and VCA move per base sample; the first half-step goes halfway.
-            const float fk = k == 0 ? 0.5f * (fPrev_ + f) : f;
-            const float amp = (k == 0 ? 0.5f * (aePrev_ + ae) : ae) * vca;
+            const float fk = k == 0 ? 0.5f * (fq[i] + fq[i + 1]) : fq[i + 1];
+            const float amp = (k == 0 ? 0.5f * (ae[i] + ae[i + 1]) : ae[i + 1]) * vca;
             float v1, v2, vs;
             if (resetPending_) {   // keyboard reset: every oscillator restarts its cycle here
                 v1 = osc_[0].tickReset(dt1, s1, 1.0f);
@@ -528,15 +558,13 @@ void Synth::renderRun(float* out, int n) {
             // The circuit's own noise floor (-80 dB): what starts a self-oscillating filter with
             // every source down, as on the hardware.
             ladder_.tick(mix * gain + kThermal * white, fk, r, y);
-            const float yt = xf > 0.0f ? y[tap] + (y[tapFrom] - y[tap]) * xf : y[tap];
+            const float yt = fade ? y[tap] + (y[tapFrom] - y[tap]) * xf : y[tap];
             const float v = softclip(yt * postIn) * postOut * amp;   // Multidrive's second stage, VCA
             fbY1_ = v - fbX1_ + fbR * fbY1_;   // the feedback path: DC blocked, back into the mixer next sample
             fbX1_ = v;
             fbIn_ = fbY1_;
             hi[k] = v;
         }
-        fPrev_ = f;
-        aePrev_ = ae;
         const float lo = dec_.process(hi[0], hi[1]);
         dcY1_ = lo - dcX1_ + dcR * dcY1_;
         dcX1_ = lo;
@@ -544,6 +572,8 @@ void Synth::renderRun(float* out, int n) {
         peak = std::max(peak, std::fabs(o));
         out[i] = o;
     }
+    fPrev_ = fq[n];
+    aePrev_ = ae[n];
     peak_ = peak;
 }
 
