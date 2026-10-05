@@ -13,8 +13,8 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 ## What's next
 
-- 🔜 **0.0.1**, the first public preview: tag `v0.0.1` → GitHub prerelease → the plugin catalog's
-  beta channel ([sd88me/mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)).
+- 🔜 **The plugin catalog** ([sd88me/mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)): the
+  entry's PR, then every release is picked up by itself.
 - 🔜 **On the device:** play every page, check the Q-Link sets and the preset browser (installs,
   loads and benches: [Performance](PERFORMANCE.md#measurements)).
 - 🔜 **Automation on the device:** whether MPC plays recorded automation of the stepped controls
@@ -41,6 +41,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ The original's behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
+- ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS)
 
 ## Phase 0
 
@@ -93,5 +94,10 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - 2026-10-05 — **2x oversampling** for the whole voice (oscillators to VCA), polyBLEP oscillators.
 - 2026-10-05 — **The ladder's bass loss kept** (no compensation), as on the original.
 - 2026-10-05 — **Factory presets at −18 LUFS** on their demo phrase, peaks under −3 dBFS.
+- 2026-10-05 — **−16 LUFS, peaks under −1 dBFS** (0.0.2): PolyForce at −19 played clearly quieter
+  than MPC's own instruments on the Force; SubForce goes to PolyForce's new level. The engine's
+  output is 2 dB up (the quietest presets' volume was at the knob's top already).
+- 2026-10-05 — **Regular releases** from plain `vX.Y.Z` tags: the catalog hides prereleases (no
+  download button) and its installers never offer them.
 - Moog, Subsequent and other product names are not used in the plugin, its presets, its pages or
   its docs (beyond the trademark notice): the docs say *the original*.

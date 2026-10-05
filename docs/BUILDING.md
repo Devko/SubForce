@@ -62,7 +62,7 @@ changes; it checks the layout and every factory preset before writing anything.
 | `test-arm` | The same suite built for the Force's CPU, run under `qemu-arm` |
 | `test-arm-pgo` | The suite linked against the profile-guided objects the shipped `.so` is made of |
 | `demos` | Render every factory preset (a phrase per category, below) and a filter sweep to `build/demos-out/*.wav` (stereo, L = R, as the plugin plays), and all of them back to back as `tour.wav` |
-| `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −18) on its demo phrase |
+| `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −16) on its demo phrase, never peaking over −1 dBFS |
 | `bench` | x86 bench: only proves the bench and the profiling build work |
 | `arm-plugin` | `build/arm/subforce.so`; profile-guided when `qemu-arm` is installed |
 | `arm-bench` | `build/arm/sfbench`, the CPU bench for the device |
@@ -90,7 +90,7 @@ chords; FX and any other category, held notes. A new category folder plays the F
 | `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
 | `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
 | `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
-| `PLUGIN_VERSION` | Release version (default `0.0.1`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
+| `PLUGIN_VERSION` | Release version (default `0.0.2`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
 
@@ -170,10 +170,13 @@ against the objects the `.so` is linked from; the sanitizer suite runs on x86. T
 with the catalog's own checker (`third_party/mpc-vst-plugins/tools/catalog_check.py --catalog`) and
 kept as the run's artifact (`SubForce-mpc-armv7`).
 
-Pushing a tag `vX.Y.Z` sets `PLUGIN_VERSION` from it and publishes the zip as a GitHub release, a
-prerelease for `v0.*` (the catalog's beta channel), with `CHANGELOG.md`'s `## X.Y.Z` section as its
-notes; a tag without that section fails before anything is published. To release: add the section,
-then `git tag vX.Y.Z && git push origin vX.Y.Z`. The catalog finds new releases by itself (nightly).
+Pushing a tag `vX.Y.Z` sets `PLUGIN_VERSION` from it and publishes the zip as a GitHub release,
+with `CHANGELOG.md`'s `## X.Y.Z` section as its notes; a tag without that section fails before
+anything is published. The plugin catalog lists a release with a download button and its installers
+offer it. A tag with a suffix (`v0.1.0-beta`) publishes a prerelease instead: the catalog's beta
+channel, which its site shows only when a visitor ticks "Show beta releases" and its installers never
+offer; the plugin's version is then the tag without the suffix. To release: add the section, then
+`git tag vX.Y.Z && git push origin vX.Y.Z`. The catalog finds new releases by itself (nightly).
 
 The catalog reads the major version as the parameter list's compatibility (`param_compat` = X). 0.x
 releases are previews: parameter indices may still change between them, under the same

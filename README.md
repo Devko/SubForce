@@ -114,7 +114,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | Phases 0 and 1 — engine, plugin, pages, 57 presets, tests, package, the original's behaviour | ✅ |
 | Release build in CI (glibc 2.31, profile-guided, catalog-checked) | ✅ |
 | On the device: installs, loads and benches (`make bench-device`) | ✅ |
-| 0.0.1 — first public preview (the plugin catalog's beta channel) | 🔜 |
+| 0.0.2 — the first regular release (in the plugin catalog, with a download) | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

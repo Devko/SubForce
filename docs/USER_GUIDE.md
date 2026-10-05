@@ -150,8 +150,8 @@ triangle to Wave 1 with the wave near square.
 ## Presets
 
 57 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
-level-matched (−18 LUFS on their demo phrase). Pick them on the BROWSE tab or step through them on
-KEYS.
+level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick them on the BROWSE tab or
+step through them on KEYS.
 
 - **SAVE** writes `User NNN.sfp` to `Presets/User/` in the plugin folder (`/sdcard/Synths/Devko -
   VST - SubForce/`). There is no text entry on the device, so presets are numbered; a number is

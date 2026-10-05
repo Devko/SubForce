@@ -124,7 +124,7 @@ demos: $(BUILD)/demos
 	rm -rf $(BUILD)/demos-out && mkdir -p $(BUILD)/demos-out
 	SF_DATA_DIR= SF_PRESET_ROOTS=$(BUILD)/demos-out $(BUILD)/demos $(BUILD)/demos-out
 # Level-matching: every factory preset's volume set so its demo phrase plays at PRESET_LUFS.
-PRESET_LUFS ?= -18
+PRESET_LUFS ?= -16
 preset-levels: $(BUILD)/demos
 	SF_DATA_DIR= SF_PRESET_ROOTS=$(BUILD)/demos-out $(BUILD)/demos --match presets/Factory $(PRESET_LUFS)
 	python3 $(SURF)/surface.py
@@ -223,7 +223,7 @@ bench-device: $(ARM_SO) $(ARM_SO_STAGES) $(ARM_BENCH)
 
 # Release zip: plugin + skin + sd88me's installer (stops MPC, backs up and edits
 # MPC.settings, restarts MPC).
-PLUGIN_VERSION ?= 0.0.1
+PLUGIN_VERSION ?= 0.0.2
 plugin-package: $(ARM_SO) $(SKIN)
 	@# Everything shipped runs under BusyBox on the device: a CR in a script breaks it there.
 	@# grep: 1 = no CR found (good); 0 = found one; 2 = it couldn't read the scripts.

@@ -2,7 +2,18 @@
 
 Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#release-builds)); the
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
-may still change between releases, and releases are prereleases (the plugin catalog's beta channel).
+may still change between releases.
+
+## 0.0.2
+
+The first regular release: the plugin catalog lists it with a download button and its installers offer
+it (0.0.1 was a prerelease, its beta channel, which neither does by default).
+
+- **2 dB louder**, level with MPC's own instruments and with PolyForce: the factory presets play at
+  −16 LUFS on their demo phrases (was −18), no peak over −1 dBFS (the highest −1.8 dBFS); the
+  engine's output is 2 dB up, Init and saved sounds too.
+- Release builds: a plain `vX.Y.Z` tag publishes a regular release, a suffixed one (`v0.1.0-beta`) a
+  prerelease.
 
 ## 0.0.1
 

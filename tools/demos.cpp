@@ -6,7 +6,8 @@
 //                                  as <outdir>/tour.wav; prints each one's loudness
 //   demos --match <dir> <LUFS>     sets volume= in every preset file under <dir> (presets/Factory)
 //                                  so its phrase plays at <LUFS> integrated (ITU-R BS.1770 / EBU
-//                                  R128: K-weighting, 400 ms blocks, -70 LUFS and -10 LU gates)
+//                                  R128: K-weighting, 400 ms blocks, -70 LUFS and -10 LU gates), or
+//                                  lower where it would peak over kPeakCap
 //
 // Phrases by category: Bass and Templates, a 16th-note line with legato steps (glide and Single
 // trigger show); Sequence, a melodic techno 16th-note sequence with accents and slides; Lead, a
@@ -34,6 +35,7 @@ extern "C" AEffect* VSTPluginMain(audioMasterCallback);
 namespace {
 
 constexpr double kSr = 44100.0;
+constexpr double kPeakCap = -1.0;   // dBFS: no factory preset peaks over it on its phrase
 constexpr int kBlock = 128;
 VstTimeInfo g_time{};
 
@@ -312,7 +314,9 @@ int main(int argc, char** argv) {
                 for (int pass = 0; pass < 2; ++pass) {
                     const std::vector<float> x = render(text, category);
                     const double l = lufs(x);
-                    const float want = static_cast<float>(volumeOf(text) + (target - l));
+                    // The loudness target, unless that would peak over kPeakCap.
+                    const double room = kPeakCap - 20.0 * std::log10(std::max(peakOf(x), 1e-9f));
+                    const float want = static_cast<float>(volumeOf(text) + std::min(target - l, room));
                     const float vol = std::clamp(want, -30.0f, 6.0f);
                     if (pass == 1 && vol != want)
                         std::printf("  %s: needs %.1f dB, the volume stops at %.1f\n", f.path().filename().c_str(), want, vol);
