@@ -9,9 +9,9 @@ original* in these docs), built on the same plugin groundwork as its sibling
 
 > [!NOTE]
 > **Preview (0.0.x).** The engine, plugin, touchscreen pages and factory presets are complete and
-> pass the full test suite on x86 and under ARM emulation. On a Force (MPC OS 3.9) the release build
-> installs, loads and benches at about 3% of a block; not every page has been played on the device
-> yet. The parameter list may still change before v0.1: sounds are saved by name and survive that,
+> pass the full test suite on x86 and under ARM emulation. On a Force (MPC OS 3.9) the 0.0.2 release
+> installs and plays, at about 3% of a block ([`tested.json`](tested.json)). The parameter list may
+> still change before v0.1: sounds are saved by name and survive that,
 > but recorded automation (stored by parameter index) could then move a different control.
 
 ![SubForce's FILTER page](docs/img/filter.png)
