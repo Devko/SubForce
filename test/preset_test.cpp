@@ -201,6 +201,41 @@ void testStepping() {
     // Continuous knobs follow MPC as they are.
     h.setN(sf::P_F_RES, 0.37f);
     CHECK(h.get(sf::P_F_RES) == 0.37f);
+    // A Q-Link turn on the preset stepper, as the Force sends it (the read-back plus 1/128 per
+    // detent, a few ms apart): a preset per detent the whole turn long, as many as NEXT taps. (It
+    // used to measure each detent from MPC's previous value, and stalled after one preset.)
+    {
+        Host a;
+        a.press(sf::P_PRE_INIT);
+        const auto L = sf::presetLibrary().listing();
+        const int at = L->find("builtin:Init");
+        auto label = [&L](int k) { return "PRESET  " + L->label(L->items[static_cast<size_t>(k)].key); };
+        CHECK(at >= 0 && at + 6 < static_cast<int>(L->items.size()));
+        {
+            Turn turn;
+            for (int k = 0; k < 6; ++k) a.detent(sf::P_PRESET, +1);
+        }
+        CHECK(a.display(sf::P_PRESET) == label(at + 6));
+        {
+            Turn turn;
+            for (int k = 0; k < 2; ++k) a.detent(sf::P_PRESET, -1);
+        }
+        CHECK(a.display(sf::P_PRESET) == label(at + 4));
+    }
+    // A tile tap's release echo (~0.7 s later) is not a second tap; a tap a second later is.
+    {
+        Host t;
+        t.press(sf::P_PRE_INIT);   // a preset to favorite
+        t.setN(sf::P_FAV, 1.0f);
+        CHECK(t.get(sf::P_FAV) > 0.5f);
+        {
+            Turn echo(700);
+            t.setN(sf::P_FAV, 0.0f);
+        }
+        CHECK(t.get(sf::P_FAV) > 0.5f);
+        t.setN(sf::P_FAV, 0.0f);
+        CHECK(t.get(sf::P_FAV) < 0.5f);
+    }
 }
 
 void testRandomize() {

@@ -122,6 +122,45 @@ void testSources() {
     bool inside = true;
     for (double x : v) inside = inside && std::fabs(x) <= 1.02;
     CHECK(inside);
+    // Eight cycles at 4 Hz: a new random value every cycle (not one stuck value), held across
+    // it (S&H) or glided to monotonically within it (Smooth).
+    auto cycles = [](int src, double* early, double* mid, double* late) {
+        Patch p = base();
+        p.mod[0].src = src;
+        p.mod[0].rateHz = 4.0f;
+        p.mod[0].pitch = kOneSemi;
+        p.mod[0].retrig = true;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(57, 100);
+        const auto x = render(s, 2 * 44100);
+        for (int c = 0; c < 8; ++c) {
+            const double t = 0.25 * c;
+            early[c] = semis(x, t + 0.03, t + 0.08);
+            mid[c] = semis(x, t + 0.10, t + 0.15);
+            late[c] = semis(x, t + 0.17, t + 0.22);
+        }
+    };
+    double early[8], mid[8], late[8];
+    cycles(sf::MS_SAMPLE_HOLD, early, mid, late);
+    double lo = 9.0, hi = -9.0, held = 0.0;
+    for (int c = 0; c < 8; ++c) {
+        lo = std::min(lo, mid[c]);
+        hi = std::max(hi, mid[c]);
+        held = std::max(held, std::fabs(late[c] - early[c]));
+    }
+    std::printf("  S&H over 8 cycles: %.2f .. %.2f st, held within %.3f st\n", lo, hi, held);
+    CHECK(hi - lo > 0.5 && held < 0.02 && lo >= -1.02 && hi <= 1.02);
+    cycles(sf::MS_SMOOTH, early, mid, late);
+    lo = 9.0, hi = -9.0;
+    bool monotonic = true;
+    for (int c = 0; c < 8; ++c) {
+        lo = std::min(lo, mid[c]);
+        hi = std::max(hi, mid[c]);
+        monotonic = monotonic && (mid[c] - early[c]) * (late[c] - mid[c]) >= -1e-4;
+    }
+    std::printf("  Smooth over 8 cycles: %.2f .. %.2f st\n", lo, hi);
+    CHECK(hi - lo > 0.3 && monotonic && lo >= -1.02 && hi <= 1.02);
 }
 
 void testControl() {

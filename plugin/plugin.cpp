@@ -15,6 +15,7 @@
 #include "patch_map.h"
 #include "state.h"
 #include "surface.h"
+#include "trace.h"
 #include "../dsp/synth.h"
 #include "../dsp/stages.h"
 
@@ -41,7 +42,8 @@ constexpr float kSampleRate = 44100.0f;   // MPC OS always runs 44.1 kHz
 constexpr int kScratch = 512;
 
 // Denormals (the tails of decaying filters and envelopes) are slow on the VFP unit. Flush
-// them to zero for our block only and hand MPC's worker back its own FP mode.
+// them to zero for our own arithmetic only: MPC's callbacks (the song position, automation,
+// display updates) run in its worker's own FP mode, which is handed back afterwards.
 class FlushDenormals {
 public:
     FlushDenormals() {
@@ -134,7 +136,14 @@ float getParameter(AEffect* e, int32_t i) {
 
 void setParameter(AEffect* e, int32_t i, float v) {
     try {
-        self(e)->surface.set(i, v);
+        Surface& s = self(e)->surface;
+        const bool traced = i >= 0 && i < P_COUNT && tracing();
+        const float before = traced ? s.get(i) : 0.0f;   // what MPC last read back
+        s.set(i, v);
+        if (traced)
+            trace("%p set %3d %-18s %.4f  read %.4f -> %.4f  \"%s\"", static_cast<void*>(e), static_cast<int>(i),
+                  PARAM_INFO[i].key, static_cast<double>(v), static_cast<double>(before), static_cast<double>(s.get(i)),
+                  s.display(i).c_str());
     } catch (...) {
     }
 }
@@ -152,10 +161,12 @@ void handleMidi(Plugin* p, const RawMidi& m) {
         case 0xB0:
             if (m.d1 == 64) s.sustain(m.d2 >= 64);
             else if (m.d1 == 120) s.reset();
+            else if (m.d1 == 121) s.resetControllers();
             else if (m.d1 == 123) s.allNotesOff();
             else s.controller(m.d1, m.d2);   // the mod wheel (a bus's depth)
             break;
         case 0xD0: s.aftertouch(static_cast<float>(m.d1) / 127.0f); break;
+        case 0xA0: s.polyAftertouch(m.d1, static_cast<float>(m.d2) / 127.0f); break;   // pads send it per key
         case 0xE0:   // -1..1; the patch's bend-up/down ranges turn it into semitones
             s.pitchBend(static_cast<float>((m.d2 << 7 | m.d1) - 8192) / 8192.0f);
             break;
@@ -163,7 +174,28 @@ void handleMidi(Plugin* p, const RawMidi& m) {
     }
 }
 
-void runBlock(Plugin* p, float* L, float* R, int n) {
+struct Transport {
+    double bpm = 120.0, beats = 0.0;
+    bool   playing = false, valid = false;
+};
+
+// MPC's tempo and bar position: synced mod busses follow them. A host callback, so in MPC's own
+// FP mode.
+Transport readTransport(Plugin* p) {
+    Transport tr;
+    if (!p->master) return tr;
+    const intptr_t r = p->master(&p->fx, vst::audioMasterGetTime, 0, vst::kVstTempoValid | vst::kVstPpqPosValid, nullptr, 0.0f);
+    if (const VstTimeInfo* t = reinterpret_cast<const VstTimeInfo*>(r)) {
+        // A NaN or absurd value would stall or spin a synced bus: ignore it.
+        if ((t->flags & vst::kVstTempoValid) && std::isfinite(t->tempo) && t->tempo >= 1.0 && t->tempo <= 1000.0) tr.bpm = t->tempo;
+        tr.valid = (t->flags & vst::kVstPpqPosValid) != 0 && std::isfinite(t->ppqPos) && std::fabs(t->ppqPos) < 1e9;
+        tr.beats = tr.valid ? t->ppqPos + p->ppqOffset * tr.bpm / 60.0 / static_cast<double>(kSampleRate) : 0.0;
+        tr.playing = (t->flags & vst::kVstTransportPlaying) != 0;
+    }
+    return tr;
+}
+
+void runBlock(Plugin* p, float* L, float* R, int n, const Transport& tr) {
     // The sound only changes when a parameter does: then rebuild the patch and hand it to the
     // engine. Looked at only when something was written since the last look.
     const uint32_t writes = p->surface.writes();   // before the snapshot: a later write shows next block
@@ -179,21 +211,7 @@ void runBlock(Plugin* p, float* L, float* R, int n) {
         }
     }
     if (p->panic.exchange(false)) p->synth.reset();
-    // MPC's tempo and bar position: synced mod busses follow them.
-    double bpm = 120.0, beats = 0.0;
-    bool playing = false, valid = false;
-    if (p->master) {
-        const intptr_t r = p->master(&p->fx, vst::audioMasterGetTime, 0,
-                                     vst::kVstTempoValid | vst::kVstPpqPosValid, nullptr, 0.0f);
-        if (const VstTimeInfo* t = reinterpret_cast<const VstTimeInfo*>(r)) {
-            // A NaN or absurd value would stall or spin a synced bus: ignore it.
-            if ((t->flags & vst::kVstTempoValid) && std::isfinite(t->tempo) && t->tempo >= 1.0 && t->tempo <= 1000.0) bpm = t->tempo;
-            valid = (t->flags & vst::kVstPpqPosValid) != 0 && std::isfinite(t->ppqPos) && std::fabs(t->ppqPos) < 1e9;
-            beats = valid ? t->ppqPos + p->ppqOffset * bpm / 60.0 / static_cast<double>(kSampleRate) : 0.0;
-            playing = (t->flags & vst::kVstTransportPlaying) != 0;
-        }
-    }
-    p->synth.setTransport(bpm, beats, playing, valid);
+    p->synth.setTransport(tr.bpm, tr.beats, tr.playing, tr.valid);
 
     // Events in time order (insertion sort: no allocation; MPC already sends them sorted),
     // each one applied at its own sample.
@@ -247,10 +265,11 @@ void hostUpdate(void* ctx) {
 void processReplacing(AEffect* e, float** /*in*/, float** out, int32_t n) {
     if (!out || !out[0] || !out[1] || n <= 0) return;
     Plugin* p = self(e);
-    FlushDenormals ftz;
     const double t0 = threadCpuUs();
     try {
-        runBlock(p, out[0], out[1], n);
+        const Transport tr = readTransport(p);
+        FlushDenormals ftz;
+        runBlock(p, out[0], out[1], n, tr);
     } catch (...) {   // nothing may throw into MPC: an escaping exception ends the whole process
         std::memset(out[0], 0, sizeof(float) * static_cast<size_t>(n));
         std::memset(out[1], 0, sizeof(float) * static_cast<size_t>(n));
@@ -302,7 +321,7 @@ void onMidi(Plugin* p, const VstEvents* evs) {
         const uint8_t st = static_cast<uint8_t>(me->midiData[0]);
         const uint8_t d1 = static_cast<uint8_t>(me->midiData[1] & 0x7F), d2 = static_cast<uint8_t>(me->midiData[2] & 0x7F);
         const int type = st & 0xF0;
-        const bool ends = type == 0x80 || (type == 0x90 && d2 == 0) || (type == 0xB0 && (d1 == 64 || d1 == 120 || d1 == 123));
+        const bool ends = type == 0x80 || (type == 0x90 && d2 == 0) || (type == 0xB0 && (d1 == 64 || d1 == 120 || d1 == 121 || d1 == 123));
         if (!ends && p->nMidi >= kMaxMidi - kEndReserve) continue;
         p->midi[p->nMidi++] = {me->deltaFrames, st, d1, d2};
     }
@@ -364,9 +383,29 @@ intptr_t dispatcher(AEffect* e, int32_t op, int32_t idx, intptr_t val, void* ptr
     }
 }
 
+// Every instance its own random numbers (noise, drift, S&H, RANDOM): two layered instances
+// would otherwise play the same noise, +6 dB instead of +3. SF_FIXED_SEED: the same every time
+// (the tests compare instances sample for sample).
+uint32_t instanceSeed(const void* p) {
+    static std::atomic<uint32_t> count{0};
+    const char* fixed = std::getenv("SF_FIXED_SEED");
+    if (fixed && *fixed) return 0x9E3779B9u;
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    uint32_t h = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)) ^ static_cast<uint32_t>(ts.tv_nsec) ^
+                 (count.fetch_add(1) * 0x9E3779B9u);
+    h ^= h >> 16;
+    h *= 0x7FEB352Du;
+    h ^= h >> 15;
+    return h ? h : 1u;
+}
+
 AEffect* createPlugin(audioMasterCallback master) {
     Plugin* p = new Plugin();
     p->master = master;
+    const uint32_t seed = instanceSeed(p);
+    p->synth.seed(seed);
+    p->surface.seed(seed * 0x2545F491u + 1u);
 
     AEffect* e = &p->fx;
     std::memset(e, 0, sizeof(*e));

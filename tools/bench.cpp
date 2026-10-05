@@ -104,7 +104,11 @@ using StageFn = int (*)(double*, const char**, int);
 
 Result runCase(void* lib, int seconds, const char* name, int mode, StageFn stages) {
     auto entry = reinterpret_cast<AEffect* (*)(audioMasterCallback)>(dlsym(lib, "VSTPluginMain"));
-    AEffect* e = entry(master);
+    AEffect* e = entry ? entry(master) : nullptr;
+    if (!e) {
+        std::fprintf(stderr, "no VSTPluginMain, or it made no plugin\n");
+        std::exit(1);
+    }
     e->dispatcher(e, vst::effOpen, 0, 0, nullptr, 0.0f);
     if (mode >= 2) heavy(e);
     if (mode == 3) {

@@ -84,6 +84,29 @@ void testPriority() {
         r.s.noteOn(48, 100);
         r.run(1323);
         CHECK(r.s.info().ampEnv > 0.6f);
+        // Back to a key still held when the newer one lifts: the oscillators move, the envelopes
+        // don't start again (Multi retriggers on key presses, as on the hardware).
+        r.run(22050);
+        r.s.noteOn(55, 100);
+        r.run(22050);
+        r.s.noteOff(55);
+        r.run(1323);
+        CHECK(r.s.info().note1 == 48 && std::fabs(r.s.info().ampEnv - 0.3f) < 0.01f);
+    }
+    // Duo: one key of a pair lifting doesn't re-attack the other.
+    {
+        Patch p;
+        p.keyMode = sf::KM_DUO;
+        p.aenv.attack = 0.05f;
+        p.aenv.decay = 0.05f;
+        p.aenv.sustain = 0.3f;
+        Rig r(p);
+        r.s.noteOn(48, 100);
+        r.s.noteOn(55, 100);
+        r.run(22050);
+        r.s.noteOff(55);
+        r.run(1323);
+        CHECK(r.s.info().note2 == 48 && std::fabs(r.s.info().ampEnv - 0.3f) < 0.01f);
     }
     // The pedal holds the last note until it lifts.
     {

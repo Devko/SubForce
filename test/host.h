@@ -52,10 +52,14 @@ struct Host {
     float get(int id) { return e->getParameter(e, id); }
     float value(int id) { return sf::paramValue(id, get(id)); }
 
-    // A momentary button: press, then release (as MPC sends a tap).
-    void press(int id) {
-        e->setParameter(e, id, 1.0f);
-        e->setParameter(e, id, 0.0f);
+    // A tap on a button, as a Force sends it: MPC toggles the value it last read back. A button
+    // reads back 0 (it springs back), so a tap is a single 1, never followed by a release.
+    void press(int id) { e->setParameter(e, id, get(id) > 0.5f ? 0.0f : 1.0f); }
+    // One Q-Link detent (dir +1 / -1), as a Force sends it: the value MPC last read back plus
+    // 1/128 of the range, rounded to 1/1000 (MPC OS 3.9.1, measured by sd88me/mpc-vst-plugins,
+    // docs/NOTES.md "Input probe"). Several in a Turn are one gesture.
+    void detent(int id, int dir) {
+        e->setParameter(e, id, std::round((get(id) + static_cast<float>(dir) / 128.0f) * 1000.0f) / 1000.0f);
     }
 
     void midi(uint8_t st, uint8_t d1, uint8_t d2, int delta = 0) {
@@ -133,6 +137,18 @@ struct Host {
 };
 
 std::string fixtureDir();   // per-run temp folder (removed at exit)
+
+// The surface's clock moves this far per host event (plugin_test.cpp): a second, so separate
+// events never read as one gesture, whatever the machine's speed.
+extern long long g_msPerEvent;
+// Within a Turn, events come a few ms apart, as a Q-Link turn's detents or a tile's release echo.
+struct Turn {
+    explicit Turn(long long ms = 5) : was(g_msPerEvent) { g_msPerEvent = ms; }
+    ~Turn() { g_msPerEvent = was; }
+    Turn(const Turn&) = delete;
+    Turn& operator=(const Turn&) = delete;
+    long long was;
+};
 
 void engineTests();      // engine_test.cpp: oscillators, decimator, ladder, envelopes, stability
 void keyTests();         // keys_test.cpp: priority, trigger, glide, duo, pedal

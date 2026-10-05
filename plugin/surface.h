@@ -15,7 +15,10 @@
 // is 1/128 of the range, a data-wheel click 0.01, a touch drag about 0.04, and a tile tap
 // sends a release echo ~0.7 s later. So every stepped parameter (choices, small whole
 // numbers, the preset stepper) moves exactly one step per event in MPC's direction, and the
-// plugin pushes the snapped value back (stepIndex / stepItem below, RackForce's rules).
+// plugin pushes the snapped value back (stepIndex / stepItem below, RackForce's rules). The
+// read-back is the base of every value, within a turn too: a stepper measures each detent from
+// its own value, never from MPC's previous one. A button tap toggles its read-back, and a button
+// always reads back 0 (it springs back): every 1 is a press, and no release ever follows.
 #include "library.h"
 #include "param_ids.h"
 
@@ -65,6 +68,8 @@ public:
     // Moves on every value write: unchanged since a snapshot, the snapshot is still current.
     uint32_t    writes() const { return changes_.load(std::memory_order_acquire); }
 
+    void        seed(uint32_t s) { rng_ = s ? s : 1u; }   // RANDOM and RND's random numbers
+
     static int  kFine;   // ranges with this many steps or more follow MPC's value
     // Milliseconds for telling gestures apart (null: the steady clock). Tests set one that only
     // moves when they say, so stepping doesn't depend on how fast the machine is.
@@ -77,7 +82,7 @@ private:
     };
     void apply(int i, float n);
     int  stepIndex(int i, float n, int count, int cur);
-    int  stepItem(int i, float n, int normRange, int items, int cur);   // one item per event
+    int  stepItem(float n, int normRange, int items, int cur);   // one item per event
     bool toggleBounce(int i, bool on);
     void browserAction(int i);
     // FAVORITES, RECENT, then the library's categories (from L, the listing in use).
@@ -88,7 +93,6 @@ private:
     int  stepperCur(int i, const Listing& L, const std::string& key) const;   // where a stepper stands
 
     // UI-thread-only stepping state (RackForce's).
-    bool      held_[P_COUNT] = {};
     long long lastSentMs_[P_COUNT] = {};
     float     lastN_[P_COUNT] = {};
     long long toggleMs_[P_COUNT] = {};

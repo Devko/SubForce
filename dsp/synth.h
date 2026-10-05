@@ -117,6 +117,9 @@ public:
     void reset();                            // silence now: CC 120, suspend, transport stop
     void controller(int cc, int value);      // 1 mod wheel (0..127)
     void aftertouch(float amount);           // channel pressure, 0..1
+    void polyAftertouch(int note, float amount);   // a sounding key's own pressure counts as the channel's
+    void resetControllers();                 // CC 121: bend, wheel, pressure and pedal back to rest
+    void seed(uint32_t s);                   // the random numbers (noise, drift, S&H): per instance
     // MPC's tempo and position (quarter notes), once per block before render().
     void setTransport(double bpm, double beats, bool playing, bool beatsValid);
 

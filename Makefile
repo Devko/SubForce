@@ -228,6 +228,11 @@ plugin-package: $(ARM_SO) $(SKIN)
 	@# Everything shipped runs under BusyBox on the device: a CR in a script breaks it there.
 	@# grep: 1 = no CR found (good); 0 = found one; 2 = it couldn't read the scripts.
 	@grep -l "$$(printf '\r')" $(MV)/tools/release/*; r=$$?; [ $$r -eq 1 ] || { echo "error: CRLF in a shipped script, or no scripts"; exit 1; }
+	@# A newer toolchain's glibc: fine on the Force (MPC OS 3.x), not for a release (the catalog's limit is 2.32).
+	@g=$$(readelf -V $(ARM_SO) 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1); \
+		if [ -n "$$g" ] && [ "$$(printf '%s\n2.32\n' "$$g" | sort -V | tail -1)" != 2.32 ]; then \
+		echo "warning: this .so needs glibc $$g: it loads on MPC OS 3.x only, and the plugin catalog refuses it."; \
+		echo "         Release packages come from CI (glibc 2.31, docs/BUILDING.md#release-builds)."; fi
 	$(PY) $(MV)/tools/release.py --so $(ARM_SO) --skin "$(SKIN_DIR)" --entry $(SURF_OUT)/pluginlist-entry.xml \
 		--version $(PLUGIN_VERSION) --repo Devko/SubForce --license MIT \
 		--about "SubForce analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, noise, feedback, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode." \

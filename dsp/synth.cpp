@@ -152,7 +152,9 @@ void Synth::update(int pressed) {
     glideTo(glide_[0], static_cast<float>(n1), glide && patch_.glideDest != OD_OSC2);
     glideTo(glide_[1], static_cast<float>(n2), glide && patch_.glideDest != OD_OSC1);
     gate_ = true;
-    if (fresh || patch_.trigger == TR_MULTI) trigger(vel);
+    // Multi retriggers on a key struck, not on a release that hands the oscillators back to a
+    // key still held (a trill would attack twice, a Duo pair's other key on every lift).
+    if (fresh || (patch_.trigger == TR_MULTI && pressed >= 0)) trigger(vel);
     ctlLeft_ = 0;   // the new pitch from the next sample on
 }
 
@@ -255,6 +257,21 @@ void Synth::controller(int cc, int value) {
 }
 
 void Synth::aftertouch(float amount) { pressure_ = clampf(amount, 0.0f, 1.0f); }
+
+void Synth::polyAftertouch(int note, float amount) {
+    if (nHeld_ > 0 && (note == note1_ || (patch_.keyMode == KM_DUO && note == note2_))) aftertouch(amount);
+}
+
+void Synth::resetControllers() {
+    bend_ = wheel_ = pressure_ = 0.0f;
+    sustain(false);
+}
+
+void Synth::seed(uint32_t s) {
+    rng_ = s ? s : 1u;
+    noiseRng_ = s * 0x9E3779B9u + 0x2545F491u;
+    if (!noiseRng_) noiseRng_ = 1u;
+}
 
 void Synth::setTransport(double bpm, double beats, bool playing, bool beatsValid) {
     bpm_ = bpm > 1.0 ? bpm : 120.0;

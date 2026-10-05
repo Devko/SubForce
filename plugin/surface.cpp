@@ -106,11 +106,12 @@ void Surface::set(int i, float n) {
         return;
     }
     if (k == Kind::Button) {
-        shown();
-        const bool down = n > 0.5f;
-        const bool rising = down && !held_[i];
-        held_[i] = down;
-        if (rising) {
+        // A tap toggles the value MPC last read back, and a button always reads back 0 (it springs
+        // back), so every tap arrives as a 1 with no release before the next: each 1 is a press.
+        // (Waiting for a release, as RackForce's rising-edge rule did, left a button dead after its
+        // first press on the Force: PolyForce's first device run.) A 0, a release or our own
+        // spring-back, does nothing.
+        if (n > 0.5f) {
             release_[i] = true;
             changes_.fetch_add(1, std::memory_order_release);   // after the flag: notify must see it
             apply(i, n);
@@ -177,7 +178,7 @@ void Surface::apply(int i, float n) {
                 const auto L = presetLibrary().listing();
                 const int items = static_cast<int>(L->items.size());
                 const int cur = stepperCur(i, *L, presetKey());
-                const int pick = stepItem(i, n, stepperRange(items), items, cur);
+                const int pick = stepItem(n, stepperRange(items), items, cur);
                 if (pick != cur && pick < items) loadPreset(L->items[static_cast<size_t>(pick)].key);
             }
             break;
@@ -244,18 +245,15 @@ int Surface::stepIndex(int i, float n, int count, int cur) {
     return clampi(cur + move, 0, count);
 }
 
-int Surface::stepItem(int i, float n, int normRange, int items, int cur) {
+int Surface::stepItem(float n, int normRange, int items, int cur) {
     if (items < 1 || normRange < 1) return 0;
     cur = clampi(cur, 0, items - 1);
-    const long long now = nowMs();
-    const bool gesture = lastSentMs_[i] > 0 && now - lastSentMs_[i] < kGestureMs && lastN_[i] >= 0.0f;
-    const float mpcPrev = lastN_[i];
-    lastSentMs_[i] = now;
-    lastN_[i] = n;
-    const float ours = static_cast<float>(cur) / normRange;
-    if (!gesture && std::fabs(n - ours) <= kQuant) return cur;          // our own value back
-    const float delta = n - (gesture ? mpcPrev : ours);
-    if (std::fabs(delta) <= kQuant) return cur;
+    // The Force sends the value it last read back (ours) plus its step, within one turn too
+    // (sd88me/mpc-vst-plugins docs/NOTES.md, "Input probe"). So the direction is n against ours.
+    // Against MPC's previous value, each detent after the first differed by the item the last one
+    // moved (1/1023, under kQuant), and a turn stalled after one item (PolyForce's device run).
+    const float delta = n - static_cast<float>(cur) / normRange;
+    if (std::fabs(delta) <= kQuant) return cur;   // our own value back
     // One item per event, whatever the size of MPC's step (Q-Link detent 1/128, wheel click
     // 0.01, a drag ~0.04, a fast spin 1-3 detents): a long list must never jump.
     return clampi(cur + (delta > 0 ? 1 : -1), 0, items - 1);

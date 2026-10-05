@@ -95,14 +95,17 @@ exponentially (the times are to −60 dB).
 - **Priority**: which key sounds when several are down — *Last*, *Low* or *High*. Releasing a key
   returns to the next one by the same rule. In Duo, oscillator 1 takes the first by priority,
   oscillator 2 the second.
-- **Trigger**: *Multi* restarts the envelopes on every new note, and on a sounding key struck again
-  (held by the pedal, or repeated); *Single* only when all keys were up (legato phrases glide on one
+- **Trigger**: *Multi* restarts the envelopes on every key struck, a sounding key struck again too
+  (held by the pedal, or repeated); releasing a key hands the oscillators back to one still held
+  without a new attack. *Single* only when the gate was closed (legato phrases glide on one
   envelope).
 - **Glide**: *Off*, *Always*, or *Legato* (only between overlapping keys). **Type**: *Rate* (the
   time per octave: big leaps take longer), *Time* (every glide takes the same time), *Exp*
   (exponential, fast then slow, like an RC). **Osc**: which oscillators glide.
 - **Bend Up / Down**: the pitch bend range, 0–24 semitones each way.
-- The sustain pedal keeps the last note sounding until it lifts.
+- The sustain pedal keeps the last note sounding until it lifts. While it holds the gate open, the
+  next key plays legato, as on the hardware: Single doesn't restart the envelopes and Legato glide
+  glides.
 
 ## The mod busses
 
@@ -150,6 +153,7 @@ on their demo phrase). Pick them on the BROWSE tab or step through them on KEYS.
 | Pitch bend | ± the bend ranges |
 | CC 1 (mod wheel) | a bus's depth, if its control is Mod Wheel |
 | Channel pressure | a bus's depth, if its control is Aftertouch |
+| Poly aftertouch | the same, from the sounding key's own pressure (what MPC's pads send) |
 | CC 64 | sustain pedal (re-striking a held key retriggers in Multi) |
 | | A key is down or up: two note-ons for the same key and then one note-off end it, as on a keyboard |
-| CC 120 / 123 | all sound off / all notes off |
+| CC 120 / 121 / 123 | all sound off / reset all controllers (bend, wheel, pressure, pedal) / all notes off |

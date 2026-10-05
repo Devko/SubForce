@@ -8,6 +8,7 @@
 - [Benchmarking on the device](#benchmarking-on-the-device)
 - [Packaging and installing](#packaging-and-installing)
 - [Release builds](#release-builds)
+- [Diagnostics on the device](#diagnostics-on-the-device)
 - [Binary compatibility](#binary-compatibility)
 
 ---
@@ -118,6 +119,8 @@ sanitizers): it catches 32-bit and ARM-only paths.
 |---|---|
 | `SF_PRESET_ROOTS` | The preset roots (colon-separated list) |
 | `SF_DATA_DIR` | Where favorites and recent lists are kept (empty: nothing is saved) |
+| `SF_FIXED_SEED` | Set: every instance the same random numbers (noise, drift, S&H, RANDOM); the tests and demos set it |
+| `SF_TRACE_DIR` | Where the [diagnostics](#diagnostics-on-the-device) flag and log are (default `/tmp`) |
 
 ## Benchmarking on the device
 
@@ -168,6 +171,20 @@ A local build with a newer distribution's cross compiler (Ubuntu 24.04: glibc 2.
 `__isoc23_sscanf`) needs glibc 2.38. That loads on the Force and other MPC OS 3.x devices, fine for
 testing, but the catalog refuses it.
 
+## Diagnostics on the device
+
+To see what MPC sends when a control is touched, turned or tapped, create the flag file while MPC
+runs (no restart):
+
+```sh
+ssh root@<ip> touch /tmp/subforce.trace
+```
+
+Within a second every SubForce instance appends one line per `setParameter` to `/tmp/subforce.log`:
+the time, the instance, the parameter, the value MPC sent, the value it had read back before and the
+plugin's value and text after. Remove the flag file to stop. The log stops growing at 2 MB; `/tmp`
+is cleared when the device restarts.
+
 ## Binary compatibility
 
 - The `.so` exports only `VSTPluginMain` (a linker version script; the build counts every defined
@@ -175,4 +192,8 @@ testing, but the catalog refuses it.
   otherwise only show as MPC crashing on load. `-fno-gnu-unique` keeps it unloadable.
 - The [release build](#release-builds) needs glibc 2.31 or less, so it loads on MPC OS 2.x and 3.x.
   Built with a newer toolchain it needs that toolchain's glibc (Ubuntu 24.04: 2.38). The device build
-  prints the highest glibc version it needs.
+  prints the highest glibc version it needs, and `plugin-package` warns when it is over the
+  catalog's 2.32.
+- libstdc++ is linked dynamically. GCC 11's (the release build's) needs `GLIBCXX_3.4.29` (the
+  floating-point `from_chars` the saved state is parsed with): MPC OS 3.x ships GCC 13's. The
+  catalog's checker reads only the glibc version.

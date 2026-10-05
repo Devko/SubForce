@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -274,6 +275,7 @@ float volumeOf(const std::string& text) {   // what the preset sets, or the para
 } // namespace
 
 int main(int argc, char** argv) {
+    setenv("SF_FIXED_SEED", "1", 1);   // the same noise and drift on every run: the levels match
     g_time.sampleRate = kSr;
     g_time.tempo = 120.0;
     if (argc == 4 && !std::strcmp(argv[1], "--match")) {

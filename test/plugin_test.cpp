@@ -269,8 +269,10 @@ void testMidiMapping() {
     h.midi(0xB0, 64, 0);
     h.run(kBlocksPerSec / 4);
     CHECK(h.run(2) == 0.0f);
-    // CC 1 and channel pressure reach a bus set to them: a square on pitch, one semitone.
-    for (int ctl : {sf::MC_MODWHEEL, sf::MC_AFTERTOUCH}) {
+    // CC 1, channel pressure and the sounding key's own pressure (poly aftertouch: what pads
+    // send) reach a bus set to them: a square on pitch, one semitone. Another key's doesn't.
+    for (int how = 0; how < 4; ++how) {
+        const int ctl = how == 0 ? sf::MC_MODWHEEL : sf::MC_AFTERTOUCH;
         Host m;
         m.bare();
         m.set(sf::P_M1_SRC, sf::MS_SQUARE);
@@ -281,11 +283,13 @@ void testMidiMapping() {
         m.on(57);
         m.run(kBlocksPerSec / 2);
         const double off = pitchHz(m.L);
-        if (ctl == sf::MC_MODWHEEL) m.midi(0xB0, 1, 127);
-        else m.midi(0xD0, 127, 0);
+        if (how == 0) m.midi(0xB0, 1, 127);
+        else if (how == 1) m.midi(0xD0, 127, 0);
+        else m.midi(0xA0, how == 2 ? 57 : 60, 127);
         m.run(4);
         m.run(kBlocksPerSec / 2);
-        CHECK(std::fabs(off - 220.0) < 0.5 && std::fabs(pitchHz(m.L) / 220.0 - std::pow(2.0, 1.0 / 12.0)) < 0.003);
+        const double up = how == 3 ? 1.0 : std::pow(2.0, 1.0 / 12.0);
+        CHECK(std::fabs(off - 220.0) < 0.5 && std::fabs(pitchHz(m.L) / 220.0 - up) < 0.003);
     }
     // Bend down by its own range.
     h.set(sf::P_BEND_DN, 12);
@@ -295,6 +299,11 @@ void testMidiMapping() {
     h.run(8);
     h.run(kBlocksPerSec / 2);
     CHECK(std::fabs(pitchHz(h.L) - 110.0) < 0.4);
+    // CC 121 (reset all controllers): the bend is back at rest.
+    h.midi(0xB0, 121, 0);
+    h.run(8);
+    h.run(kBlocksPerSec / 2);
+    CHECK(std::fabs(pitchHz(h.L) - 220.0) < 0.5);
 }
 
 void testStress() {
@@ -335,6 +344,8 @@ void testStress() {
 
 } // namespace
 
+long long sft::g_msPerEvent = 1000;
+
 int main() {
     using namespace sft;
     const std::string root = fixtureDir();
@@ -342,11 +353,12 @@ int main() {
     std::filesystem::create_directories(root + "/data");
     setenv("SF_PRESET_ROOTS", (root + "/presets").c_str(), 1);
     setenv("SF_DATA_DIR", (root + "/data").c_str(), 1);
-    // Every host event a second apart: stepping never mistakes two of them for one turn, whatever
-    // the machine's speed (and qemu's), so every run steps the same way.
+    setenv("SF_FIXED_SEED", "1", 1);   // every instance the same random numbers: they are compared
+    // Host events a second apart unless a test says otherwise (sft::Turn): stepping never
+    // mistakes two of them for one turn, whatever the machine's speed (and qemu's).
     sf::Surface::clock = [] {
         static long long t = 0;
-        return t += 1000;
+        return t += g_msPerEvent;
     };
 
     engineTests();

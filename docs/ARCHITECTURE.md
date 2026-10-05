@@ -39,7 +39,8 @@ flowchart LR
 |---|---|
 | `dsp/synth.*` | The engine: keys (priority, trigger, Duo, pedal), glide, the mod busses, drift, the control step, the 2x render loop, idling |
 | `dsp/osc.h` | The morphing oscillator, hard sync and the sub, band-limited with polyBLEP / polyBLAMP |
-| `dsp/ladder.h` | The nonlinear transistor ladder (zero-delay feedback, four taps) |
+| `dsp/ladder.h` | The nonlinear transistor ladder (zero-delay feedback, four taps), its four stages in vector lanes |
+| `dsp/simd.h` | Four-float vectors: NEON on the Force, GCC's generic vectors on x86 (the tests run the same arithmetic); NEON reciprocals instead of divisions |
 | `dsp/halfband.h` | The 2x decimator (polyphase IIR halfband); `tools/halfband_design.py` designs it |
 | `dsp/env.h` | The DAHDSR envelope |
 | `dsp/mod.h` | The busses' sources, destinations, controls and synced rates |
@@ -115,8 +116,17 @@ PolyForce's rules, device-proven in RackForce before it:
   meter's at most twice a second.
 - A value MPC sends is recorded as what MPC shows only after the plugin has acted on it, so a
   preset load in between never has the old value pushed back.
-- Steppers move exactly one item per event, whatever delta MPC sends; MPC echoing the plugin's own
-  value back is ignored. A tile's release echo (~0.7 s after a tap) is ignored.
+- A Force sends every Q-Link detent, data-wheel click or drag event as the value it last read back
+  plus its step (sd88me/mpc-vst-plugins `docs/NOTES.md`, "Input probe", MPC OS 3.9.1). Steppers
+  measure each event from the plugin's own value and move exactly one item, whatever the delta
+  (Q-Link detent 1/128, data wheel 0.01, touch drag, fast spins); MPC echoing the plugin's own value
+  back is ignored.
+- A tap on a button toggles the value MPC read back, and a button always reads back 0, so every
+  tap arrives as a 1 with no release in between: each 1 is a press, and the plugin springs the
+  button back to 0 from the next block. (Both rules come from PolyForce's first device run: a
+  rising-edge button and a stepper measuring from MPC's previous value each worked once.)
+- MPC sends a second toggle about 0.7 s after a tap on a tile; a revert within 1 s is ignored.
+- To see what MPC sends on a device, see [diagnostics](BUILDING.md#diagnostics-on-the-device).
 
 ## Parameters and saved state
 
