@@ -1,0 +1,15 @@
+subforce 1
+volume=-5.3
+o1_wave=0
+mix_o1=0.7
+o2_wave=0
+o2_oct=3
+mix_o2=0.4
+m1_src=0
+m1_rate=0.4
+m1_pitch=0.55
+m1_ctl=0
+f_cut=5000
+f_env=0
+ae_s=1
+ae_r=0.5

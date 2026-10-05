@@ -1,0 +1,21 @@
+subforce 1
+volume=-1.8
+kmode=1
+prio=1
+mix_o1=0.7
+o2_wave=0.6667
+mix_o2=0.6
+f_cut=1800
+f_res=0.25
+f_env=0.3
+fe_d=0.5
+fe_s=0.4
+ae_s=1
+ae_r=0.2
+glide_mode=2
+glide_type=2
+glide=0.04
+m1_src=0
+m1_rate=5.5
+m1_pitch=0.15
+m1_ctl=1

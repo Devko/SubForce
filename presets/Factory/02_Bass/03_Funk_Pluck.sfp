@@ -1,0 +1,16 @@
+subforce 1
+volume=4.6
+mix_o2=0.4
+o2_freq=0.1
+f_cut=170
+f_res=0.62
+f_drive=0.3
+f_env=0.62
+fe_d=0.13
+fe_s=0
+fe_vel=0.6
+ae_a=0.001
+ae_d=0.3
+ae_s=0.3
+ae_r=0.05
+kb_reset=1

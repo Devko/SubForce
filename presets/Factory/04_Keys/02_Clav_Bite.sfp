@@ -1,0 +1,13 @@
+subforce 1
+volume=4.3
+o1_wave=0.85
+f_cut=900
+f_res=0.25
+f_env=0.45
+fe_d=0.1
+fe_s=0.05
+ae_d=0.28
+ae_s=0.12
+ae_r=0.06
+kb_reset=1
+f_kb=1

@@ -1,0 +1,18 @@
+subforce 1
+volume=-1.4
+o2_sync=1
+mix_o1=0.35
+mix_o2=0.8
+o2_freq=4
+m1_src=6
+m1_pitch=0.5
+m1_pdest=2
+m1_ctl=0
+fe_d=0.25
+fe_s=0.1
+f_cut=700
+f_res=0.3
+f_env=0.25
+f_drive=0.4
+ae_s=0.9
+ae_r=0.05

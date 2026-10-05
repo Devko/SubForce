@@ -1,0 +1,1312 @@
+{
+ "name": "SubForce",
+ "params": [
+  {
+   "key": "status",
+   "name": "Status",
+   "min": 0,
+   "max": 0,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "volume",
+   "name": "Volume",
+   "min": 0,
+   "max": 1,
+   "default": 0.840909,
+   "display": "string"
+  },
+  {
+   "key": "o1_oct",
+   "name": "Osc 1 Octave",
+   "options": [
+    "32'",
+    "16'",
+    "8'",
+    "4'",
+    "2'"
+   ],
+   "default": "8'"
+  },
+  {
+   "key": "o1_wave",
+   "name": "Osc 1 Wave",
+   "min": 0,
+   "max": 1,
+   "default": 0.333333,
+   "display": "string"
+  },
+  {
+   "key": "o2_oct",
+   "name": "Osc 2 Octave",
+   "options": [
+    "32'",
+    "16'",
+    "8'",
+    "4'",
+    "2'"
+   ],
+   "default": "8'"
+  },
+  {
+   "key": "o2_freq",
+   "name": "Osc 2 Freq",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "o2_wave",
+   "name": "Osc 2 Wave",
+   "min": 0,
+   "max": 1,
+   "default": 0.333333,
+   "display": "string"
+  },
+  {
+   "key": "o2_sync",
+   "name": "Hard Sync",
+   "options": [
+    "Off",
+    "On"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "sub_oct",
+   "name": "Sub Octave",
+   "options": [
+    "-1 Oct",
+    "-2 Oct"
+   ],
+   "default": "-1 Oct"
+  },
+  {
+   "key": "kb_reset",
+   "name": "KB Reset",
+   "options": [
+    "Off",
+    "On"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "drift",
+   "name": "Drift",
+   "min": 0,
+   "max": 1,
+   "default": 0.25,
+   "display": "string"
+  },
+  {
+   "key": "mix_o1",
+   "name": "Osc 1 Level",
+   "min": 0,
+   "max": 1,
+   "default": 0.8,
+   "display": "string"
+  },
+  {
+   "key": "mix_sub",
+   "name": "Sub Level",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "mix_o2",
+   "name": "Osc 2 Level",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "mix_noise",
+   "name": "Noise Level",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "mix_fb",
+   "name": "Feedback",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "noise_color",
+   "name": "Noise Colour",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "f_cut",
+   "name": "Cutoff",
+   "min": 0,
+   "max": 1,
+   "default": 0.666667,
+   "display": "string"
+  },
+  {
+   "key": "f_res",
+   "name": "Resonance",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "f_drive",
+   "name": "Multidrive",
+   "min": 0,
+   "max": 1,
+   "default": 0.2,
+   "display": "string"
+  },
+  {
+   "key": "f_slope",
+   "name": "Slope",
+   "options": [
+    "6 dB",
+    "12 dB",
+    "18 dB",
+    "24 dB"
+   ],
+   "default": "24 dB"
+  },
+  {
+   "key": "f_env",
+   "name": "EG Amount",
+   "min": 0,
+   "max": 1,
+   "default": 0.65,
+   "display": "string"
+  },
+  {
+   "key": "f_kb",
+   "name": "Key Track",
+   "min": 0,
+   "max": 1,
+   "default": 0.25,
+   "display": "string"
+  },
+  {
+   "key": "fe_dly",
+   "name": "FEG Delay",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "fe_a",
+   "name": "FEG Attack",
+   "min": 0,
+   "max": 1,
+   "default": 0.075257,
+   "display": "string"
+  },
+  {
+   "key": "fe_hold",
+   "name": "FEG Hold",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "fe_d",
+   "name": "FEG Decay",
+   "min": 0,
+   "max": 1,
+   "default": 0.650515,
+   "display": "string"
+  },
+  {
+   "key": "fe_s",
+   "name": "FEG Sustain",
+   "min": 0,
+   "max": 1,
+   "default": 0.3,
+   "display": "string"
+  },
+  {
+   "key": "fe_r",
+   "name": "FEG Release",
+   "min": 0,
+   "max": 1,
+   "default": 0.61928,
+   "display": "string"
+  },
+  {
+   "key": "fe_vel",
+   "name": "FEG Velocity",
+   "min": 0,
+   "max": 1,
+   "default": 0.3,
+   "display": "string"
+  },
+  {
+   "key": "fe_kb",
+   "name": "FEG Key Track",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "fe_loop",
+   "name": "FEG Loop",
+   "options": [
+    "Off",
+    "Loop"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "fe_reset",
+   "name": "FEG Reset",
+   "options": [
+    "Off",
+    "Reset"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "ae_dly",
+   "name": "AEG Delay",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "ae_a",
+   "name": "AEG Attack",
+   "min": 0,
+   "max": 1,
+   "default": 0.075257,
+   "display": "string"
+  },
+  {
+   "key": "ae_hold",
+   "name": "AEG Hold",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "ae_d",
+   "name": "AEG Decay",
+   "min": 0,
+   "max": 1,
+   "default": 0.674743,
+   "display": "string"
+  },
+  {
+   "key": "ae_s",
+   "name": "AEG Sustain",
+   "min": 0,
+   "max": 1,
+   "default": 0.8,
+   "display": "string"
+  },
+  {
+   "key": "ae_r",
+   "name": "AEG Release",
+   "min": 0,
+   "max": 1,
+   "default": 0.544023,
+   "display": "string"
+  },
+  {
+   "key": "ae_vel",
+   "name": "AEG Velocity",
+   "min": 0,
+   "max": 1,
+   "default": 0.4,
+   "display": "string"
+  },
+  {
+   "key": "ae_kb",
+   "name": "AEG Key Track",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "ae_loop",
+   "name": "AEG Loop",
+   "options": [
+    "Off",
+    "Loop"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "ae_reset",
+   "name": "AEG Reset",
+   "options": [
+    "Off",
+    "Reset"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "m1_src",
+   "name": "M1 Source",
+   "options": [
+    "Triangle",
+    "Square",
+    "Saw",
+    "Ramp",
+    "S&H",
+    "Smooth",
+    "Filter EG"
+   ],
+   "default": "Triangle"
+  },
+  {
+   "key": "m1_src__open",
+   "name": "M1 Source List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m1_src",
+   "type": "enum"
+  },
+  {
+   "key": "m1_sync",
+   "name": "M1 Sync",
+   "options": [
+    "Free",
+    "Sync"
+   ],
+   "default": "Free"
+  },
+  {
+   "key": "m1_rate",
+   "name": "M1 Rate",
+   "min": 0,
+   "max": 1,
+   "default": 0.605872,
+   "display": "string"
+  },
+  {
+   "key": "m1_div",
+   "name": "M1 Sync Rate",
+   "options": [
+    "8 bars",
+    "4 bars",
+    "2 bars",
+    "1 bar",
+    "1/2",
+    "1/2T",
+    "1/4",
+    "1/4T",
+    "1/4.",
+    "1/8",
+    "1/8T",
+    "1/8.",
+    "1/16",
+    "1/16T",
+    "1/16.",
+    "1/32",
+    "1/32T"
+   ],
+   "default": "1/8"
+  },
+  {
+   "key": "m1_div__open",
+   "name": "M1 Sync Rate List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m1_div",
+   "type": "enum"
+  },
+  {
+   "key": "m1_pitch",
+   "name": "M1 Pitch",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_pdest",
+   "name": "M1 Pitch Dest",
+   "options": [
+    "Osc 1+2",
+    "Osc 1",
+    "Osc 2"
+   ],
+   "default": "Osc 1+2"
+  },
+  {
+   "key": "m1_filter",
+   "name": "M1 Filter",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_dest",
+   "name": "M1 Dest",
+   "options": [
+    "Off",
+    "Wave 1+2",
+    "Wave 1",
+    "Wave 2",
+    "Resonance",
+    "Multidrive",
+    "Sub Level",
+    "Noise Level",
+    "Feedback",
+    "Volume",
+    "Other Rate"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "m1_dest__open",
+   "name": "M1 Dest List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m1_dest",
+   "type": "enum"
+  },
+  {
+   "key": "m1_amt",
+   "name": "M1 Amount",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_ctl",
+   "name": "M1 Control",
+   "options": [
+    "Always",
+    "Mod Wheel",
+    "Aftertouch",
+    "Velocity"
+   ],
+   "default": "Mod Wheel"
+  },
+  {
+   "key": "m1_ctl__open",
+   "name": "M1 Control List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m1_ctl",
+   "type": "enum"
+  },
+  {
+   "key": "m1_trig",
+   "name": "M1 Trigger",
+   "options": [
+    "Free",
+    "Retrig"
+   ],
+   "default": "Free"
+  },
+  {
+   "key": "m2_src",
+   "name": "M2 Source",
+   "options": [
+    "Triangle",
+    "Square",
+    "Saw",
+    "Ramp",
+    "S&H",
+    "Smooth",
+    "Filter EG"
+   ],
+   "default": "Triangle"
+  },
+  {
+   "key": "m2_src__open",
+   "name": "M2 Source List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m2_src",
+   "type": "enum"
+  },
+  {
+   "key": "m2_sync",
+   "name": "M2 Sync",
+   "options": [
+    "Free",
+    "Sync"
+   ],
+   "default": "Free"
+  },
+  {
+   "key": "m2_rate",
+   "name": "M2 Rate",
+   "min": 0,
+   "max": 1,
+   "default": 0.302936,
+   "display": "string"
+  },
+  {
+   "key": "m2_div",
+   "name": "M2 Sync Rate",
+   "options": [
+    "8 bars",
+    "4 bars",
+    "2 bars",
+    "1 bar",
+    "1/2",
+    "1/2T",
+    "1/4",
+    "1/4T",
+    "1/4.",
+    "1/8",
+    "1/8T",
+    "1/8.",
+    "1/16",
+    "1/16T",
+    "1/16.",
+    "1/32",
+    "1/32T"
+   ],
+   "default": "1/8"
+  },
+  {
+   "key": "m2_div__open",
+   "name": "M2 Sync Rate List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m2_div",
+   "type": "enum"
+  },
+  {
+   "key": "m2_pitch",
+   "name": "M2 Pitch",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_pdest",
+   "name": "M2 Pitch Dest",
+   "options": [
+    "Osc 1+2",
+    "Osc 1",
+    "Osc 2"
+   ],
+   "default": "Osc 1+2"
+  },
+  {
+   "key": "m2_filter",
+   "name": "M2 Filter",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_dest",
+   "name": "M2 Dest",
+   "options": [
+    "Off",
+    "Wave 1+2",
+    "Wave 1",
+    "Wave 2",
+    "Resonance",
+    "Multidrive",
+    "Sub Level",
+    "Noise Level",
+    "Feedback",
+    "Volume",
+    "Other Rate"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "m2_dest__open",
+   "name": "M2 Dest List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m2_dest",
+   "type": "enum"
+  },
+  {
+   "key": "m2_amt",
+   "name": "M2 Amount",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_ctl",
+   "name": "M2 Control",
+   "options": [
+    "Always",
+    "Mod Wheel",
+    "Aftertouch",
+    "Velocity"
+   ],
+   "default": "Always"
+  },
+  {
+   "key": "m2_ctl__open",
+   "name": "M2 Control List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "m2_ctl",
+   "type": "enum"
+  },
+  {
+   "key": "m2_trig",
+   "name": "M2 Trigger",
+   "options": [
+    "Free",
+    "Retrig"
+   ],
+   "default": "Free"
+  },
+  {
+   "key": "kmode",
+   "name": "Key Mode",
+   "options": [
+    "Mono",
+    "Duo"
+   ],
+   "default": "Mono"
+  },
+  {
+   "key": "prio",
+   "name": "Note Priority",
+   "options": [
+    "Last",
+    "Low",
+    "High"
+   ],
+   "default": "Last"
+  },
+  {
+   "key": "trig",
+   "name": "Trigger",
+   "options": [
+    "Multi",
+    "Single"
+   ],
+   "default": "Multi"
+  },
+  {
+   "key": "glide_mode",
+   "name": "Glide",
+   "options": [
+    "Off",
+    "Always",
+    "Legato"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "glide_type",
+   "name": "Glide Type",
+   "options": [
+    "Rate",
+    "Time",
+    "Exp"
+   ],
+   "default": "Time"
+  },
+  {
+   "key": "glide",
+   "name": "Glide Time",
+   "min": 0,
+   "max": 1,
+   "default": 0.475772,
+   "display": "string"
+  },
+  {
+   "key": "glide_dest",
+   "name": "Glide Dest",
+   "options": [
+    "Osc 1+2",
+    "Osc 1",
+    "Osc 2"
+   ],
+   "default": "Osc 1+2"
+  },
+  {
+   "key": "bend_up",
+   "name": "Bend Up",
+   "min": 0,
+   "max": 1,
+   "default": 0.083333,
+   "display": "string"
+  },
+  {
+   "key": "bend_dn",
+   "name": "Bend Down",
+   "min": 0,
+   "max": 1,
+   "default": 0.083333,
+   "display": "string"
+  },
+  {
+   "key": "preset",
+   "name": "Preset",
+   "min": 0,
+   "max": 1,
+   "display": "string",
+   "type": "stepper"
+  },
+  {
+   "key": "preset_prev",
+   "name": "Preset Prev",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "preset_next",
+   "name": "Preset Next",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "pre_save",
+   "name": "Save Preset",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "pre_init",
+   "name": "Init Patch",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "pre_rand",
+   "name": "Randomize",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "rand_amt",
+   "name": "Rand Amount",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "cat_1",
+   "name": "Category 1",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_2",
+   "name": "Category 2",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_3",
+   "name": "Category 3",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_4",
+   "name": "Category 4",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_5",
+   "name": "Category 5",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_6",
+   "name": "Category 6",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_7",
+   "name": "Category 7",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_8",
+   "name": "Category 8",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_9",
+   "name": "Category 9",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_10",
+   "name": "Category 10",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_11",
+   "name": "Category 11",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_12",
+   "name": "Category 12",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_13",
+   "name": "Category 13",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_14",
+   "name": "Category 14",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_15",
+   "name": "Category 15",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_16",
+   "name": "Category 16",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "cat_prev",
+   "name": "Categories Prev",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "cat_next",
+   "name": "Categories Next",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "item_1",
+   "name": "Item 1",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_2",
+   "name": "Item 2",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_3",
+   "name": "Item 3",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_4",
+   "name": "Item 4",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_5",
+   "name": "Item 5",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_6",
+   "name": "Item 6",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_7",
+   "name": "Item 7",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_8",
+   "name": "Item 8",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_9",
+   "name": "Item 9",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_10",
+   "name": "Item 10",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_11",
+   "name": "Item 11",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_12",
+   "name": "Item 12",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_13",
+   "name": "Item 13",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_14",
+   "name": "Item 14",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_15",
+   "name": "Item 15",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_16",
+   "name": "Item 16",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_17",
+   "name": "Item 17",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_18",
+   "name": "Item 18",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_19",
+   "name": "Item 19",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_20",
+   "name": "Item 20",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_21",
+   "name": "Item 21",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_22",
+   "name": "Item 22",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_23",
+   "name": "Item 23",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_24",
+   "name": "Item 24",
+   "options": [
+    "-",
+    "On"
+   ],
+   "default": "-",
+   "display": "string"
+  },
+  {
+   "key": "item_prev",
+   "name": "Items Prev",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "item_next",
+   "name": "Items Next",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  },
+  {
+   "key": "item_page",
+   "name": "Items Page",
+   "min": 0,
+   "max": 0,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "br_now",
+   "name": "Loaded",
+   "min": 0,
+   "max": 0,
+   "display": "string",
+   "type": "readout"
+  },
+  {
+   "key": "fav",
+   "name": "Favorite",
+   "options": [
+    "Off",
+    "On"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "rnd",
+   "name": "Random Pick",
+   "min": 0,
+   "max": 1,
+   "momentary": true,
+   "type": "trigger"
+  }
+ ]
+}

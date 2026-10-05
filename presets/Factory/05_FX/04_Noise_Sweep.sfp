@@ -1,0 +1,15 @@
+subforce 1
+volume=-1.8
+mix_o1=0
+mix_noise=0.8
+noise_color=0.2
+f_cut=150
+f_res=0.8
+f_env=0.8
+fe_a=1.5
+fe_d=2.5
+fe_s=0
+fe_loop=1
+ae_a=0.3
+ae_s=1
+ae_r=1.5

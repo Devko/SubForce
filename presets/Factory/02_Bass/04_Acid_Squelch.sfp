@@ -1,0 +1,19 @@
+subforce 1
+volume=-0.9
+f_slope=2
+f_cut=260
+f_res=0.82
+f_drive=0.55
+f_env=0.55
+fe_d=0.2
+fe_s=0
+fe_vel=0.7
+ae_a=0.001
+ae_d=0.6
+ae_s=0.7
+ae_r=0.04
+glide_mode=2
+glide_type=1
+glide=0.06
+trig=1
+f_kb=0.35
