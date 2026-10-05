@@ -34,7 +34,8 @@ On Ubuntu 24.04, for example:
 sudo apt install g++ g++-arm-linux-gnueabihf make python3 python3-pil qemu-user
 ```
 
-`PY` must be the Python that Pillow is installed for (with Ubuntu's `python3-pil`, `/usr/bin/python3.12`).
+`PY` must be a Python that has Pillow: the default `python3` works with Ubuntu's `python3-pil`; set it
+for a virtual environment.
 
 ## Quick start
 
@@ -60,17 +61,24 @@ changes; it checks the layout and every factory preset before writing anything.
 | `test` | The ASan/UBSan suite |
 | `test-arm` | The same suite built for the Force's CPU, run under `qemu-arm` |
 | `test-arm-pgo` | The suite linked against the profile-guided objects the shipped `.so` is made of |
-| `demos` | Render every factory preset (a phrase per category) and a filter sweep to `build/demos-out/*.wav` (stereo, L = R, as the plugin plays) |
+| `demos` | Render every factory preset (a phrase per category, below) and a filter sweep to `build/demos-out/*.wav` (stereo, L = R, as the plugin plays), and all of them back to back as `tour.wav` |
 | `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −18) on its demo phrase |
 | `bench` | x86 bench: only proves the bench and the profiling build work |
 | `arm-plugin` | `build/arm/subforce.so`; profile-guided when `qemu-arm` is installed |
+| `arm-bench` | `build/arm/sfbench`, the CPU bench for the device |
 | `arm-bench-stages` | `build/arm/subforce_stages.so`, the profiling build (never shipped) |
 | `bench-device` | Run the CPU bench on a device (see [below](#benchmarking-on-the-device)) |
 | `plugin-package` | `dist/SubForce-<version>-mpc-armv7.zip` with the installer |
-| `plugin-install` | Package, copy to the device and install (stops and restarts MPC) |
+| `plugin-install` | Package, copy to the device and install without asking (`install.sh -y`: stops and restarts MPC) |
 | `clean` | Remove `build/` and `surface/build/` |
 
 `make` on its own runs the tests and builds the device `.so` and the x86 profiling build.
+
+The demo phrases (`tools/demos.cpp`, 120 BPM), which `preset-levels` also matches the loudness on:
+Templates and Bass, a 16th-note line with legato steps; Sequence, a 16th-note sequence with accents
+and slides; Lead, a legato melody with the mod wheel; Keys, an 8th-note arpeggio; Pad, held two-note
+chords; FX and any other category, held notes. A new category folder plays the FX phrase unless
+`tools/demos.cpp` gets one for it.
 
 ## Make variables
 
@@ -82,7 +90,7 @@ changes; it checks the layout and every factory preset before writing anything.
 | `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
 | `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
 | `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
-| `PLUGIN_VERSION` | Version in the package name |
+| `PLUGIN_VERSION` | Release version (default `0.0.1`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
 
@@ -99,16 +107,17 @@ PY      = /usr/bin/python3.12
 
 `make test` measures the engine directly and drives the whole plugin through its VST2 entry points
 against a fake MPC host (`test/host.h`), under AddressSanitizer and UndefinedBehaviorSanitizer (any
-undefined behaviour fails the run). The tests give the surface a clock that moves a second per host
-event, so stepping never depends on the machine's speed:
+undefined behaviour fails the run). The host taps buttons and turns Q-Links the way a Force sends
+them, and the tests give the surface a clock that moves a second per host event (a few ms within a
+turn, `sft::Turn`), so stepping never depends on the machine's speed:
 
 | File | Covers |
 |---|---|
-| `test/engine_test.cpp` | The math helpers' error bounds; the decimator's passband and stopband; every wave shape's aliasing, pitch and DC; a swept pulse width; sync, the sub (and its octave switch), the keyboard reset; the ladder's self-oscillation, slopes, bass loss, key tracking and drive; envelope timing, loop, reset, velocity; noise colour loudness; idling; stability with everything at full |
-| `test/keys_test.cpp` | Note priority, multi and single trigger, re-striking a sounding key, the pedal, more keys than remembered, Duo, mode changes with keys down, glide (Rate, Time, Exp; Always, Legato; which oscillators; from the note's own sample) |
+| `test/engine_test.cpp` | The math helpers' error bounds; the decimator's passband and stopband; every wave shape's aliasing, pitch and DC; a swept pulse width; sync, the sub (and its octave switch), the keyboard reset; the ladder's self-oscillation (the edge at 70%: 65% silent, 76% sings), slopes, bass loss, key tracking and drive; Multidrive's even harmonics; the mixer's feedback loop (level, grit, no subharmonics); envelope timing (the linear attack), loop through the release, reset, velocity; noise colour loudness (white, pink, dark); idling; stability with everything at full |
+| `test/keys_test.cpp` | Note priority, multi and single trigger (Multi not retriggering when a release hands back to a held key, in Mono and Duo), re-striking a sounding key, the pedal, more keys than remembered, Duo, mode changes with keys down, glide (Rate, Time, Exp; Always, Legato; which oscillators; from the note's own sample) |
 | `test/mod_test.cpp` | The busses: every source, depth, rate, sync (free and locked to the bar), mod wheel / velocity / pressure, the filter EG as a source, every destination, Other Rate (on a locked bus too) |
-| `test/preset_test.cpp` | Saved state round trips and bad input, presets (init, save, step, the ends, after RANDOM, missing files), user numbering, files appearing and renamed while running, the browser, favorites, stepping and the values pushed back, randomize, every factory preset playing |
-| `test/plugin_test.cpp` | The VST2 basics, MIDI timing and mapping (pedal, mod wheel, pressure, bend both ways), pitch, octaves, CC 120 / 123, suspend, `process()` against `processReplacing`, floods of events and random patches |
+| `test/preset_test.cpp` | Saved state round trips and bad input, presets (init, save, step, the ends, after RANDOM, missing files), user numbering, files appearing and renamed while running, the browser, favorites, stepping and the values pushed back (a Force Q-Link turn on the preset stepper: one preset per detent; a tile's release echo), randomize, every factory preset playing |
+| `test/plugin_test.cpp` | The VST2 basics, MIDI timing and mapping (pedal, mod wheel, channel pressure and poly aftertouch on the sounding key only, bend both ways), pitch, octaves, CC 120 / 121 / 123, suspend, `process()` against `processReplacing`, floods of events and random patches |
 
 `make test-arm` runs the same suite cross-compiled for the Force's CPU under `qemu-arm` (no
 sanitizers): it catches 32-bit and ARM-only paths.
@@ -148,21 +157,28 @@ device, so the build refuses CRLF line endings in them.
 make plugin-install FORCE=root@<ip>
 ```
 
-Packages, copies the package to the device and runs its installer: it **stops MPC** (save your
-project first), backs up and edits `MPC.settings`, and starts MPC again. A reinstall keeps the
-user's presets and favorites/recent lists.
+Packages, copies the package to the device and runs its installer without asking (`-y`): it **stops
+MPC** (save your project first), backs up and edits `MPC.settings`, and starts MPC again. A reinstall
+keeps the user's presets and favorites/recent lists.
 
 ## Release builds
 
-Releases are built by CI (`.github/workflows/build.yml`) on every push, the way the plugin catalog's
-own ports are built: the device build runs in `arm32v7/gcc:11-bullseye` (GCC 11, glibc 2.31) under
-QEMU, profile-guided, with the test suite run against the objects the `.so` is linked from; the
-sanitizer suite runs on x86. The zip is checked with the catalog's own checker
-(`third_party/mpc-vst-plugins/tools/catalog_check.py --catalog`) and kept as the run's artifact.
+CI (`.github/workflows/build.yml`) builds, tests and checks the release package on every push and
+pull request, the way the plugin catalog's own ports are built: the device build runs in
+`arm32v7/gcc:11-bullseye` (GCC 11, glibc 2.31) under QEMU, profile-guided, with the test suite run
+against the objects the `.so` is linked from; the sanitizer suite runs on x86. The zip is checked
+with the catalog's own checker (`third_party/mpc-vst-plugins/tools/catalog_check.py --catalog`) and
+kept as the run's artifact (`SubForce-mpc-armv7`).
 
-Pushing a tag `vX.Y.Z` also publishes it as a GitHub release, a prerelease while the version is 0.x
-(the catalog's beta channel). The catalog reads the major version as the parameter list's
-compatibility: bump X whenever parameter indices change.
+Pushing a tag `vX.Y.Z` sets `PLUGIN_VERSION` from it and publishes the zip as a GitHub release, a
+prerelease for `v0.*` (the catalog's beta channel), with `CHANGELOG.md`'s `## X.Y.Z` section as its
+notes; a tag without that section fails before anything is published. To release: add the section,
+then `git tag vX.Y.Z && git push origin vX.Y.Z`. The catalog finds new releases by itself (nightly).
+
+The catalog reads the major version as the parameter list's compatibility (`param_compat` = X). 0.x
+releases are previews: parameter indices may still change between them, under the same
+`param_compat` 0. From v0.1 the list is append-only; should indices ever have to change after that,
+bump X.
 
 The same build outside CI, in an ARM environment: `make ARM_PREFIX= ARM_RUN= PGO=1 plugin-package`
 (`ARM_PREFIX` empty: the native compiler; `ARM_RUN` empty: ARM programs run directly).
@@ -190,10 +206,11 @@ is cleared when the device restarts.
 - The `.so` exports only `VSTPluginMain` (a linker version script; the build counts every defined
   dynamic symbol and fails otherwise) and links with `--no-undefined`: an unresolved symbol would
   otherwise only show as MPC crashing on load. `-fno-gnu-unique` keeps it unloadable.
-- The [release build](#release-builds) needs glibc 2.31 or less, so it loads on MPC OS 2.x and 3.x.
-  Built with a newer toolchain it needs that toolchain's glibc (Ubuntu 24.04: 2.38). The device build
-  prints the highest glibc version it needs, and `plugin-package` warns when it is over the
-  catalog's 2.32.
+- The [release build](#release-builds) is linked against glibc 2.31 and needs symbols up to
+  GLIBC_2.27 only. Built with a newer toolchain it needs that toolchain's glibc (Ubuntu 24.04:
+  2.38). The device build prints the highest glibc version it needs, and `plugin-package` warns when
+  it is over the catalog's 2.32.
 - libstdc++ is linked dynamically. GCC 11's (the release build's) needs `GLIBCXX_3.4.29` (the
-  floating-point `from_chars` the saved state is parsed with): MPC OS 3.x ships GCC 13's. The
-  catalog's checker reads only the glibc version.
+  floating-point `from_chars` the saved state is parsed with): MPC OS 3.x ships GCC 13's, so it is
+  there; whether MPC OS 2.x has it is unknown (2.x is untested, and doesn't draw the pages anyway).
+  The catalog's checker reads only the glibc version.

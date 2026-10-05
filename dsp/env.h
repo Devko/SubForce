@@ -1,8 +1,8 @@
 #pragma once
-// The DAHDSR envelope: Delay, Attack, Hold, Decay, Sustain, Release, as the Sub 37's: a linear
+// The DAHDSR envelope: Delay, Attack, Hold, Decay, Sustain, Release, as the original's: a linear
 // attack (its default; EXP ATTACK is an option there), decay settling exponentially on the
 // sustain level, release falling to -80 dB. Loop, while the key is held: delay -> attack -> hold
-// -> decay -> release, and round again, the release stage included as on the hardware ("delay,
+// -> decay -> release, and round again, the release stage included as on the original ("delay,
 // attack, hold, decay, and release stages will loop continuously"): with sustain at 0 it is
 // D-A-H-D; with sustain up, decay falls to it and release takes it the rest of the way.
 #include "fastmath.h"

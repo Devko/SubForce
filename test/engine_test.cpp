@@ -255,7 +255,7 @@ void testLadder() {
         std::printf("  resonance 100%%, cutoff %5.0f Hz: oscillates at %.1f Hz (%+.0f ct), rms %.3f\n", hz, f, cents, rms(x));
         CHECK(std::fabs(cents) < 60.0 && rms(x) > 0.03 && rms(x) < 0.5);
     }
-    // The edge at 70% of the knob, as the Sub 37's "settings above 7 cause the filter to
+    // The edge at 70% of the knob, as the original's "settings above 7 cause the filter to
     // self-oscillate": under it, no oscillation of its own; over it, it sings.
     p.cutoffHz = 1000.0f;
     p.res = 0.65f;
@@ -300,7 +300,7 @@ void testLadder() {
     const double d1 = rms(play(d, 36, 16384));
     std::printf("  Multidrive 0 -> 100%%: %+.1f dB\n", 20 * std::log10(d1 / d0));
     CHECK(d1 > d0 && 20 * std::log10(d1 / d0) < 9.0);
-    // Multidrive's asymmetry, the Sub 37's "tube-like warmth": a triangle (odd harmonics only)
+    // Multidrive's asymmetry, the original's "tube-like warmth": a triangle (odd harmonics only)
     // picks up even ones at moderate drive, none clean.
     auto evenDb = [](float drive) {
         Patch t = plain();
@@ -314,19 +314,21 @@ void testLadder() {
     CHECK(e0 < -60.0 && e5 > -45.0);
     // Feedback, the mixer's output back into it: louder and grittier (more upper harmonics) as it
     // comes up, bounded.
-    auto fb = [](float level, double* hf) {
+    auto fb = [](float level, double* hf, double* sub) {
         Patch t = plain();
         t.cutoffHz = 2000.0f;
         t.mixFeedback = level;
         const auto x = play(t, 36, 44100, 22050);
-        *hf = toneAmp(x, 65.41 * 9) / toneAmp(x, 65.41);   // the 9th harmonic against the fundamental
+        *hf = toneAmp(x, 65.41 * 9) / toneAmp(x, 65.41);    // the 9th harmonic against the fundamental
+        *sub = toneAmp(x, 65.41 / 2) / toneAmp(x, 65.41);   // an octave under: a loop motorboating
         return rms(x);
     };
-    double h0 = 0, h1 = 0;
-    const double f0 = fb(0.0f, &h0), f1 = fb(1.0f, &h1);
-    std::printf("  feedback 0 -> 100%%: %+.1f dB, 9th harmonic %+.1f dB against the fundamental\n",
-                20 * std::log10(f1 / f0), 20 * std::log10(h1 / h0));
+    double h0 = 0, h1 = 0, s0 = 0, s1 = 0;
+    const double f0 = fb(0.0f, &h0, &s0), f1 = fb(1.0f, &h1, &s1);
+    std::printf("  feedback 0 -> 100%%: %+.1f dB, 9th harmonic %+.1f dB against the fundamental, subharmonic %.0f dB\n",
+                20 * std::log10(f1 / f0), 20 * std::log10(h1 / h0), 20 * std::log10(s1));
     CHECK(f1 > f0 && 20 * std::log10(f1 / f0) < 15.0 && 20 * std::log10(h1 / h0) > 3.0 && std::isfinite(f1));
+    CHECK(20 * std::log10(s1) < -60.0);
 }
 
 void testEnvelopes() {

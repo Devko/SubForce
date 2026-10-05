@@ -3,6 +3,7 @@
 Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 - [What's next](#whats-next)
+- [Phase 1](#phase-1)
 - [Phase 0](#phase-0)
 - [Planned](#planned)
 - [Deferred and not planned](#deferred-and-not-planned)
@@ -12,16 +13,18 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 ## What's next
 
+- 🔜 **0.0.1**, the first public preview: tag `v0.0.1` → GitHub prerelease → the plugin catalog's
+  beta channel ([sd88me/mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)).
 - 🔜 **On the device:** play every page, check the Q-Link sets and the preset browser (installs,
   loads and benches: [Performance](PERFORMANCE.md#measurements)).
 - 🔜 **Automation on the device:** whether MPC plays recorded automation of the stepped controls
   (octaves, slopes, modes) back through `setParameter`, and from which thread; the stepping logic
   treats events under 300 ms apart as one turn.
-- 🔜 **Listening pass** on real speakers, against a Sub 37 if one is at hand: every factory
+- 🔜 **Listening pass** on real speakers, against the original if one is at hand: every factory
   preset, the new feedback loop's range, Multidrive's asymmetry, the linear attack; tune voicing
   constants (`dsp/synth.cpp`: input gain, drive span and bias, feedback gain and clip, output gain)
   and the presets from it.
-- ⬜ **v0.1**, the first release: parameter list frozen (append-only from then on).
+- ⬜ **v0.1**: parameter list frozen (append-only from then on).
 
 ## Phase 1
 
@@ -35,7 +38,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ Fixes: buttons and the preset stepper on the Force (PolyForce's device-run rules), Multi
   trigger on key releases, poly aftertouch, CC 121, flush-to-zero scope, per-instance random seeds,
   device diagnostics (`/tmp/subforce.trace`)
-- ✅ Sub 37 behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
+- ✅ The original's behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 
@@ -45,7 +48,8 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 - ✅ Engine: two morphing polyBLEP oscillators (triangle → saw → square → 6% pulse), 32'–2', hard sync,
   square sub (−1 / −2 oct), noise with colour, keyboard reset, drift
-- ✅ Mixer with feedback (post-VCA, DC-blocked) and the hot-mixer overdrive
+- ✅ Mixer with feedback (post-VCA, DC-blocked; replaced in Phase 1 by the mixer's own loop) and the
+  hot-mixer overdrive
 - ✅ Nonlinear transistor ladder, zero-delay feedback, 6/12/18/24 dB taps, self-oscillation, bass loss,
   Multidrive (input gain + a second stage), key tracking to 200%
 - ✅ 2x oversampled voice with a polyphase IIR halfband decimator
@@ -57,8 +61,8 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ Plugin from PolyForce's groundwork: VST2 glue, touchscreen logic and stepping, preset library
   and browser, favorites, user presets, randomize, state text, CPU meter
 - ✅ Six touchscreen pages and Q-Link sets, an amber skin
-- ✅ 27 factory presets in 5 categories, level-matched at −18 LUFS
-- ✅ Test suite (360 checks, ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
+- ✅ 27 factory presets in 5 categories, level-matched at −18 LUFS (57 in 7 since Phase 1)
+- ✅ Test suite (360 checks then, 469 now; ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
   release package, demo renders
 - ✅ Review (DSP, plugin, build / tests / docs, in parallel): about 40 confirmed findings fixed, each
   with a check — among them pulse edges a moving width swept past, a sounding key struck again,
@@ -70,7 +74,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 ## Planned
 
 - ⬜ **Audio-rate bus sources**: oscillator 2 and noise as mod sources (FM to pitch and cutoff).
-- ⬜ **Quality switch**: 4x oversampling, if the device bench leaves room.
+- ⬜ **Quality switch**: 4x oversampling, if listening shows a need (the device bench leaves room).
 - ⬜ **Arpeggiator / sequencer**: low priority — the Force sequences better than any plugin page can.
 - ⬜ **More presets** after the listening pass.
 
@@ -87,6 +91,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 - 2026-10-05 — **Own repository**, the plugin groundwork taken from PolyForce, the engine new.
 - 2026-10-05 — **2x oversampling** for the whole voice (oscillators to VCA), polyBLEP oscillators.
-- 2026-10-05 — **The ladder's bass loss kept** (no compensation), as on the hardware.
+- 2026-10-05 — **The ladder's bass loss kept** (no compensation), as on the original.
 - 2026-10-05 — **Factory presets at −18 LUFS** on their demo phrase, peaks under −3 dBFS.
-- Moog, Subsequent and other product names are not used in the plugin, its presets or its pages.
+- Moog, Subsequent and other product names are not used in the plugin, its presets, its pages or
+  its docs (beyond the trademark notice): the docs say *the original*.

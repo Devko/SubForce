@@ -54,7 +54,8 @@ constexpr float kNoiseComp[17] = {2.000000f, 1.728349f, 1.428936f, 1.182656f, 0.
 
 Synth::Synth(float sampleRate)
     : sr_(sampleRate), osr_(sampleRate * kOversample), invOsr_(1.0f / (sampleRate * kOversample)),
-      invSr_(1.0f / sampleRate), driftK_(1.0f / (0.6f * sampleRate)) {
+      invSr_(1.0f / sampleRate), driftK_(1.0f / (0.6f * sampleRate)),
+      fbK_(1.0f - std::exp(-2.0f * kPi * kFeedbackLp / (sampleRate * kOversample))) {
     setTransport(120.0, 0.0, false, false);
     setPatch(Patch{});
 }
@@ -560,7 +561,6 @@ void Synth::renderRun(float* out, int n) {
     const bool sync = patch_.sync;
     const float nk = noiseK_, np = noisePink_, nc = noiseComp_;
     const float fbR = 1.0f - 2.0f * kPi * kFeedbackHp * invOsr_;   // the feedback loop's AC coupling
-    const float fbK = 1.0f - std::exp(-2.0f * kPi * kFeedbackLp * invOsr_);   // the loop's bandwidth
     // Multidrive's second stage: softclip(g x + b) - softclip(b), tube-like (even harmonics) at
     // moderate drive, toward symmetric hard clipping at full.
     const float bias = driveBias_, biasOut = softclip(bias);
@@ -616,13 +616,13 @@ void Synth::renderRun(float* out, int n) {
             }
             // The mixer, its feedback channel taking the mixer's own output back in (one sample
             // late): through that channel's overload (a cubic: no division in the loop), AC
-            // coupled and band-limited, as the Sub 37's FEEDBACK knob does with nothing in EXT IN.
+            // coupled and band-limited, as the original's FEEDBACK knob does with nothing in EXT IN.
             // Over unity loop gain it saturates: grit, then the howl of an overdriven loop.
             if (fbOn) {
                 mix += l4 * fbIn_;
                 // c - c^3 / 3: slope 1 at 0, flat at +-1, where it reads 2/3 of the scale: kFeedbackClip.
                 const float c = clampf(mix * (1.0f / (1.5f * kFeedbackClip)), -1.0f, 1.0f);
-                fbLp_ += (1.5f * kFeedbackClip * c * (1.0f - (1.0f / 3.0f) * c * c) - fbLp_) * fbK;
+                fbLp_ += (1.5f * kFeedbackClip * c * (1.0f - (1.0f / 3.0f) * c * c) - fbLp_) * fbK_;
                 fbY1_ = fbLp_ - fbX1_ + fbR * fbY1_;
                 fbX1_ = fbLp_;
                 fbIn_ = fbY1_;

@@ -26,8 +26,8 @@ flowchart LR
 
 - **`surface/surface.py`** is the single source of the parameter list and the touchscreen pages.
   It writes `params.json`, `layout.conf`, `vst.json`, `build/param_ids.h` (ids, value curves,
-  limits) and `build/factory_presets.h` (the factory presets, embedded), after checking the layout
-  and every preset (keys, ranges, names).
+  limits), `build/factory_presets.h` (the factory presets, embedded) and `build/skin_style.json`
+  (for `skin_polish.py`), after checking the layout and every preset (keys, ranges, names).
 - **`dsp/`** is the engine: no VST, no files, no threads. It renders a `Patch` for the keys it is
   given.
 - **`plugin/`** is everything between the engine and MPC: VST2 entry points, MIDI, parameters,
@@ -44,7 +44,7 @@ flowchart LR
 | `dsp/halfband.h` | The 2x decimator (polyphase IIR halfband); `tools/halfband_design.py` designs it |
 | `dsp/env.h` | The DAHDSR envelope |
 | `dsp/mod.h` | The busses' sources, destinations, controls and synced rates |
-| `dsp/fastmath.h` | exp2, tan, tanh(x)/x, softclip, random numbers |
+| `dsp/fastmath.h` | exp2, log2, tan, tanh(x)/x, softclip, floor, random numbers |
 | `dsp/stages.h` | Stage timers for the profiling build (`-DSF_STAGE_TIMING`) |
 | `plugin/plugin.cpp` | VST2 glue: MIDI with sample offsets, transport, chunk state, denormal flush, CPU meter |
 | `plugin/surface.*` | The touchscreen side: parameter values, stepping, the preset browser, pushes to MPC |
@@ -53,13 +53,16 @@ flowchart LR
 | `plugin/presets.*` | Factory and user presets |
 | `plugin/state.*` | The state text shared by projects and preset files |
 | `plugin/paths.*` | Plugin folder, preset roots, data folder, atomic file writes |
+| `plugin/trace.*` | Device diagnostics: every `setParameter` logged while `/tmp/subforce.trace` exists ([Building](BUILDING.md#diagnostics-on-the-device)) |
 | `plugin/vst2.h` | A hand-written slice of the VST2 ABI (no Steinberg SDK) |
+| `surface/skin_polish.py` | Redraws the knob strips, trigger buttons and stepper arrows after the skin generator |
 | `presets/Factory/` | Factory presets: `NN_Category/NN_Name.sfp`, a folder per browser category |
 | `test/` | The test suite (see [Building](BUILDING.md#tests)); `host.h` is a fake MPC host |
 | `tools/bench.cpp` | `sfbench`, the CPU bench: `dlopen()`s the `.so` like MPC and times every block |
 | `tools/pgo_train.cpp` | The trainer for the profile-guided build (runs under `qemu-arm`) |
 | `tools/demos.cpp` | Renders the presets to WAV, level-matches them (BS.1770 loudness) |
-| `third_party/mpc-vst-plugins/` | Vendored skin generator and installer (MIT), with marked local patches |
+| `third_party/mpc-vst-plugins/` | Vendored skin generator, installer and catalog checker (MIT), with marked local patches |
+| `.github/workflows/build.yml` | CI: the test suites, the glibc 2.31 device build, the package and its catalog check; releases from `vX.Y.Z` tags |
 
 ## Signal path
 
@@ -74,7 +77,7 @@ flowchart LR
   L --> D[Drive stage · asymmetric] --> V[VCA] --> DEC[2x decimator] --> OUT[Out L = R]
 ```
 
-The feedback is the Sub 37's: the mixer's own output back into its feedback channel, one high-rate
+The feedback is the original's: the mixer's own output back into its feedback channel, one high-rate
 sample late, through that channel's overload (a cubic clipper), AC coupled at 150 Hz and
 band-limited at 7 kHz like an analog stage; its loop gain reaches unity at 85% of the knob.
 
@@ -113,7 +116,7 @@ glides, busses, drift); a new note wakes it, every control value starting at its
 
 ## Talking to MPC
 
-PolyForce's rules, device-proven in RackForce before it:
+PolyForce's rules, device-proven on the Force:
 
 - MPC only notices value changes the plugin makes (lit browser tiles, the stepper, snapped steps)
   when they are pushed with `audioMasterAutomate`, and only re-reads texts after
@@ -123,7 +126,8 @@ PolyForce's rules, device-proven in RackForce before it:
 - A value MPC sends is recorded as what MPC shows only after the plugin has acted on it, so a
   preset load in between never has the old value pushed back.
 - A Force sends every Q-Link detent, data-wheel click or drag event as the value it last read back
-  plus its step (sd88me/mpc-vst-plugins `docs/NOTES.md`, "Input probe", MPC OS 3.9.1). Steppers
+  plus its step ([sd88me/mpc-vst-plugins `docs/NOTES.md`](https://github.com/sd88me/mpc-vst-plugins/blob/main/docs/NOTES.md),
+  "Input probe", MPC OS 3.9.1). Steppers
   measure each event from the plugin's own value and move exactly one item, whatever the delta
   (Q-Link detent 1/128, data wheel 0.01, touch drag, fast spins); MPC echoing the plugin's own value
   back is ignored.
@@ -136,9 +140,9 @@ PolyForce's rules, device-proven in RackForce before it:
 
 ## Parameters and saved state
 
-- **Parameters** are free to change until v0.1, then **append-only**: MPC projects store values by
-  index. Sound parameters (kind `synth`) are saved and automatable; the surface's own values (the
-  stepper, tiles, Rand Amount) are not.
+- **Parameters** may still change during 0.x (the previews); from v0.1 they are **append-only**:
+  MPC projects store values by index. Sound parameters (kind `synth`) are saved and automatable;
+  the surface's own values (the stepper, tiles, Rand Amount) are not.
 - **Saved state** (projects and `.sfp` preset files) is the text format `subforce 1`: `key=value`
   lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key. Ranges can
   change without remapping saved projects.

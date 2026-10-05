@@ -3,7 +3,7 @@
 # glibc 2.31) under QEMU, as the catalog's own ports do, profile-guided, and the test suite runs against the
 # objects the .so is linked from. The sanitizer suite runs on x86. The zip is checked with the catalog's
 # checker and kept as an artifact; a vX.Y.Z tag also publishes it as a GitHub release (a prerelease while the
-# version is 0.x: the catalog's beta channel).
+# version is 0.x: the catalog's beta channel), with CHANGELOG.md's section for the version as its notes.
 name: build
 
 on:
@@ -57,10 +57,18 @@ jobs:
           name: SubForce-mpc-armv7
           path: dist/*-mpc-armv7.zip
           if-no-files-found: error
+      # The release's notes are CHANGELOG.md's section for the tag's version ("## X.Y.Z"): the catalog shows
+      # them. A tag without a section fails here, before anything is published.
+      - name: Release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > release-notes.md
+          grep -q '[^[:space:]]' release-notes.md || { echo "CHANGELOG.md has no section '## $v'"; exit 1; }
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*-mpc-armv7.zip
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
-          generate_release_notes: true
+          body_path: release-notes.md

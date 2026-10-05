@@ -4,7 +4,7 @@
 //   Osc 1 (+ square sub) ─┐
 //   Osc 2 (hard sync) ────┤ mixer ─┬─► Multidrive ─► 4-pole ladder (6/12/18/24 dB) ─► drive ─► VCA ─► out
 //   Noise (white..pink..dark) ────┤ │
-//                         └── feedback ◄┘ (the mixer's own output back into it, as on the Sub 37)
+//                         └── feedback ◄┘ (the mixer's own output back into it, as on the original)
 //
 // Mono, or Duo (paraphonic: each oscillator its own key, one filter and VCA). Two DAHDSR
 // envelopes (filter, amp), two mod busses (an LFO or the filter envelope to pitch, cutoff and
@@ -44,7 +44,7 @@ constexpr int kOctaveMin = -2;   // 32' .. 2' (8' = 0)
 constexpr int kOctaveMax = 2;
 constexpr float kResMax = 4.6f;  // ladder feedback at full resonance (self-oscillation from ~4)
 constexpr float kResEdge = 0.7f; // the knob where it reaches 4: "settings above 7 cause the filter
-                                 // to self-oscillate" (the Sub 37's manual)
+                                 // to self-oscillate" (the original's manual)
 
 // Resonance knob 0..1 -> ladder feedback: 0..4 up to kResEdge, on to kResMax at full.
 inline float resFeedback(float k) {
@@ -82,7 +82,7 @@ struct Patch {
     float osc2Semis = 0.0f;   // Osc 2 frequency against osc 1, -7..+7 semitones
     bool  sync = false;       // Osc 2 hard-synced to osc 1
     int   subOctave = SO_ONE;
-    float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the Sub 37's) .. 1 dark
+    float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the original's) .. 1 dark
     bool  kbReset = false;    // oscillators restart their cycle at each new note
     float drift = 0.25f;      // 0..1 analog pitch and cutoff drift
     // Mixer, 0..1 (audio taper). Several sources up high drive the filter, as on the hardware.
@@ -206,6 +206,7 @@ private:
 
     float sr_, osr_, invOsr_, invSr_;
     float driftK_;            // a drift's one-pole step per sample (0.6 s)
+    float fbK_;               // the feedback loop's one-pole step (its bandwidth) at the 2x rate
     float cutNote_ = 0.0f;    // the cutoff knob, as a note
     Patch patch_;
     bool  havePatch_ = false;

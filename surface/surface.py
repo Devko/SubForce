@@ -131,7 +131,7 @@ num("mix_sub", "Sub Level", "lin", 0, 1, 0, "pct")
 num("mix_o2", "Osc 2 Level", "lin", 0, 1, 0, "pct")
 num("mix_noise", "Noise Level", "lin", 0, 1, 0, "pct")
 num("mix_fb", "Feedback", "lin", 0, 1, 0, "pct")
-num("noise_color", "Noise Colour", "lin", 0, 1, 0.5, "noise")   # 0 white, 0.5 pink (the Sub 37's), 1 dark
+num("noise_color", "Noise Colour", "lin", 0, 1, 0.5, "noise")   # 0 white, 0.5 pink (the original's), 1 dark
 
 # --- filter (dsp/ladder.h) ---
 SLOPES = ["6 dB", "12 dB", "18 dB", "24 dB"]       # dsp/synth.h Slope

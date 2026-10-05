@@ -235,8 +235,8 @@ plugin-package: $(ARM_SO) $(SKIN)
 		echo "         Release packages come from CI (glibc 2.31, docs/BUILDING.md#release-builds)."; fi
 	$(PY) $(MV)/tools/release.py --so $(ARM_SO) --skin "$(SKIN_DIR)" --entry $(SURF_OUT)/pluginlist-entry.xml \
 		--version $(PLUGIN_VERSION) --repo Devko/SubForce --license MIT \
-		--about "SubForce analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, noise, feedback, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode." \
-		--requires "root SSH (MockbaMod)" \
+		--about "SubForce analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, white, pink or dark noise, a mixer feedback loop, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode, 57 presets." \
+		--requires "root SSH (MockbaMod); MPC OS 3.x for the pages" \
 		--user-data Presets --user-data preset_favorites.txt --user-data preset_recent.txt \
 		-o dist
 

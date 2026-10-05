@@ -13,7 +13,9 @@ What we use it for (we do NOT link their `vst2_wrap.c` / `engine.h` wrapper — 
 | `tools/gen_vst.py`, `shadow_skin.py`, `skin_assets.py`, `params.py`, `shadow_art.c`, `vendor/force-shadow/` | `params.json` + `layout.conf` -> `params.h`, the touchscreen skin (`TUI.json`, `Q-Links.json`, PNGs) and the `pluginList-arm` entry |
 | `tools/studio.py`, `studio_web.py` | preview skin pages as PNG; browser layout editor |
 | `tools/release.py`, `tools/release/*` | release zip + on-device `install.sh` / `uninstall.sh` (stop MPC, back up and edit `MPC.settings`) |
-| `wrapper/popup.h`, `wrapper/plugin_dir.h` | popup-picker param helpers; find the plugin's own folder at runtime |
+| `tools/catalog_check.py` | the plugin catalog's own check of the release zip (CI runs it with `--catalog`) |
+
+`wrapper/` is vendored too but not used: the plugin finds its folder itself (`plugin/paths.cpp`).
 
 Do not edit files here beyond the marked patches; patch around them so an upgrade stays a plain
 re-copy.
@@ -34,3 +36,9 @@ are (SubForce uses patches 1-4; it has no meters).
    slider's (`sh_meter_<w>x<h>.png`) for a post-step to redraw (PolyForce's wave view:
    `surface/skin_polish.py`). With the browser renderer a meter still needs `strip=`.
 Re-apply them after re-copying upstream.
+
+## Local patch (SubForce)
+
+6. `tools/release.py` (marked `SubForce local patch 6`): the generated `INSTALL.md` gave every
+   `--user-data` entry a trailing slash, files too (`preset_favorites.txt/`); now only folders get one.
+   Worth sending upstream.
