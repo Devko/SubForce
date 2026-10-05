@@ -94,6 +94,36 @@ void testShapesAndRate() {
     CHECK(semis(L, 0.02, 0.1) > 0.95);
 }
 
+void testSources() {
+    std::printf("== mod busses: every source\n");
+    // Each source at 1 Hz on one semitone of pitch, retriggered: where it stands across the cycle.
+    auto track = [](int src, double* out) {
+        Patch p = base();
+        p.mod[0].src = src;
+        p.mod[0].rateHz = 1.0f;
+        p.mod[0].pitch = kOneSemi;
+        p.mod[0].retrig = true;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(57, 100);
+        const auto x = render(s, 44100);
+        for (int k = 0; k < 4; ++k) out[k] = semis(x, 0.25 * k + 0.08, 0.25 * k + 0.17);   // around 1/8, 3/8, 5/8, 7/8
+    };
+    double v[4];
+    track(sf::MS_TRIANGLE, v);   // 0 -> 1 -> 0 -> -1 -> 0
+    CHECK(v[0] > 0.3 && v[1] > 0.3 && v[2] < -0.3 && v[3] < -0.3);
+    track(sf::MS_SAW, v);        // falls from 1 to -1
+    CHECK(v[0] > v[1] && v[1] > v[2] && v[2] > v[3] && v[0] > 0.5 && v[3] < -0.5);
+    track(sf::MS_RAMP, v);       // rises from -1 to 1
+    CHECK(v[0] < v[1] && v[1] < v[2] && v[2] < v[3] && v[0] < -0.5 && v[3] > 0.5);
+    track(sf::MS_SAMPLE_HOLD, v);   // one value the whole cycle
+    CHECK(std::fabs(v[0] - v[3]) < 0.02 && std::fabs(v[0]) <= 1.02);
+    track(sf::MS_SMOOTH, v);     // moving, inside the range
+    bool inside = true;
+    for (double x : v) inside = inside && std::fabs(x) <= 1.02;
+    CHECK(inside);
+}
+
 void testControl() {
     std::printf("== mod busses: control, retrigger, filter EG source\n");
     // Mod wheel: no wheel, no modulation; full wheel, full depth.
@@ -138,8 +168,51 @@ void testControl() {
     CHECK(semis(x, 0.0, 0.05) < -10.0 && std::fabs(semis(x, 0.8, 0.95)) < 0.1);
 }
 
+// A 1 Hz square on `dest` (amount `amt`): the rms of its up half and its down half.
+void halves(const Patch& p0, int dest, float amt, double& up, double& down) {
+    Patch p = p0;
+    p.mod[0].src = sf::MS_SQUARE;
+    p.mod[0].rateHz = 1.0f;
+    p.mod[0].dest = dest;
+    p.mod[0].amount = amt;
+    p.mod[0].retrig = true;
+    Synth s;
+    s.setPatch(p);
+    s.noteOn(45, 100);
+    const auto x = render(s, 44100);
+    up = rms(x, 4410, 19845);
+    down = rms(x, 26460, 41895);
+}
+
 void testDestinations() {
     std::printf("== mod busses: destinations\n");
+    {
+        double up = 0.0, down = 0.0;
+        Patch p = base();
+        p.cutoffHz = 800.0f;
+        halves(p, sf::MD_RES, 0.8f, up, down);      // resonance thins the bass: different levels
+        CHECK(std::fabs(20.0 * std::log10(up / down)) > 2.0);
+        halves(p, sf::MD_DRIVE, 1.0f, up, down);    // driven: louder
+        CHECK(up > down * 1.1);
+        Patch q = base();
+        q.mixOsc1 = 0.0f;
+        halves(q, sf::MD_SUB, 1.0f, up, down);      // the sub only while the bus is up
+        CHECK(up > 0.05 && down < 1e-3);
+        halves(q, sf::MD_NOISE, 1.0f, up, down);
+        CHECK(up > 0.05 && down < 1e-3);
+        halves(p, sf::MD_FEEDBACK, 1.0f, up, down); // feedback changes the sound
+        CHECK(std::fabs(20.0 * std::log10(up / down)) > 0.5);
+        Patch w = base();
+        w.mixOsc1 = 0.0f;
+        w.mixOsc2 = 0.8f;
+        w.osc[1].wave = 0.0f;
+        halves(w, sf::MD_WAVE2, 2.0f / 3.0f, up, down);   // osc 2: square up, triangle down
+        CHECK(up > 1.3 * down);
+        halves(w, sf::MD_WAVE1, 2.0f / 3.0f, up, down);   // osc 1's wave: osc 2 doesn't hear it
+        CHECK(std::fabs(up / down - 1.0) < 0.05);
+        halves(w, sf::MD_WAVE, 2.0f / 3.0f, up, down);    // both
+        CHECK(up > 1.3 * down);
+    }
     // Volume: a square at full amount: silent half the time, twice as loud the other.
     Patch p = base();
     p.mod[0].src = sf::MS_SQUARE;
@@ -178,12 +251,23 @@ void testDestinations() {
     o.noteOn(57, 100);
     const auto z = render(o, 44100);
     CHECK(semis(z, 0.03, 0.22) > 0.95 && semis(z, 0.28, 0.47) < -0.95);   // 2 Hz now
+    // ...and so it does on a synced bus while MPC plays (which would otherwise lock to the bar).
+    r.mod[1].sync = true;
+    r.mod[1].div = 3;   // 1 bar: 0.5 Hz at 120 BPM, 1 Hz doubled
+    r.mod[1].retrig = false;
+    Synth k;
+    k.setPatch(r);
+    k.setTransport(120.0, 0.0, true, true);
+    k.noteOn(57, 100);
+    const auto u = render(k, 44100);
+    CHECK(semis(u, 0.05, 0.45) > 0.95 && semis(u, 0.55, 0.95) < -0.95);
 }
 
 } // namespace
 
 void modTests() {
     testShapesAndRate();
+    testSources();
     testControl();
     testDestinations();
 }

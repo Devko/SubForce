@@ -26,8 +26,10 @@ std::string dataDir();
 // "plugin:User/User 001.sfp" + roots -> "<dir of plugin root>/User/User 001.sfp"; "" if the label is unknown.
 std::string resolveKey(const std::string& key, const std::vector<Root>& roots);
 
-// Writes `text` to `path` via path.new + rename (a crash never leaves half a file). False on error.
-bool writeFileAtomic(const std::string& path, const std::string& text);
+// Writes `text` to `path` via path.new + rename (a crash never leaves half a file). durable: also
+// fsync the file and its folder before returning (a preset; the device is often switched off
+// hard), not for the favorites and recent lists, written on every preset change. False on error.
+bool writeFileAtomic(const std::string& path, const std::string& text, bool durable = true);
 // A whole (small) file: presets, lists. False if it is missing or over maxBytes.
 bool readFile(const std::string& path, std::string& out, size_t maxBytes = 1u << 20);
 

@@ -58,7 +58,7 @@ changes; it checks the layout and every factory preset before writing anything.
 | `test` | The ASan/UBSan suite |
 | `test-arm` | The same suite built for the Force's CPU, run under `qemu-arm` |
 | `test-arm-pgo` | The suite linked against the profile-guided objects the shipped `.so` is made of |
-| `demos` | Render every factory preset (a phrase per category) and a filter sweep to `build/demos-out/*.wav` |
+| `demos` | Render every factory preset (a phrase per category) and a filter sweep to `build/demos-out/*.wav` (stereo, L = R, as the plugin plays) |
 | `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −18) on its demo phrase |
 | `bench` | x86 bench: only proves the bench and the profiling build work |
 | `arm-plugin` | `build/arm/subforce.so`; profile-guided when `qemu-arm` is installed |
@@ -94,15 +94,17 @@ PY      = /usr/bin/python3.12
 ## Tests
 
 `make test` measures the engine directly and drives the whole plugin through its VST2 entry points
-against a fake MPC host (`test/host.h`), under AddressSanitizer and UndefinedBehaviorSanitizer:
+against a fake MPC host (`test/host.h`), under AddressSanitizer and UndefinedBehaviorSanitizer (any
+undefined behaviour fails the run). The tests give the surface a clock that moves a second per host
+event, so stepping never depends on the machine's speed:
 
 | File | Covers |
 |---|---|
-| `test/engine_test.cpp` | The math helpers' error bounds; the decimator's passband and stopband; every wave shape's aliasing and pitch; sync, the sub, the keyboard reset; the ladder's self-oscillation, slopes, bass loss, key tracking and drive; envelope timing, loop, reset; idling; stability with everything at full |
-| `test/keys_test.cpp` | Note priority, multi and single trigger, the pedal, more keys than remembered, Duo, glide (Rate, Time, Exp; Always, Legato; which oscillators) |
-| `test/mod_test.cpp` | The busses: depth, rate, sync (free and locked to the bar), mod wheel / velocity / pressure, the filter EG as a source, Volume, Wave and Other Rate |
-| `test/preset_test.cpp` | Saved state round trips and bad input, presets (init, save, step), the browser, favorites, stepping, randomize, every factory preset playing |
-| `test/plugin_test.cpp` | The VST2 basics, MIDI timing, pitch, octaves, bend, CC 120 / 123, suspend, the legacy `process()`, floods of events and random patches |
+| `test/engine_test.cpp` | The math helpers' error bounds; the decimator's passband and stopband; every wave shape's aliasing, pitch and DC; a swept pulse width; sync, the sub (and its octave switch), the keyboard reset; the ladder's self-oscillation, slopes, bass loss, key tracking and drive; envelope timing, loop, reset, velocity; noise colour loudness; idling; stability with everything at full |
+| `test/keys_test.cpp` | Note priority, multi and single trigger, re-striking a sounding key, the pedal, more keys than remembered, Duo, mode changes with keys down, glide (Rate, Time, Exp; Always, Legato; which oscillators; from the note's own sample) |
+| `test/mod_test.cpp` | The busses: every source, depth, rate, sync (free and locked to the bar), mod wheel / velocity / pressure, the filter EG as a source, every destination, Other Rate (on a locked bus too) |
+| `test/preset_test.cpp` | Saved state round trips and bad input, presets (init, save, step, the ends, after RANDOM, missing files), user numbering, files appearing and renamed while running, the browser, favorites, stepping and the values pushed back, randomize, every factory preset playing |
+| `test/plugin_test.cpp` | The VST2 basics, MIDI timing and mapping (pedal, mod wheel, pressure, bend both ways), pitch, octaves, CC 120 / 123, suspend, `process()` against `processReplacing`, floods of events and random patches |
 
 `make test-arm` runs the same suite cross-compiled for the Force's CPU under `qemu-arm` (no
 sanitizers): it catches 32-bit and ARM-only paths.
@@ -146,7 +148,9 @@ user's presets and favorites/recent lists.
 
 ## Binary compatibility
 
-- The `.so` exports only `VSTPluginMain` and links with `--no-undefined`: an unresolved symbol
-  would otherwise only show as MPC crashing on load.
-- It needs glibc 2.38 (`__isoc23_strtol`), which is too new for devices still on MPC OS 2.x. The
-  device build prints the highest glibc version it needs.
+- The `.so` exports only `VSTPluginMain` (a linker version script; the build counts every defined
+  dynamic symbol and fails otherwise) and links with `--no-undefined`: an unresolved symbol would
+  otherwise only show as MPC crashing on load. `-fno-gnu-unique` keeps it unloadable.
+- It needs glibc 2.38 (`__isoc23_sscanf`, from the C library headers of the toolchain), which is
+  too new for devices still on MPC OS 2.x. The device build prints the highest glibc version it
+  needs.

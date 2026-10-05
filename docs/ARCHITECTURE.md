@@ -111,14 +111,18 @@ PolyForce's rules, device-proven in RackForce before it:
 - MPC only notices value changes the plugin makes (lit browser tiles, the stepper, snapped steps)
   when they are pushed with `audioMasterAutomate`, and only re-reads texts after
   `audioMasterUpdateDisplay`. The plugin pushes from `processReplacing` only: at most 48 values per
-  block (round-robin), a display update at most every 4 blocks.
+  block (round-robin), a display update for changed texts at most every 4 blocks, plus the CPU
+  meter's at most twice a second.
+- A value MPC sends is recorded as what MPC shows only after the plugin has acted on it, so a
+  preset load in between never has the old value pushed back.
 - Steppers move exactly one item per event, whatever delta MPC sends; MPC echoing the plugin's own
   value back is ignored. A tile's release echo (~0.7 s after a tap) is ignored.
 
 ## Parameters and saved state
 
 - **Parameters** are free to change until v0.1, then **append-only**: MPC projects store values by
-  index.
+  index. Sound parameters (kind `synth`) are saved and automatable; the surface's own values (the
+  stepper, tiles, Rand Amount) are not.
 - **Saved state** (projects and `.sfp` preset files) is the text format `subforce 1`: `key=value`
   lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key. Ranges can
   change without remapping saved projects.

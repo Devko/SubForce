@@ -6,9 +6,9 @@
 //   sfbench <plugin.so> [-s seconds] [-c cpu]
 //
 // Cases: idle (no note), the Init patch on a held note, a heavy patch (both oscillators, sub,
-// noise, feedback, sync, full Multidrive and high resonance, both busses fast on pitch, cutoff
-// and wave, a looping filter envelope, Duo on two keys), and the heavy patch retriggered every
-// 50 ms with glide. Hermetic: the plugin reads no user folders and saves nothing.
+// noise, feedback, sync, full Multidrive and high resonance; bus 1 a 60 Hz triangle on pitch,
+// cutoff and Multidrive, bus 2 a 7 Hz smooth random on pitch, cutoff and both waves; a looping
+// filter envelope, Duo on two keys), and the heavy patch retriggered every 50 ms with glide. Hermetic: the plugin reads no user folders and saves nothing.
 // A profiling build of the plugin (make arm-bench-stages: subforce_stages.so) also reports where
 // each case's time goes.
 #ifndef _GNU_SOURCE
@@ -100,7 +100,9 @@ void heavy(AEffect* e) {
 
 struct Result { double avg, p99, max; };
 
-Result runCase(void* lib, int seconds, const char* name, int mode) {
+using StageFn = int (*)(double*, const char**, int);
+
+Result runCase(void* lib, int seconds, const char* name, int mode, StageFn stages) {
     auto entry = reinterpret_cast<AEffect* (*)(audioMasterCallback)>(dlsym(lib, "VSTPluginMain"));
     AEffect* e = entry(master);
     e->dispatcher(e, vst::effOpen, 0, 0, nullptr, 0.0f);
@@ -112,6 +114,11 @@ Result runCase(void* lib, int seconds, const char* name, int mode) {
     std::vector<float> L(kBlock), R(kBlock);
     float* out[2] = {L.data(), R.data()};
     for (int b = 0; b < 32; ++b) e->processReplacing(e, nullptr, out, kBlock);   // the patch settles
+    if (stages) {   // the stage counters start over here: only the timed blocks count
+        double us[8];
+        const char* names[8];
+        stages(us, names, 8);
+    }
     if (mode >= 1) midi(e, 0x90, 36, 110);
     if (mode >= 2) midi(e, 0x90, 43, 110);
     const int blocks = seconds * 44100 / kBlock;
@@ -171,15 +178,14 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "dlopen: %s\n", dlerror());
         return 1;
     }
-    auto stages = reinterpret_cast<int (*)(double*, const char**, int)>(dlsym(lib, "SubForceStageTimes"));
+    auto stages = reinterpret_cast<StageFn>(dlsym(lib, "SubForceStageTimes"));
     std::printf("%s, %d s per case, %s\n", argv[1], seconds, stages ? "profiling build" : "plain build");
     const char* names[] = {"idle (no note)", "Init, one held note", "heavy patch, Duo", "heavy, retrig + glide 50 ms"};
     bool fail = false;
     for (int mode = 0; mode < 4; ++mode) {
         double us[8] = {};
         const char* stageNames[8] = {};
-        if (stages) stages(us, stageNames, 8);   // starts the counters over
-        const Result r = runCase(lib, seconds, names[mode], mode);
+        const Result r = runCase(lib, seconds, names[mode], mode, stages);
         fail = fail || !(r.p99 <= 35.0 && r.max <= 80.0);
         if (stages) {
             const int n = stages(us, stageNames, 8);

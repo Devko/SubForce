@@ -152,6 +152,7 @@ private:
         float phase = 0.0f;
         float held = 0.0f, from = 0.0f, to = 0.0f;   // S&H / Smooth random values
         float rateMul = 1.0f;                       // from the other bus (Other Rate)
+        bool  rateModulated = false;                // ...which it does: never locked to the bar
     };
     struct Drift {
         float v = 0.0f, target = 0.0f;
@@ -162,11 +163,13 @@ private:
     void holdKey(int note, int vel);
     void dropKey(int note);
     void choose(int& n1, int& n2, int& vel) const;
-    void update();
+    void update(int pressed);
     void trigger(int vel);
     void glideTo(Glide& g, float target, bool glide);
     void stepGlide(Glide& g, int n) const;
     float busValue(Bus& b, const ModPatch& p, int n);
+    void advance(int n);
+    void catchUp();
     void control();
     void renderRun(float* out, int n);
     void renderSilent(float* out, int n);
@@ -203,6 +206,8 @@ private:
     float   fbIn_ = 0.0f, fbX1_ = 0.0f, fbY1_ = 0.0f;   // feedback: DC-blocked VCA output, one sample late
     float   dcX1_ = 0.0f, dcY1_ = 0.0f;                  // output DC blocker
     float   fPrev_ = 0.1f, aePrev_ = 0.0f;               // last base sample's cutoff coefficient and VCA
+    bool    fPrevValid_ = false;                         // fPrev_ is from this note's sound (not before a silence)
+    int     tap_ = SL_24, tapFrom_ = SL_24, xfLeft_ = 0; // the slope's ladder tap, crossfading from tapFrom_
     bool    resetPending_ = false;                       // keyboard reset at the next sample
     bool    silent_ = true;
     int     idleSteps_ = 0;
@@ -215,6 +220,8 @@ private:
     bool  snapAll_ = true;    // the first step: every value starts at its target
     Ramp  dt_[2], wave_[2], cut_, egAmt_, res_, inGain_, post_, lvl_[5], vca_, vol_;
     Bus   bus_[2];
+    float busOut_[2] = {};    // the busses' sources at the last control-rate time
+    float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff
     float noteDrift_[2] = {}; // per-note offsets, cents
     float noiseK_ = 1.0f, noiseComp_ = 1.0f;

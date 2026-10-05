@@ -15,6 +15,9 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - 🔜 **On the device:** install (`make plugin-install`), play every page, check the Q-Link sets and
   the preset browser; `make bench-device`, and add the numbers to
   [Performance](PERFORMANCE.md#measurements).
+- 🔜 **Automation on the device:** whether MPC plays recorded automation of the stepped controls
+  (octaves, slopes, modes) back through `setParameter`, and from which thread; the stepping logic
+  treats events under 300 ms apart as one turn.
 - 🔜 **Listening pass** on real speakers: every factory preset, the filter's drive and resonance
   range, the feedback's character, glide feel; tune voicing constants (`dsp/synth.cpp`: input gain,
   drive span, feedback gain, output gain) and the presets from it.
@@ -39,8 +42,14 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   and browser, favorites, user presets, randomize, state text, CPU meter
 - ✅ Six touchscreen pages and Q-Link sets, an amber skin
 - ✅ 27 factory presets in 5 categories, level-matched at −18 LUFS
-- ✅ Test suite (324 checks, ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
+- ✅ Test suite (360 checks, ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
   release package, demo renders
+- ✅ Review (DSP, plugin, build / tests / docs, in parallel): about 40 confirmed findings fixed, each
+  with a check — among them pulse edges a moving width swept past, a sounding key struck again,
+  glides and bus retriggers starting late inside a control step, the preset list never re-read,
+  PREV/NEXT reloading at the ends, Rand Amount saved with sounds, user preset numbers reused, a
+  stale value pushed back to MPC during a preset load, UBSan never failing the build, template
+  symbols exported from the `.so`
 
 ## Planned
 

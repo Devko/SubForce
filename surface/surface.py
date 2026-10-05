@@ -47,7 +47,7 @@ VST = {"name": "SubForce", "vendor": "Devko", "uid": "SbFc", "version": 1000,
 # --- parameters ------------------------------------------------------------------------------
 # kind:
 #   synth    a sound parameter: saved in the state, automatable; curve lin|log|int|pow|enum
-#   ui       a stepped choice the surface uses (a page selector): not saved
+#   ui       a value the surface keeps for itself (Rand Amount): not saved, not automatable
 #   readout  text the plugin writes (status line, "PAGE 2 / 4"): read only
 #   stepper  plugin-owned index into a list (presets), text = the item; moves one item per
 #            Q-Link/wheel event; comes with <key>_prev / <key>_next buttons
@@ -79,8 +79,8 @@ def enum(key, name, options, default, ui=False):
          options=options)
 
 
-def num(key, name, curve, lo, hi, default, fmt):
-    _add(key, name, "synth", curve, lo, hi, default, fmt)
+def num(key, name, curve, lo, hi, default, fmt, ui=False):
+    _add(key, name, "ui" if ui else "synth", curve, lo, hi, default, fmt)
 
 
 def stepper(key, name):
@@ -190,15 +190,15 @@ enum("glide_mode", "Glide", ["Off", "Always", "Legato"], "Off")    # GlideMode
 enum("glide_type", "Glide Type", ["Rate", "Time", "Exp"], "Time")  # GlideType
 num("glide", "Glide Time", "log", 0.001, 10, 0.08, "time")
 enum("glide_dest", "Glide Dest", OSC_DESTS, "Osc 1+2")
-num("bend_up", "Bend Up", "int", 0, 24, 2, "semi")
-num("bend_dn", "Bend Down", "int", 0, 24, 2, "semi")
+num("bend_up", "Bend Up", "int", 0, 24, 2, "range")
+num("bend_dn", "Bend Down", "int", 0, 24, 2, "range")
 
 # --- presets ---
 stepper("preset", "Preset")
 button("pre_save", "Save Preset")
 button("pre_init", "Init Patch")
 button("pre_rand", "Randomize")
-num("rand_amt", "Rand Amount", "lin", 0, 1, 0.5, "pct")
+num("rand_amt", "Rand Amount", "lin", 0, 1, 0.5, "pct", ui=True)   # how far RANDOM goes: not part of a sound
 
 # --- the preset browser ---
 for i in range(1, BROWSER_CATS + 1):
@@ -868,7 +868,8 @@ def check_layout(text):
 CURVE = {"readout": "Readout", "enum": "Enum", "lin": "Lin", "log": "Log", "int": "Int", "pow": "Pow"}
 FMT = {"none": "None", "enum": "Enum", "pct": "Percent", "bipct": "Bipolar", "hz": "Hz", "time": "Time",
        "semi": "Semi", "count": "Count", "db": "Db", "text": "Text", "lfohz": "LfoHz", "wave": "Wave",
-       "semifine": "SemiFine", "envamt": "EnvAmt", "modpitch": "ModPitch", "modcut": "ModCut", "noise": "Noise"}
+       "semifine": "SemiFine", "envamt": "EnvAmt", "modpitch": "ModPitch", "modcut": "ModCut", "noise": "Noise",
+       "range": "Range"}
 KIND = {"synth": "Synth", "ui": "Ui", "readout": "Readout", "stepper": "Stepper", "button": "Button",
         "tile": "Tile", "toggle": "Toggle", "popup": "Popup", "meter": "Meter"}
 
@@ -952,6 +953,7 @@ constexpr int kNumSyncDivisions = %d;
 # --- factory presets: presets/Factory/<NN_Category>/<NN_Name>.sfp, embedded in the .so ---------
 PRESET_DIR = os.path.join(HERE, "..", "presets", "Factory")
 PRESET_MAGIC = "subforce "
+NUMBER = re.compile(r"^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$")
 PRESET_NAME_MAX = 18      # an item tile on the browser page (816 px / 3 columns)
 CATEGORY_NAME_MAX = 12    # a category tile (320 px / 2 columns), shown in capitals
 
@@ -983,8 +985,8 @@ def factory_presets():
             where = "%s/%s" % (d, f)
             text = open(os.path.join(folder, f), encoding="utf-8").read().replace("\r\n", "\n")
             lines = text.split("\n")
-            if not lines[0].startswith(PRESET_MAGIC):
-                errors.append("%s: no '%sN' header" % (where, PRESET_MAGIC))
+            if lines[0] != PRESET_MAGIC + "1":
+                errors.append("%s: the first line must be '%s1'" % (where, PRESET_MAGIC))
             keys = set()
             for n, line in enumerate(lines[1:], 2):
                 if not line.strip():
@@ -997,11 +999,10 @@ def factory_presets():
                 if key in keys:
                     errors.append("%s:%d: %s given twice" % (where, n, key))
                 keys.add(key)
-                try:
-                    v = float(val)
-                except ValueError:
+                if not NUMBER.match(val):   # what the plugin's parser (std::from_chars) reads, no more
                     errors.append("%s:%d: %r is not a number" % (where, n, val))
                     continue
+                v = float(val)
                 lo, hi = p["lo"], p["hi"]
                 if not (min(lo, hi) - 1e-9 <= v <= max(lo, hi) + 1e-9):
                     errors.append("%s:%d: %s=%s outside %s..%s" % (where, n, key, val, lo, hi))

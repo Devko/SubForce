@@ -72,40 +72,55 @@ struct Blep {
 };
 
 // Moves phase t forward by d (d <= dt, the phase per sample) on a stretch that ends `end`
-// samples before sample n, correcting every discontinuity it crosses. Returns true if it
-// wrapped; *wrapX is then the wrap's distance to sample n.
-inline bool advance(float& t, float d, float dt, float end, const Shape& s, Blep& b, float* wrapX) {
-    const float inv = 1.0f / dt;
-    auto at = [&](float t1, float p) { return clampf(end + (t1 - p) * inv, 0.0f, 1.0f); };
-    float t1 = t + d;
-    bool wrapped = false;
-    if (t1 >= 1.0f) {
-        // Edges before the wrap, then the wrap itself.
-        if (s.pul != 0.0f && t < s.pw) b.step(-2.0f * s.pul, at(t1, s.pw));
-        if (s.tri != 0.0f && t < 0.5f) b.corner(-8.0f * s.tri * dt, at(t1, 0.5f));
-        const float x = at(t1, 1.0f);
-        b.step(2.0f * (s.pul - s.saw), x);
+// samples before sample n, while the pulse width moves from pw0 to pw1 across it, correcting
+// every discontinuity on the way: the wrap, the triangle's corner at 0.5, and the pulse edge
+// wherever phase and width cross -- the phase passing the width (falling), or the width
+// sweeping past the phase (a modulated width: either way). Returns true if it wrapped; *wrapX
+// is then the wrap's distance to sample n.
+inline bool advance(float& t, float d, float dt, float pw0, float pw1, float end, const Shape& s, Blep& b,
+                    float* wrapX) {
+    const float len = d / dt;   // the stretch, in samples
+    // Something at position u (0..1) along the stretch: its distance to sample n.
+    auto xAt = [&](float u) { return clampf(end + (1.0f - u) * len, 0.0f, 1.0f); };
+    const float t0 = t, t1 = t + d;
+    const bool wraps = t1 >= 1.0f;
+    const float uw = wraps ? (1.0f - t0) / d : 1.0f;   // where it wraps (d > 0 if it does)
+    if (s.pul != 0.0f) {
+        // g = phase - width, linear on each side of the wrap: the edge is where it changes sign.
+        auto edge = [&](float g0, float g1, float u0, float u1) {
+            if ((g0 < 0.0f) == (g1 < 0.0f)) return;
+            const float u = u0 + (u1 - u0) * g0 / (g0 - g1);
+            b.step(g0 < 0.0f ? -2.0f * s.pul : 2.0f * s.pul, xAt(u));
+        };
+        const float pwW = pw0 + (pw1 - pw0) * uw;
+        edge(t0 - pw0, (wraps ? 1.0f : t1) - pwW, 0.0f, uw);
+        if (wraps) edge(-pwW, t1 - 1.0f - pw1, uw, 1.0f);
+    }
+    if (s.tri != 0.0f) {
+        if (t0 < 0.5f && t1 >= 0.5f) b.corner(-8.0f * s.tri * dt, xAt((0.5f - t0) / d));
+        if (t1 >= 1.5f) b.corner(-8.0f * s.tri * dt, xAt((1.5f - t0) / d));
+    }
+    if (wraps) {
+        const float x = xAt(uw);
+        b.step(2.0f * (s.pul - s.saw), x);   // saw falls by 2, the pulse rises back above its width
         if (s.tri != 0.0f) b.corner(8.0f * s.tri * dt, x);
         if (wrapX) *wrapX = x;
-        wrapped = true;
-        t1 -= 1.0f;
-        t = 0.0f;   // edges after the wrap (a very narrow pulse at a high pitch) are checked from 0
     }
-    if (s.pul != 0.0f && t < s.pw && t1 >= s.pw) b.step(-2.0f * s.pul, at(t1, s.pw));
-    if (s.tri != 0.0f && t < 0.5f && t1 >= 0.5f) b.corner(-8.0f * s.tri * dt, at(t1, 0.5f));
-    t = t1;
-    return wrapped;
+    t = wraps ? t1 - 1.0f : t1;
+    return wraps;
 }
 
 // One oscillator. tick() returns sample n-1 and works out sample n.
 struct Osc {
-    float t = 0.0f;   // phase 0..1
+    float t = 0.0f;    // phase 0..1
+    float pw = 0.5f;   // the pulse width sample n-1 was worked out with
     Blep  b;
 
     // Free running. wrapX: where it wrapped (for sync and the sub), if it did.
     float tick(float dt, const Shape& s, bool& wrapped, float& wrapX) {
         b.cur = 0.0f;
-        wrapped = advance(t, dt, dt, 0.0f, s, b, &wrapX);
+        wrapped = advance(t, dt, dt, pw, s.pw, 0.0f, s, b, &wrapX);
+        pw = s.pw;
         const float out = b.pending;
         b.pending = waveValue(s, t) + b.cur;
         return out;
@@ -115,11 +130,15 @@ struct Osc {
     // reset: x = 1, exactly at sample n-1).
     float tickReset(float dt, const Shape& s, float x) {
         b.cur = 0.0f;
-        advance(t, (1.0f - x) * dt, dt, x, s, b, nullptr);   // up to the reset
-        b.step(waveValue(s, 0.0f) - waveValue(s, t), x);
-        b.corner((waveSlope(s, 0.0f) - waveSlope(s, t)) * dt, x);
+        Shape at = s;   // the shape at the reset, its width where the sweep has got to
+        at.pw = pw + (s.pw - pw) * (1.0f - x);
+        at.dc = at.pul * (2.0f * at.pw - 1.0f);
+        advance(t, (1.0f - x) * dt, dt, pw, at.pw, x, s, b, nullptr);   // up to the reset
+        b.step(waveValue(at, 0.0f) - waveValue(at, t), x);
+        b.corner((waveSlope(at, 0.0f) - waveSlope(at, t)) * dt, x);
         t = 0.0f;
-        advance(t, x * dt, dt, 0.0f, s, b, nullptr);         // and on from 0
+        advance(t, x * dt, dt, at.pw, s.pw, 0.0f, s, b, nullptr);   // and on from 0
+        pw = s.pw;
         const float out = b.pending;
         b.pending = waveValue(s, t) + b.cur;
         return out;
@@ -129,12 +148,18 @@ struct Osc {
 // The square sub oscillator: one or two octaves under oscillator 1, flipping on its wraps.
 struct Sub {
     uint32_t count = 0;   // oscillator 1's cycles
+    int      oct = 1;     // the octaves sample n-1 was worked out with
     Blep     b;
 
     static float level(uint32_t c, int octaves) { return (c >> (octaves - 1)) & 1u ? -1.0f : 1.0f; }
 
     float tick(bool wrapped, float x, int octaves) {
         b.cur = 0.0f;
+        if (octaves != oct) {   // switched mid-note: a band-limited step, not a naive one
+            const float was = level(count, oct), now = level(count, octaves);
+            if (now != was) b.step(now - was, 1.0f);
+            oct = octaves;
+        }
         if (wrapped) {
             const float was = level(count, octaves);
             ++count;
@@ -148,8 +173,9 @@ struct Sub {
 
     // With the keyboard reset: back to the start of its cycle, at sample n-1 (x = 1).
     void reset(int octaves) {
-        const float was = level(count, octaves);
+        const float was = level(count, oct);
         count = 0;
+        oct = octaves;
         if (was != 1.0f) b.step(1.0f - was, 1.0f);
     }
 };

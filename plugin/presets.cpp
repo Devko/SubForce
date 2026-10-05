@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
 #include <system_error>
@@ -55,8 +56,9 @@ std::string nextUserPreset(std::string* key) {
     const std::string dir = r.dir + "/User";
     std::error_code ec;
     fs::create_directories(dir, ec);
-    // One past the highest number there: a deleted "User 001" is never reused, so favorites,
-    // Recent and projects that named it can't come back as a different sound.
+    // One past the highest number ever used: the files there, and the folder's own note of the
+    // last one saved (.last, hidden from the browser), so a deleted or renamed "User 007" is never
+    // reused -- favorites, Recent and projects that named it can't come back as another sound.
     int top = 0;
     for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
         int n = 0;
@@ -65,6 +67,8 @@ std::string nextUserPreset(std::string* key) {
         if (std::sscanf(it->path().filename().string().c_str(), "User %8d.sf%1s", &n, tail) == 2 && tail[0] == 'p' && n > 0)
             top = std::max(top, n);
     }
+    std::string last;
+    if (readFile(dir + "/.last", last, 64)) top = std::max(top, std::clamp(std::atoi(last.c_str()), 0, 99999999));
     for (int n = top + 1; n < top + 100; ++n) {
         char name[32];
         std::snprintf(name, sizeof name, "User %03d.sfp", n);
@@ -72,6 +76,7 @@ std::string nextUserPreset(std::string* key) {
         const int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0644);   // claimed: no overwrite
         if (fd < 0) continue;
         ::close(fd);
+        writeFileAtomic(dir + "/.last", std::to_string(n) + "\n");
         if (key) *key = r.label + ":User/" + name;
         return path;
     }

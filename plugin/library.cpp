@@ -184,13 +184,17 @@ void FileLibrary::loadLists() const {
     std::string text;
     if (!cfg_.favFile.empty() && readFile(dir + "/" + cfg_.favFile, text)) {
         std::istringstream s(text);
-        for (std::string line; std::getline(s, line);)
+        for (std::string line; std::getline(s, line);) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // edited on Windows
             if (!line.empty()) fav_.insert(line);
+        }
     }
     if (!cfg_.recentFile.empty() && readFile(dir + "/" + cfg_.recentFile, text)) {
         std::istringstream s(text);
-        for (std::string line; std::getline(s, line);)
+        for (std::string line; std::getline(s, line);) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
             if (!line.empty() && recent_.size() < cfg_.recentMax) recent_.push_back(line);
+        }
     }
 }
 
@@ -205,7 +209,7 @@ void FileLibrary::saveList(const std::string& file, const std::vector<std::strin
     last = gen;
     std::string text;
     for (const std::string& k : keys) text += k + "\n";
-    writeFileAtomic(dir + "/" + file, text);
+    writeFileAtomic(dir + "/" + file, text, false);   // a list: losing the last change to a power cut is fine
 }
 
 bool FileLibrary::isFavorite(const std::string& key) const {

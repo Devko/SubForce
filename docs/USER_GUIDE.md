@@ -79,8 +79,9 @@ A 4-pole transistor ladder, modelled with its nonlinearities.
 ### Envelopes
 
 Both are **DAHDSR**: Delay, Attack, Hold, Decay, Sustain, Release (attack to 10 s, the others to
-10 s, delay and hold from 0). The curves are an analog EG's: attack charges toward 1 and stops there,
-decay and release fall exponentially (the times are to −60 dB).
+10 s, delay and hold from 0). The curves are an analog EG's: attack charges like a capacitor aiming
+past the top (toward 1.2) and stops at 1, the convex rise of a real attack; decay and release fall
+exponentially (the times are to −60 dB).
 
 - **Loop**: while the key is held the envelope cycles delay → attack → hold → decay.
 - **Reset**: a new note's attack starts from 0. Off, it starts from wherever the envelope is (smooth
@@ -94,8 +95,9 @@ decay and release fall exponentially (the times are to −60 dB).
 - **Priority**: which key sounds when several are down — *Last*, *Low* or *High*. Releasing a key
   returns to the next one by the same rule. In Duo, oscillator 1 takes the first by priority,
   oscillator 2 the second.
-- **Trigger**: *Multi* restarts the envelopes on every new note; *Single* only when all keys were up
-  (legato phrases glide on one envelope).
+- **Trigger**: *Multi* restarts the envelopes on every new note, and on a sounding key struck again
+  (held by the pedal, or repeated); *Single* only when all keys were up (legato phrases glide on one
+  envelope).
 - **Glide**: *Off*, *Always*, or *Legato* (only between overlapping keys). **Type**: *Rate* (the
   time per octave: big leaps take longer), *Time* (every glide takes the same time), *Exp*
   (exponential, fast then slow, like an RC). **Osc**: which oscillators glide.
@@ -110,7 +112,7 @@ Two identical busses. Each takes one **source** and sends it to three places at 
 |---|---|
 | **Source** | Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Filter EG |
 | **Rate** / **Sync** / **Sync Rate** | 0.05–100 Hz free, or a note value of MPC's tempo (8 bars to 1/32T) |
-| **Trigger** | *Free*: runs on its own (a synced bus locks to the bar while MPC plays); *Retrig*: restarts at every new note |
+| **Trigger** | *Free*: runs on its own (a synced bus locks to the bar while MPC plays, unless the other bus is modulating its rate); *Retrig*: restarts at every new note |
 | **Pitch** + **Pitch To** | pitch amount (up to ±24 st, fine near 0) for osc 1+2, osc 1 or osc 2 |
 | **Filter** | cutoff amount (up to ±5 octaves) |
 | **Destination** + **Amount** | one more target: Wave 1+2, Wave 1, Wave 2, Resonance, Multidrive, Sub, Noise, Feedback, Volume, or Other Rate (the other bus's rate, ×1/16..×16) |
@@ -129,10 +131,13 @@ triangle to Wave 1 with the wave near square.
 on their demo phrase). Pick them on the BROWSE tab or step through them on KEYS.
 
 - **SAVE** writes `User NNN.sfp` to `<plugin folder>/Presets/User/` (there is no text entry on the
-  device, so presets are numbered). Rename them on a computer; the name shows in the browser.
+  device, so presets are numbered; a number is never used twice). Rename them on a computer; the
+  name shows in the browser. Files added, renamed or deleted while MPC runs show up when you browse
+  (or in a new instance).
 - **INIT** loads Init: one saw through a half-open filter.
 - **RANDOM** moves the sound toward a random one by **Rand Amount**: oscillators, mixer, filter and
-  the envelopes' main stages. Volume, the keyboard, glide and the busses stay.
+  the envelopes' main stages. Volume, the keyboard, glide and the busses stay. Rand Amount itself is
+  a setting of the page, not part of a sound: presets don't save or change it.
 - Presets on the SSD: `/media/AkaiForce/SubForce Presets/` (any folders inside become categories).
 - A preset file is plain text (`subforce 1` and `key=value` lines of real values), the same as an MPC
   project stores.
@@ -145,5 +150,6 @@ on their demo phrase). Pick them on the BROWSE tab or step through them on KEYS.
 | Pitch bend | ± the bend ranges |
 | CC 1 (mod wheel) | a bus's depth, if its control is Mod Wheel |
 | Channel pressure | a bus's depth, if its control is Aftertouch |
-| CC 64 | sustain pedal |
+| CC 64 | sustain pedal (re-striking a held key retriggers in Multi) |
+| | A key is down or up: two note-ons for the same key and then one note-off end it, as on a keyboard |
 | CC 120 / 123 | all sound off / all notes off |

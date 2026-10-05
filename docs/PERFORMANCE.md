@@ -11,7 +11,7 @@
 ## The budget
 
 MPC renders 128-frame blocks: **2902 µs per block**, per plugin instance. A plugin passes at
-**p99 ≤ 15%** of the block (warns up to 35%), the rule PolyForce uses.
+**p99 ≤ 15%** and **max ≤ 50%** of the block (warns up to 35% / 80%), the rule PolyForce uses.
 
 SubForce is one voice, so its cost hardly depends on the patch: a single sine and everything at
 full (both oscillators, sub, noise, feedback, sync, full Multidrive, Duo) run the same loop.
@@ -52,13 +52,15 @@ From the test suite (`make test` prints these):
 
 | What | Measured |
 |---|---|
-| Worst alias, any wave shape, C4..C7 | −53 dB against the strongest partial (triangle −93 dB, saw −64..−76 dB, narrowest pulse the worst) |
+| Worst alias, any wave shape, C4..C7 | −53 dB against the strongest partial (triangle about −93 dB, saw −64 dB or lower, the narrowest pulse the worst) |
+| Pulse width swept by a bus | every edge corrected: the largest step between two samples is 1.5 (an uncorrected edge is 2) |
 | Worst alias, hard sync | −65 dB |
 | Decimator | passband flat to 20 kHz within 0.001 dB, stopband from 24.2 kHz at −85 dB |
 | Self-oscillation | from about 90% resonance; tracks the cutoff 15–50 cents flat (110 Hz–7 kHz), as a ladder does |
-| Slopes | 5.4 / 10.9 / 16.3 / 21.7 dB per octave measured an octave above a 400 Hz cutoff (6/12/18/24 nominal) |
+| Slopes | 5.4 / 10.9 / 16.3 / 21.7 dB per octave between 880 Hz and 1.76 kHz with a 400 Hz cutoff (6/12/18/24 nominal, reached further up) |
 | Bass loss | 85% resonance: the passband drops by more than 8 dB, the ladder's 1 / (1 + r) |
 | Multidrive | 0 → 100%: +4 dB louder, much denser |
+| Noise colour | white to dark within 2 dB (the part of white noise above 22 kHz that the decimator removes is made up for) |
 
 ## Considered and left out
 

@@ -66,6 +66,9 @@ public:
     uint32_t    writes() const { return changes_.load(std::memory_order_acquire); }
 
     static int  kFine;   // ranges with this many steps or more follow MPC's value
+    // Milliseconds for telling gestures apart (null: the steady clock). Tests set one that only
+    // moves when they say, so stepping doesn't depend on how fast the machine is.
+    static long long (*clock)();
 
 private:
     struct Category {
@@ -76,7 +79,6 @@ private:
     int  stepIndex(int i, float n, int count, int cur);
     int  stepItem(int i, float n, int normRange, int items, int cur);   // one item per event
     bool toggleBounce(int i, bool on);
-    static std::string stepKey(const std::string& cur, int delta);
     void browserAction(int i);
     // FAVORITES, RECENT, then the library's categories (from L, the listing in use).
     std::vector<Category> categories(const Listing& L) const;

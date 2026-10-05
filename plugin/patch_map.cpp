@@ -116,6 +116,7 @@ std::string paramDisplay(int id, float n) {
             std::snprintf(b, sizeof b, "%+.2f st", v);
             break;
         case Fmt::Count: std::snprintf(b, sizeof b, "%.0f", v); break;
+        case Fmt::Range: std::snprintf(b, sizeof b, "%.0f st", v); break;   // a bend range: no sign
         case Fmt::Db:
             if (v <= -59.5f) return "-inf dB";
             std::snprintf(b, sizeof b, "%.1f dB", std::fabs(v) < 0.05f ? 0.0f : v);   // never "-0.0 dB"

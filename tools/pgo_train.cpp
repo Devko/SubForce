@@ -110,14 +110,18 @@ int main() {
         phrase(e, L, R, 30);
         ++patches;
     }
-    // The factory presets, as users will mostly play them.
+    e->dispatcher(e, vst::effClose, 0, 0, nullptr, 0.0f);
+    // The factory presets, as users will mostly play them: each on a fresh instance (a project
+    // chunk only sets what it lists; a preset means everything else at its default).
     for (int i = 0; i < sf::kNumFactoryPresets; ++i) {
+        AEffect* f = VSTPluginMain(master);
+        f->dispatcher(f, vst::effOpen, 0, 0, nullptr, 0.0f);
         const std::string text = sf::kFactoryPresets[i].text;
-        e->dispatcher(e, vst::effSetChunk, 0, static_cast<intptr_t>(text.size()), const_cast<char*>(text.data()), 0.0f);
-        phrase(e, L, R, 25);
+        f->dispatcher(f, vst::effSetChunk, 0, static_cast<intptr_t>(text.size()), const_cast<char*>(text.data()), 0.0f);
+        phrase(f, L, R, 25);
+        f->dispatcher(f, vst::effClose, 0, 0, nullptr, 0.0f);
         ++patches;
     }
-    e->dispatcher(e, vst::effClose, 0, 0, nullptr, 0.0f);
     std::printf("pgo trainer: %d patches\n", patches);
     return 0;
 }

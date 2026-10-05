@@ -13,6 +13,7 @@
 namespace sf {
 
 int Surface::kFine = 48;
+long long (*Surface::clock)() = nullptr;
 
 namespace {
 
@@ -25,10 +26,11 @@ constexpr float kFirstMoveMax      = 0.16f; // a gesture's first event is a turn
 // A stepper's 0..1 range: one item per 1/1023, or per 1/(items-1) for longer lists.
 int stepperRange(int items) { return std::max(kStepperRange, items - 1); }
 
-long long nowMs() {
+long long steadyMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::steady_clock::now().time_since_epoch()).count();
 }
+long long nowMs() { return Surface::clock ? Surface::clock() : steadyMs(); }
 
 // NaN from the host becomes 0: kept, it would reach the engine's smoothers and never leave.
 float clamp01(float v) { return v > 0.0f ? (v < 1.0f ? v : 1.0f) : 0.0f; }
@@ -80,6 +82,7 @@ Surface::Surface() : texts_(P_COUNT) {
         release_[i].store(false);
         lastN_[i] = -1.0f;
     }
+    presetLibrary().rescan();   // a new instance sees the preset files as they are now
     refresh();
 }
 
@@ -94,10 +97,16 @@ void Surface::set(int i, float n) {
     const Kind k = PARAM_INFO[i].kind;
     if (k == Kind::Readout) return;   // MPC sets param 0 right after loading: ignore
     n = clamp01(n);
-    shown_[i].store(n, std::memory_order_relaxed);   // that is what MPC shows now
-    changes_.fetch_add(1, std::memory_order_release);
-    if (k == Kind::Meter) return;   // the plugin's own value: notify() puts it back
+    auto shown = [this, i, n] {   // what MPC shows now
+        shown_[i].store(n, std::memory_order_relaxed);
+        changes_.fetch_add(1, std::memory_order_release);
+    };
+    if (k == Kind::Meter) {   // the plugin's own value: notify() puts it back
+        shown();
+        return;
+    }
     if (k == Kind::Button) {
+        shown();
         const bool down = n > 0.5f;
         const bool rising = down && !held_[i];
         held_[i] = down;
@@ -109,7 +118,10 @@ void Surface::set(int i, float n) {
         }
         return;
     }
+    // Act first, then record MPC's value: recorded before, the audio thread could push the old
+    // value back while a preset loads (a tile would flicker, MPC's next delta start from it).
     apply(i, n);
+    shown();
     if (k != Kind::Synth) refresh();   // a sound parameter's text is computed when MPC asks
 }
 
@@ -171,9 +183,12 @@ void Surface::apply(int i, float n) {
             break;
         }
         case Kind::Button:
-            if (i == P_PRESET_PREV || i == P_PRESET_NEXT) {
-                const std::string k = stepKey(presetKey(), i == P_PRESET_NEXT ? 1 : -1);
-                if (!k.empty()) loadPreset(k);
+            if (i == P_PRESET_PREV || i == P_PRESET_NEXT) {   // from where the stepper stands, like a turn
+                const auto L = presetLibrary().listing();
+                const int items = static_cast<int>(L->items.size());
+                const int cur = stepperCur(P_PRESET, *L, presetKey());
+                const int pick = clampi(cur + (i == P_PRESET_NEXT ? 1 : -1), 0, std::max(items - 1, 0));
+                if (pick != cur) loadPreset(L->items[static_cast<size_t>(pick)].key);   // the ends: nothing to load
             }
             if (i == P_PRE_INIT) loadPreset("builtin:Init");
             if (i == P_PRE_SAVE) savePreset();
@@ -254,16 +269,6 @@ bool Surface::toggleBounce(int i, bool on) {
     return false;
 }
 
-// The next (delta +1) or previous preset of the flat list; the first one if `cur` isn't listed.
-std::string Surface::stepKey(const std::string& cur, int delta) {
-    const auto L = presetLibrary().listing();
-    const int items = static_cast<int>(L->items.size());
-    if (items == 0) return {};
-    const int at = L->find(cur);
-    const int pick = at < 0 ? 0 : clampi(at + delta, 0, items - 1);
-    return L->items[static_cast<size_t>(pick)].key;
-}
-
 std::vector<Surface::Category> Surface::categories(const Listing& L) const {
     FileLibrary& lib = presetLibrary();
     std::vector<Category> out;
@@ -281,7 +286,12 @@ std::vector<Surface::Category> Surface::categories(const Listing& L) const {
 }
 
 void Surface::browserAction(int i) {
+    // Browsing looks at the folders again: presets copied (or an SSD plugged in) since show up.
+    for (int t = 0; t < kBrowserCats; ++t)
+        if (i == kCatTiles[t]) presetLibrary().rescan();
+    if (i == P_CAT_PREV || i == P_CAT_NEXT || i == P_ITEM_PREV || i == P_ITEM_NEXT) presetLibrary().rescan();
     std::string load;   // a preset to load: done after the lock (loading refreshes the surface)
+    std::string fav;    // a favorite to toggle: also after the lock (it writes a file)
     {
         std::lock_guard<std::mutex> lk(mtx_);
         FileLibrary& lib = presetLibrary();
@@ -308,7 +318,7 @@ void Surface::browserAction(int i) {
         if (i == P_ITEM_PREV) itemPage_ = clampi(itemPage_ - 1, 0, itemPages - 1);
         if (i == P_ITEM_NEXT) itemPage_ = clampi(itemPage_ + 1, 0, itemPages - 1);
 
-        if (i == P_FAV && !cur.empty()) lib.setFavorite(cur, !lib.isFavorite(cur));
+        if (i == P_FAV) fav = cur;
         if (i == P_RND && brCat_ < ncat) {   // a random preset of this category, never the current one
             std::vector<std::string> pool;
             for (const std::string& k : cats[static_cast<size_t>(brCat_)].keys)
@@ -322,6 +332,7 @@ void Surface::browserAction(int i) {
             }
         }
     }
+    if (!fav.empty()) presetLibrary().setFavorite(fav, !presetLibrary().isFavorite(fav));
     if (!load.empty()) loadPreset(load);
 }
 
@@ -329,7 +340,11 @@ void Surface::browserAction(int i) {
 
 void Surface::loadPreset(const std::string& key) {
     std::string text;
-    if (!presetText(key, text)) return;
+    if (!presetText(key, text)) {   // renamed or deleted since the listing: list again, so steps go past it
+        presetLibrary().rescan();
+        refresh();
+        return;
+    }
     // The key first: the state's own refresh then sees the new preset, and a browser that
     // picked it (from FAVORITES, say) stays where it is instead of following the old one.
     const std::string old = presetKey();
@@ -368,18 +383,18 @@ void Surface::randomize(float amount) {
         rng_ ^= rng_ << 5;
         return static_cast<float>(rng_ >> 8) / 16777216.0f;
     };
-    struct Range { int id; float lo, hi; };   // 0..1 ranges to draw from
+    struct Range { int id; float lo, hi; };   // in real units (Hz, seconds, ...): drawn on the knob's curve
     static const Range ranges[] = {
-        {P_O1_WAVE, 0.0f, 1.0f}, {P_O2_WAVE, 0.0f, 1.0f}, {P_O2_FREQ, 0.47f, 0.53f},
+        {P_O1_WAVE, 0.0f, 1.0f}, {P_O2_WAVE, 0.0f, 1.0f}, {P_O2_FREQ, -0.15f, 0.15f},
         {P_MIX_O1, 0.6f, 1.0f}, {P_MIX_SUB, 0.0f, 0.6f}, {P_MIX_O2, 0.0f, 0.9f}, {P_MIX_NOISE, 0.0f, 0.2f},
-        {P_MIX_FB, 0.0f, 0.3f}, {P_F_CUT, 0.3f, 0.8f}, {P_F_RES, 0.0f, 0.7f}, {P_F_DRIVE, 0.0f, 0.6f},
-        {P_F_ENV, 0.5f, 0.9f}, {P_F_KB, 0.05f, 0.3f},
-        {P_FE_A, 0.0f, 0.35f}, {P_FE_D, 0.2f, 0.65f}, {P_FE_S, 0.0f, 0.7f}, {P_FE_R, 0.1f, 0.55f},
-        {P_AE_A, 0.0f, 0.3f}, {P_AE_D, 0.2f, 0.7f}, {P_AE_S, 0.3f, 1.0f}, {P_AE_R, 0.1f, 0.5f},
+        {P_MIX_FB, 0.0f, 0.3f}, {P_F_CUT, 150.0f, 4000.0f}, {P_F_RES, 0.0f, 0.7f}, {P_F_DRIVE, 0.0f, 0.6f},
+        {P_F_ENV, 0.0f, 0.6f}, {P_F_KB, 0.1f, 0.6f},
+        {P_FE_A, 0.001f, 0.15f}, {P_FE_D, 0.03f, 1.0f}, {P_FE_S, 0.0f, 0.7f}, {P_FE_R, 0.05f, 0.6f},
+        {P_AE_A, 0.001f, 0.06f}, {P_AE_D, 0.05f, 1.5f}, {P_AE_S, 0.3f, 1.0f}, {P_AE_R, 0.04f, 0.6f},
     };
     for (const Range& r : ranges) {
-        const float n = want_[r.id].load();
-        setValue(r.id, n + amount * (r.lo + rnd() * (r.hi - r.lo) - n));
+        const float n = want_[r.id].load(), lo = paramNorm(r.id, r.lo), hi = paramNorm(r.id, r.hi);
+        setValue(r.id, n + amount * (lo + rnd() * (hi - lo) - n));
     }
     // Choices, the further the more likely: octaves within 16'..4', the slope, sync.
     struct Pick { int id, from, to; };   // option indices [from, to]
@@ -437,7 +452,7 @@ void Surface::refresh() {
     };
     if (key != followed_) {
         followed_ = key;
-        if (pos(brCat_, key) < 0) {
+        if (!key.empty() && pos(brCat_, key) < 0) {   // no preset (randomized): the browser stays put
             const int c = L->categoryOf(L->find(key));
             brCat_ = clampi(c >= 0 ? c + 2 : 2, 0, ncat - 1);   // past FAVORITES and RECENT
             itemPage_ = 0;
@@ -513,13 +528,11 @@ void Surface::setPresetKey(const std::string& key) {
 bool Surface::snapshot(float* out) const {
     const uint32_t before = batchSeq_.load(std::memory_order_acquire);
     if (before & 1u) return false;   // a preset is half written
-    // Sound parameters and the surface's choices; not what the plugin itself keeps moving
-    // (browser tiles, the stepper, texts): the plugin rebuilds the patch whenever this changes.
+    // Sound parameters only; not what the surface keeps for itself (browser tiles, the stepper,
+    // Rand Amount, texts): the plugin rebuilds the patch whenever this changes.
     float tmp[P_COUNT];
-    for (int i = 0; i < P_COUNT; ++i) {
-        const Kind k = PARAM_INFO[i].kind;
-        tmp[i] = k == Kind::Synth || k == Kind::Ui ? want_[i].load(std::memory_order_relaxed) : 0.0f;
-    }
+    for (int i = 0; i < P_COUNT; ++i)
+        tmp[i] = PARAM_INFO[i].kind == Kind::Synth ? want_[i].load(std::memory_order_relaxed) : 0.0f;
     std::atomic_thread_fence(std::memory_order_acquire);
     if (batchSeq_.load(std::memory_order_relaxed) != before) return false;   // one started meanwhile
     std::copy(tmp, tmp + P_COUNT, out);

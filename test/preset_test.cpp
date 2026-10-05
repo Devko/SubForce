@@ -35,9 +35,11 @@ void testState() {
     // A project's state changes only what it lists; unknown keys and bad numbers are skipped.
     Host c;
     c.set(sf::P_F_RES, 0.5f);
+    c.set(sf::P_F_DRIVE, 0.7f);
+    c.set(sf::P_F_KB, 1.5f);
     CHECK(c.load("subforce 1\nf_cut=100\nnot_a_param=3\nf_drive=abc\nf_kb=1,5\n") == 1);
     CHECK(std::fabs(c.value(sf::P_F_CUT) - 100.0f) < 0.1f && std::fabs(c.value(sf::P_F_RES) - 0.5f) < 1e-4f);
-    CHECK(std::fabs(c.value(sf::P_F_DRIVE) - 0.2f) < 1e-4f && std::fabs(c.value(sf::P_F_KB) - 0.5f) < 1e-4f);
+    CHECK(std::fabs(c.value(sf::P_F_DRIVE) - 0.7f) < 1e-4f && std::fabs(c.value(sf::P_F_KB) - 1.5f) < 1e-4f);   // left as they were
     // Out of range values clamp; BOM and CRLF are fine; other text is refused.
     CHECK(c.load("\xEF\xBB\xBFsubforce 1\r\nf_cut=99999\r\n") == 1 && std::fabs(c.value(sf::P_F_CUT) - 20000.0f) < 1.0f);
     CHECK(c.load("polyforce 4\nvolume=0\n") == 0 && c.load("") == 0 && c.load("subforce x\n") == 0);
@@ -56,7 +58,7 @@ void testPresets() {
     std::printf("== presets\n");
     const std::string root = fixtureDir() + "/presets";
     Host h;
-    // INIT loads the Init preset (every sound parameter at its default).
+    // INIT loads the Init preset (the defaults, at its matched volume).
     h.set(sf::P_F_CUT, 50.0f);
     h.press(sf::P_PRE_INIT);
     CHECK(std::fabs(h.get(sf::P_F_CUT) - sf::PARAM_INFO[sf::P_F_CUT].def) < 1e-5f);
@@ -85,10 +87,59 @@ void testPresets() {
     CHECK(h.display(sf::P_PRESET) == "PRESET  " + L->label(L->items[static_cast<size_t>(at + 1)].key));
     // A project remembers its preset; a preset file doesn't name one.
     CHECK(h.chunk().find("\npreset=" + L->items[static_cast<size_t>(at + 1)].key + "\n") != std::string::npos);
-    // A preset that went missing is ignored.
+    // A preset that went missing is ignored: NEXT steps on from where the stepper stood.
+    const std::string here = h.display(sf::P_PRESET);
     h.load("subforce 1\npreset=plugin:User/Gone.sfp\n");
+    CHECK(h.display(sf::P_PRESET) == "PRESET  Gone");
     h.press(sf::P_PRESET_NEXT);
-    CHECK(h.finite);
+    h.run(4);
+    CHECK(h.finite && h.display(sf::P_PRESET) != "PRESET  Gone" && h.display(sf::P_PRESET) != here);
+
+    // PREV at the first preset, NEXT at the last: nothing to load, the edits stay.
+    CHECK(at == 0);   // Init is the first preset of all
+    h.press(sf::P_PRE_INIT);
+    h.set(sf::P_F_CUT, 300.0f);
+    h.press(sf::P_PRESET_PREV);
+    CHECK(std::fabs(h.value(sf::P_F_CUT) - 300.0f) < 0.5f);
+    const std::string lastKey = L->items.back().key;
+    h.load("subforce 1\npreset=" + lastKey + "\n");
+    h.set(sf::P_F_CUT, 300.0f);
+    h.press(sf::P_PRESET_NEXT);
+    CHECK(std::fabs(h.value(sf::P_F_CUT) - 300.0f) < 0.5f && h.display(sf::P_PRESET) == "PRESET  " + L->label(lastKey));
+    // RANDOM, then NEXT: the preset after the one the sound came from, not the first of all.
+    h.press(sf::P_PRE_INIT);
+    h.press(sf::P_PRESET_NEXT);
+    h.press(sf::P_PRESET_NEXT);   // the third preset
+    const std::string third = h.display(sf::P_PRESET);
+    h.press(sf::P_PRE_RAND);
+    CHECK(h.display(sf::P_PRESET) == "PRESET  -");
+    h.press(sf::P_PRESET_NEXT);
+    CHECK(h.display(sf::P_PRESET) == "PRESET  " + L->label(L->items[static_cast<size_t>(at + 3)].key) && third != h.display(sf::P_PRESET));
+
+    // User numbers are never reused, even after the newest file is deleted.
+    std::filesystem::remove(root + "/User/User 002.sfp");
+    h.press(sf::P_PRE_SAVE);
+    CHECK(std::filesystem::exists(root + "/User/User 003.sfp") && !std::filesystem::exists(root + "/User/User 002.sfp"));
+
+    // Rand Amount is the surface's: not saved, not reset by a preset.
+    h.set(sf::P_RAND_AMT, 1.0f);
+    CHECK(h.chunk().find("rand_amt") == std::string::npos);
+    h.press(sf::P_PRE_INIT);
+    CHECK(h.value(sf::P_RAND_AMT) == 1.0f);
+
+    // A preset file added while MPC runs shows up in a new instance, and when browsing.
+    std::filesystem::create_directories(root + "/Pads");
+    std::ofstream(root + "/Pads/Warm.sfp") << "subforce 1\nf_cut=900\n";
+    Host fresh;
+    CHECK(sf::presetLibrary().listing()->find("plugin:Pads/Warm.sfp") >= 0);
+    std::ofstream(root + "/Pads/Cold.sfp") << "subforce 1\nf_cut=300\n";
+    fresh.setN(sf::P_CAT_1, 1.0f);   // a category tap looks at the folders again
+    CHECK(sf::presetLibrary().listing()->find("plugin:Pads/Cold.sfp") >= 0);
+    // A file renamed under the listing: the stepper moves past it instead of sticking.
+    fresh.press(sf::P_PRE_INIT);
+    std::filesystem::rename(root + "/Pads/Cold.sfp", root + "/Pads/Cool.sfp");
+    for (int k = 0; k < sf::kNumFactoryPresets + 8; ++k) fresh.press(sf::P_PRESET_NEXT);
+    CHECK(fresh.display(sf::P_PRESET) != "PRESET  " + L->label("plugin:Pads/Cold.sfp"));
 }
 
 void testBrowser() {
@@ -120,7 +171,7 @@ void testBrowser() {
     h.setN(sf::P_CAT_3, 1.0f);
     const std::string before = h.display(sf::P_BR_NOW);
     h.press(sf::P_RND);
-    CHECK(sf::kNumFactoryPresets < 3 || h.display(sf::P_BR_NOW) != before);
+    CHECK(h.display(sf::P_BR_NOW) != before);   // Templates has four presets
     // The plugin pushes the tiles it lit to MPC (audioMasterAutomate) from the audio thread.
     h.log.automated.clear();
     h.run(8);
@@ -138,10 +189,10 @@ void testStepping() {
     h.setN(sf::P_F_SLOPE, 0.0f);
     CHECK(h.value(sf::P_F_SLOPE) == sf::SL_6);
     // The snapped value goes back to MPC.
-    h.setN(sf::P_O1_OCT, 0.5f + 0.01f);   // a wheel click off an option
+    h.setN(sf::P_O1_OCT, 0.5f + 0.01f);   // a wheel click off an option: one step up, to 4'
     h.log.automated.clear();
     h.run(4);
-    CHECK(h.log.automated.count(sf::P_O1_OCT) == 1);
+    CHECK(h.log.automated.count(sf::P_O1_OCT) == 1 && h.log.automated[sf::P_O1_OCT] == 0.75f);
     // A popup's list closes when an option is picked.
     h.setN(sf::P_M1_SRC__OPEN, 1.0f);
     CHECK(h.get(sf::P_M1_SRC__OPEN) > 0.5f);

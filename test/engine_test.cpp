@@ -103,10 +103,48 @@ void testOscillators() {
             if (w < 0.9f) CHECK(std::fabs(pitch / noteHzD(note) - 1.0) < 0.002);   // a narrow pulse crosses zero twice
             if (a > -50.0) std::printf("  wave %.2f note %d: worst alias %.1f dB\n", w, note, a);
             CHECK(a < -50.0);
-            double mean = 0.0;
-            for (float v : x) mean += v;
-            CHECK(std::fabs(mean / static_cast<double>(x.size())) < 0.01);   // AC-coupled pulse
         }
+    // The oscillator itself has no DC at any shape (the pulse's mean is taken out, as an analog
+    // output's coupling capacitor would): the engine's output DC blocker would hide it.
+    for (float w : {0.0f, 1.0f / 3.0f, 0.5f, 2.0f / 3.0f, 1.0f}) {
+        sf::Osc o;
+        const sf::Shape sh = sf::shapeOf(w);
+        bool wr = false;
+        float wx = 0.0f;
+        double mean = 0.0;
+        const int n = 88200;   // a second at 100 Hz: whole cycles
+        for (int i = 0; i < n; ++i) mean += o.tick(100.0f / 88200.0f, sh, wr, wx);
+        CHECK(std::fabs(mean / n) < 0.005);
+    }
+    // A moving pulse width (a bus sweeping the wave between square and the narrow pulse): every
+    // edge is corrected, the ones the width sweeps past too. Uncorrected, a step of 2 shows up
+    // between two samples.
+    for (float hz : {41.0f, 110.0f, 440.0f}) {
+        sf::Osc o;
+        float prev = 0.0f, worst = 0.0f;
+        bool wr = false;
+        float wx = 0.0f;
+        for (int i = 0; i < 88200 * 2; ++i) {
+            const float lfo = 0.5f + 0.5f * sf::sinCycle(std::fmod(5.0f * static_cast<float>(i) / 88200.0f, 1.0f));
+            const float v = o.tick(hz / 88200.0f, sf::shapeOf(2.0f / 3.0f + lfo / 3.0f), wr, wx);
+            if (i > 0) worst = std::max(worst, std::fabs(v - prev));
+            prev = v;
+        }
+        std::printf("  pulse width swept at %.0f Hz: largest step between samples %.2f\n", hz, worst);
+        CHECK(worst < 1.6f);
+    }
+    // The sub switched between -1 and -2 octaves mid-note: a band-limited step too.
+    {
+        sf::Sub sub;
+        float prev = 0.0f, worst = 0.0f;
+        for (int i = 0; i < 88200; ++i) {
+            const bool wrapped = i % 200 == 150;   // osc 1 at 441 Hz, wrapping between samples
+            const float v = sub.tick(wrapped, 0.5f, (i / 3001) % 2 ? 2 : 1);
+            if (i > 0) worst = std::max(worst, std::fabs(v - prev));
+            prev = v;
+        }
+        CHECK(worst < 1.6f);
+    }
     std::printf("  worst alias over the shapes at C4..C7: %.1f dB\n", worstAll);
     // Same oscillator through the shapes: triangle the quietest, square the loudest.
     Patch t = p0, q = p0;
@@ -193,7 +231,7 @@ void testLadder() {
         s.slope = slope;
         const double lo = rms(play(s, 45, 16384)), mid = rms(play(s, 81, 16384)), hi = rms(play(s, 93, 16384));
         const double perOct = 20.0 * std::log10(mid / hi);
-        std::printf("  %2d dB slope: %.1f dB at 4x cutoff, %.1f dB/oct above\n", 6 * (slope + 1), 20 * std::log10(mid / lo), perOct);
+        std::printf("  %2d dB slope: %.1f dB at 880 Hz, %.1f dB/oct from 880 Hz to 1.76 kHz\n", 6 * (slope + 1), 20 * std::log10(mid / lo), perOct);
         CHECK(std::fabs(perOct - 6.0 * (slope + 1)) < 3.5);
     }
     // Resonance thins the bass (the ladder's 1 / (1 + r) passband).
@@ -329,7 +367,37 @@ void testIdleAndStability() {
             }
         }
     std::printf("  everything at full: peak %.2f\n", peak);
-    CHECK(finite && peak < 3.0f);
+    CHECK(finite && peak < 1.5f);
+
+    // Velocity and the amp EG: at 100% velocity amount, a quarter of the velocity is a quarter of
+    // the level (-12 dB).
+    Patch v;
+    v.cutoffHz = 20000.0f;
+    v.envAmount = 0.0f;
+    v.drift = 0.0f;
+    v.aenv.sustain = 1.0f;
+    v.aenv.vel = 1.0f;
+    Synth hard, soft;
+    hard.setPatch(v);
+    soft.setPatch(v);
+    hard.noteOn(48, 127);
+    soft.noteOn(48, 32);
+    std::vector<float> a(22050), b(22050), junk(22050);
+    hard.render(a.data(), junk.data(), 22050);
+    soft.render(b.data(), junk.data(), 22050);
+    CHECK(std::fabs(20.0 * std::log10(rms(a, 11025) / rms(b, 11025)) - 20.0 * std::log10(127.0 / 32.0)) < 0.5);
+    // Noise: about the same loudness at every colour.
+    double lo = 1e9, hi = 0.0;
+    for (float c : {0.0f, 0.25f, 0.5f, 1.0f}) {
+        Patch n = plain();
+        n.mixOsc1 = 0.0f;
+        n.mixNoise = 0.8f;
+        n.noiseColor = c;
+        const double r = rms(play(n, 60, 22050));
+        lo = std::min(lo, r);
+        hi = std::max(hi, r);
+    }
+    CHECK(20.0 * std::log10(hi / lo) < 2.0);
 }
 
 } // namespace

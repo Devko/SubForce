@@ -3,6 +3,7 @@
 // deltaFrames, 0..1 params). Built with ASan/UBSan by `make test`, for the Force's CPU under
 // qemu by `make test-arm`.
 #include "host.h"
+#include "../plugin/surface.h"
 
 #include <complex>
 #include <cstdio>
@@ -232,23 +233,68 @@ void testPlay() {
 void testProcessLegacy() {
     std::printf("== process() (accumulating)\n");
     Host a, b;
-    a.on(45, 110, 300);
-    b.on(45, 110, 300);
+    a.on(45, 110, 300);   // one 1024-frame call (split into 512-frame sub-blocks inside)
     std::vector<float> L(1024, 0.25f), R(1024, 0.25f);   // process() adds to what is there
     float* out[2] = {L.data(), R.data()};
     a.e->process(a.e, nullptr, out, 1024);
+    // The same note at the same sample through processReplacing in 128-frame blocks: sample 300 is
+    // in the third block, 44 frames in.
     std::vector<float> L2(1024), R2(1024);
     for (int k = 0; k < 8; ++k) {
+        if (k == 2) b.on(45, 110, 300 - 256);
         float* o[2] = {L2.data() + k * 128, R2.data() + k * 128};
         b.e->processReplacing(b.e, nullptr, o, 128);
     }
-    // Different block sizes; the same note at the same sample, close to the same sound.
-    double diff = 0.0;
-    for (int i = 0; i < 300; ++i) diff = std::max(diff, std::fabs(static_cast<double>(L[i]) - 0.25));
-    CHECK(diff == 0.0);
-    double energy = 0.0;
-    for (int i = 300; i < 1024; ++i) energy += std::fabs(L[i] - 0.25f);
-    CHECK(energy > 1.0);
+    double before = 0.0, diff = 0.0, energy = 0.0;
+    for (int i = 0; i < 300; ++i) before = std::max(before, std::fabs(static_cast<double>(L[i]) - 0.25));
+    for (int i = 0; i < 1024; ++i) {
+        diff = std::max(diff, std::fabs(static_cast<double>(L[i]) - 0.25 - L2[i]));
+        energy += std::fabs(L2[i]);
+    }
+    CHECK(before == 0.0 && energy > 1.0);
+    CHECK(diff < 1e-6);   // block sizes don't change the sound
+}
+
+void testMidiMapping() {
+    std::printf("== MIDI: pedal, mod wheel, pressure, bend down\n");
+    Host h;
+    h.bare();
+    h.set(sf::P_AE_R, 0.01f);
+    // CC 64 holds the note after its key goes up.
+    h.on(57);
+    h.midi(0xB0, 64, 127);
+    h.off(57);
+    h.run(kBlocksPerSec / 2);
+    CHECK(rms(h.L) > 0.05);
+    h.midi(0xB0, 64, 0);
+    h.run(kBlocksPerSec / 4);
+    CHECK(h.run(2) == 0.0f);
+    // CC 1 and channel pressure reach a bus set to them: a square on pitch, one semitone.
+    for (int ctl : {sf::MC_MODWHEEL, sf::MC_AFTERTOUCH}) {
+        Host m;
+        m.bare();
+        m.set(sf::P_M1_SRC, sf::MS_SQUARE);
+        m.set(sf::P_M1_RATE, 0.25f);   // 2 s up, 2 s down
+        m.set(sf::P_M1_PITCH, std::sqrt(1.0f / 24.0f));
+        m.set(sf::P_M1_CTL, ctl);
+        m.set(sf::P_M1_TRIG, 1);
+        m.on(57);
+        m.run(kBlocksPerSec / 2);
+        const double off = pitchHz(m.L);
+        if (ctl == sf::MC_MODWHEEL) m.midi(0xB0, 1, 127);
+        else m.midi(0xD0, 127, 0);
+        m.run(4);
+        m.run(kBlocksPerSec / 2);
+        CHECK(std::fabs(off - 220.0) < 0.5 && std::fabs(pitchHz(m.L) / 220.0 - std::pow(2.0, 1.0 / 12.0)) < 0.003);
+    }
+    // Bend down by its own range.
+    h.set(sf::P_BEND_DN, 12);
+    CHECK(h.display(sf::P_BEND_DN) == "12 st");
+    h.on(57);
+    h.midi(0xE0, 0x00, 0x00);   // full bend down
+    h.run(8);
+    h.run(kBlocksPerSec / 2);
+    CHECK(std::fabs(pitchHz(h.L) - 110.0) < 0.4);
 }
 
 void testStress() {
@@ -284,7 +330,7 @@ void testStress() {
     }
     CHECK(h.finite);
     std::printf("  peak over 40 random patches: %.2f\n", worst);
-    CHECK(worst < 4.0f);
+    CHECK(worst < 2.0f);
 }
 
 } // namespace
@@ -296,11 +342,18 @@ int main() {
     std::filesystem::create_directories(root + "/data");
     setenv("SF_PRESET_ROOTS", (root + "/presets").c_str(), 1);
     setenv("SF_DATA_DIR", (root + "/data").c_str(), 1);
+    // Every host event a second apart: stepping never mistakes two of them for one turn, whatever
+    // the machine's speed (and qemu's), so every run steps the same way.
+    sf::Surface::clock = [] {
+        static long long t = 0;
+        return t += 1000;
+    };
 
     engineTests();
     testBasics();
     testPlay();
     testProcessLegacy();
+    testMidiMapping();
     keyTests();
     modTests();
     presetTests();

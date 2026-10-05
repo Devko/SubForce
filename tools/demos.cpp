@@ -8,9 +8,10 @@
 //                                  so its phrase plays at <LUFS> integrated (ITU-R BS.1770 / EBU
 //                                  R128: K-weighting, 400 ms blocks, -70 LUFS and -10 LU gates)
 //
-// Phrases: Bass, a 16th-note line with legato steps (glide and Single trigger show); Lead, a
-// legato melody with the mod wheel up on the long note; Keys and Pluck, an 8th-note arpeggio;
-// anything else, held notes. 120 BPM.
+// Phrases by category: Bass and Templates, a 16th-note line with legato steps (glide and Single
+// trigger show); Lead, a legato melody with the mod wheel up on the long notes; Keys, an 8th-note
+// arpeggio; anything else (FX), held notes. 120 BPM. The files are stereo, L = R, as the plugin
+// plays: the loudness is that of the stereo pair.
 #include "../plugin/vst2.h"
 #include "factory_presets.h"
 #include "param_ids.h"
@@ -71,7 +72,7 @@ std::vector<Ev> phrase(const std::string& category, double& beats) {
         ev.push_back({6.5, 0xB0, 1, 110});
         ev.push_back({8.5, 0xB0, 1, 0});
         beats = 9.5;
-    } else if (category == "Keys" || category == "Pluck") {
+    } else if (category == "Keys") {
         static const int arp[] = {48, 55, 60, 63, 67, 63, 60, 55};
         for (int bar = 0; bar < 2; ++bar)
             for (int k = 0; k < 8; ++k) note(ev, arp[k] + (bar ? 5 : 0), bar * 4.0 + k * 0.5, 0.4, 90 + (k % 2) * 25);
@@ -220,20 +221,24 @@ void writeWav(const std::string& path, const std::vector<float>& x) {
     std::ofstream f(path, std::ios::binary);
     auto u32 = [&f](uint32_t v) { f.write(reinterpret_cast<const char*>(&v), 4); };
     auto u16 = [&f](uint16_t v) { f.write(reinterpret_cast<const char*>(&v), 2); };
-    const uint32_t bytes = static_cast<uint32_t>(x.size() * 2);
+    const uint32_t bytes = static_cast<uint32_t>(x.size() * 2);   // per channel
     f.write("RIFF", 4);
-    u32(36 + bytes);
+    u32(36 + 2 * bytes);
     f.write("WAVEfmt ", 8);
     u32(16);
     u16(1);
-    u16(1);   // mono: the engine is mono
+    u16(2);   // stereo, both channels the same: what MPC gets
     u32(44100);
-    u32(88200);
-    u16(2);
+    u32(44100 * 4);
+    u16(4);
     u16(16);
     f.write("data", 4);
-    u32(bytes);
-    for (float v : x) u16(static_cast<uint16_t>(static_cast<int16_t>(std::lround(std::clamp(v, -1.0f, 1.0f) * 32767.0f))));
+    u32(2 * bytes);
+    for (float v : x) {
+        const uint16_t s = static_cast<uint16_t>(static_cast<int16_t>(std::lround(std::clamp(v, -1.0f, 1.0f) * 32767.0f)));
+        u16(s);
+        u16(s);
+    }
 }
 
 std::string slug(const std::string& s) {
@@ -259,9 +264,11 @@ std::string withVolume(const std::string& text, float db) {
     return out;
 }
 
-float volumeOf(const std::string& text) {
+float volumeOf(const std::string& text) {   // what the preset sets, or the parameter's default
     const size_t at = text.find("\nvolume=");
-    return at == std::string::npos ? 0.0f : std::strtof(text.c_str() + at + 8, nullptr);
+    if (at != std::string::npos) return std::strtof(text.c_str() + at + 8, nullptr);
+    const sf::ParamSpec& v = sf::PARAM_SPECS[sf::P_VOLUME];
+    return v.lo + sf::PARAM_INFO[sf::P_VOLUME].def * (v.hi - v.lo);
 }
 
 } // namespace
@@ -286,7 +293,10 @@ int main(int argc, char** argv) {
                 for (int pass = 0; pass < 2; ++pass) {
                     const std::vector<float> x = render(text, category);
                     const double l = lufs(x);
-                    const float vol = std::clamp(static_cast<float>(volumeOf(text) + (target - l)), -30.0f, 6.0f);
+                    const float want = static_cast<float>(volumeOf(text) + (target - l));
+                    const float vol = std::clamp(want, -30.0f, 6.0f);
+                    if (pass == 1 && vol != want)
+                        std::printf("  %s: needs %.1f dB, the volume stops at %.1f\n", f.path().filename().c_str(), want, vol);
                     text = withVolume(text, vol);
                     if (pass == 1) {
                         const std::vector<float> y = render(text, category);

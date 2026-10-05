@@ -87,7 +87,7 @@ std::string resolveKey(const std::string& key, const std::vector<Root>& rs) {
     return {};
 }
 
-bool writeFileAtomic(const std::string& path, const std::string& text) {
+bool writeFileAtomic(const std::string& path, const std::string& text, bool durable) {
     // A temp name of our own (two instances may save the same list at once), written in full
     // and synced before it replaces the file; removed on any failure.
     static std::atomic<unsigned> counter{0};
@@ -101,11 +101,23 @@ bool writeFileAtomic(const std::string& path, const std::string& text) {
         ok = w > 0;
         if (ok) done += static_cast<size_t>(w);
     }
-    ok = ok && ::fsync(fd) == 0;
+    ok = ok && (!durable || ::fsync(fd) == 0);
     ok = ::close(fd) == 0 && ok;
     ok = ok && std::rename(tmp.c_str(), path.c_str()) == 0;
-    if (!ok) ::unlink(tmp.c_str());
-    return ok;
+    if (!ok) {
+        ::unlink(tmp.c_str());
+        return false;
+    }
+    if (durable) {   // the rename itself: sync the folder that holds it
+        const size_t slash = path.find_last_of('/');
+        const std::string dir = slash == std::string::npos ? "." : (slash == 0 ? "/" : path.substr(0, slash));
+        const int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (dfd >= 0) {
+            ::fsync(dfd);
+            ::close(dfd);
+        }
+    }
+    return true;
 }
 
 bool readFile(const std::string& path, std::string& out, size_t maxBytes) {

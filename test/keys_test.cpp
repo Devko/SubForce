@@ -113,6 +113,66 @@ void testPriority() {
     }
 }
 
+void testRestrike() {
+    std::printf("== the same key again, catching up, mode changes\n");
+    // A sounding key struck again: Multi starts a new attack, Single doesn't.
+    for (int trig : {sf::TR_MULTI, sf::TR_SINGLE}) {
+        Patch p;
+        p.trigger = trig;
+        p.aenv.attack = 0.05f;
+        p.aenv.decay = 0.05f;
+        p.aenv.sustain = 0.3f;
+        Rig r(p);
+        r.s.noteOn(48, 100);
+        r.s.sustain(true);
+        r.s.noteOff(48);   // held by the pedal
+        r.run(22050);
+        r.s.noteOn(48, 100);
+        r.run(1323);
+        CHECK(trig == sf::TR_MULTI ? r.s.info().ampEnv > 0.6f : std::fabs(r.s.info().ampEnv - 0.3f) < 0.01f);
+        Rig d(p);   // a repeated note-on with no note-off between (a sequencer's overlap)
+        d.s.noteOn(50, 100);
+        d.run(22050);
+        d.s.noteOn(50, 100);
+        d.run(1323);
+        CHECK(trig == sf::TR_MULTI ? d.s.info().ampEnv > 0.6f : std::fabs(d.s.info().ampEnv - 0.3f) < 0.01f);
+    }
+    // A note between control steps glides from that sample: a 2 ms (88-sample) glide is in the
+    // same place 80 samples on, wherever in a control step the note came (the pitch reads as of
+    // the last control step: 72 samples in), and has arrived after 96.
+    float at80[3] = {};
+    for (int k = 0; k < 3; ++k) {
+        Patch p;
+        p.glideMode = sf::GL_ALWAYS;
+        p.glideTime = 88.0f / 44100.0f;
+        Rig r(p);
+        r.s.noteOn(40, 100);
+        r.run(64 + 3 * k);
+        r.s.noteOn(52, 100);
+        r.run(80);
+        at80[k] = r.s.info().pitch1;
+        r.run(16);
+        CHECK(r.s.info().pitch1 == 52.0f);
+    }
+    CHECK(std::fabs(at80[0] - (52.0f - 12.0f * 16.0f / 88.0f)) < 1e-3f && at80[1] == at80[0] && at80[2] == at80[0]);
+    // Mono <-> Duo with keys down: the oscillators take the new rule's keys at once.
+    Patch p;
+    p.keyMode = sf::KM_DUO;
+    Rig r(p);
+    r.s.noteOn(48, 100);
+    r.s.noteOn(55, 100);
+    r.run(64);
+    CHECK(r.s.info().note1 == 55 && r.s.info().note2 == 48);
+    p.keyMode = sf::KM_MONO;
+    r.s.setPatch(p);
+    r.run(64);
+    CHECK(r.s.info().note1 == 55 && r.s.info().note2 == 55 && r.s.info().gate);
+    p.priority = sf::PR_LOW;
+    r.s.setPatch(p);
+    r.run(64);
+    CHECK(r.s.info().note1 == 48 && r.s.info().note2 == 48);
+}
+
 void testDuo() {
     std::printf("== Duo\n");
     Patch p;
@@ -168,19 +228,23 @@ void testGlide() {
             r.s.noteOn(36, 100);
             r.run(4410);
             r.s.noteOn(36 + interval, 100);
-            r.run(4410);   // 100 ms
-            const float mid = r.s.info().pitch1 - 36.0f;
-            int t = 4410;
+            float mid = 0.0f;
+            int t = 0;
             while (std::fabs(r.s.info().pitch1 - (36.0f + interval)) > 0.12f * interval && t < 441000) {
                 r.run(32);
                 t += 32;
+                if (t == 4416) mid = r.s.info().pitch1 - 36.0f;   // ~100 ms
+            }
+            if (t < 4416) {
+                r.run(4416 - t);
+                mid = r.s.info().pitch1 - 36.0f;
             }
             const double ms = t / 44.1;
             std::printf("  %s %2d st: half-way %.1f st, within 12%% after %.0f ms\n",
                         type == sf::GT_TIME ? "Time" : type == sf::GT_RATE ? "Rate" : "Exp ", interval, mid, ms);
             if (type == sf::GT_TIME) CHECK(std::fabs(mid - 0.5f * interval) < 0.6f && ms > 170 && ms < 185);
             if (type == sf::GT_RATE) CHECK(std::fabs(mid - 6.0f) < 0.6f && std::fabs(ms - 176.0 * interval / 12.0) < 10.0);
-            if (type == sf::GT_EXP) CHECK(mid > 0.6f * interval && ms < 110);   // fast at first, the tail long
+            if (type == sf::GT_EXP) CHECK(mid > 0.85f * interval && ms > 80 && ms < 105);   // 99% at the glide time: 12% at 2.1 RC
         }
     // Legato glides only between overlapping keys; Always also from the last note.
     for (int mode : {sf::GL_LEGATO, sf::GL_ALWAYS}) {
@@ -238,6 +302,7 @@ void testGlide() {
 
 void keyTests() {
     testPriority();
+    testRestrike();
     testDuo();
     testGlide();
 }

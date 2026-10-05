@@ -6,6 +6,8 @@
 
 CXX      ?= g++
 ARM_CXX  ?= arm-linux-gnueabihf-g++
+# The prefix of strip, readelf and nm for the device build.
+ARM_TOOL ?= arm-linux-gnueabihf-
 BUILD    := build
 # FORCE: the device, root@<ip>, for bench-device and plugin-install. SSH_KEY: the private key for
 # it (empty: ssh's own defaults). PY: a Python 3 with Pillow, for skin, preview and plugin-package.
@@ -55,7 +57,9 @@ all: test arm-plugin $(BUILD)/subforce_stages.so
 # Q-Link sets, geometry) and every factory preset before writing anything.
 surface: $(GEN)
 # The preset folders themselves too: their times change when a preset is deleted.
-$(GEN) &: $(SURF)/surface.py presets/Factory $(wildcard presets/Factory/*) $(wildcard presets/Factory/*/*.sfp)   # one run writes both
+# The fonts too: the layout check measures labels with them.
+$(GEN) &: $(SURF)/surface.py presets/Factory $(wildcard presets/Factory/*) $(wildcard presets/Factory/*/*.sfp) \
+          $(wildcard $(SURF)/fonts/*.ttf)   # one run writes both
 	python3 $(SURF)/surface.py
 
 # The skin (TUI.json + PNGs) and the plugin-list entry: sd88me's generator, Pillow and a host gcc.
@@ -64,7 +68,7 @@ $(GEN) &: $(SURF)/surface.py presets/Factory $(wildcard presets/Factory/*) $(wil
 # SHADOW_TITLE_FONT = TITLE_FONT in surface.py.
 skin: $(SKIN)
 $(SKIN): $(GEN) $(MV)/tools/gen_vst.py $(MV)/tools/shadow_skin.py $(MV)/tools/skin_assets.py $(MV)/tools/shadow_art.c \
-         $(SURF)/skin_polish.py $(wildcard $(SURF)/fonts/*.ttf)
+         $(MV)/tools/params.py $(wildcard $(MV)/tools/vendor/force-shadow/*/*) $(SURF)/skin_polish.py $(wildcard $(SURF)/fonts/*.ttf)
 	mkdir -p $(SURF_OUT)
 	gcc -O2 -I$(MV)/tools/vendor/force-shadow/tools -o $(SURF_OUT)/shadow_art $(MV)/tools/shadow_art.c -lm
 	cd $(SURF) && SHADOW_TITLE_FONT=fonts/TitilliumWeb-Bold.ttf $(PY) ../$(MV)/tools/gen_vst.py vst.json
@@ -76,13 +80,14 @@ preview: $(SKIN)
 	$(PY) $(MV)/tools/studio.py preview "$(SKIN_DIR)/Plugin Skins" -o $(SURF_OUT)/page_%d.png
 
 # --- native -----------------------------------------------------------------------------------
-# The whole plugin through its VST2 entry points, under ASan/UBSan.
+# The whole plugin through its VST2 entry points, under ASan/UBSan; any undefined behaviour
+# fails the run (UBSan otherwise reports and carries on).
 test: $(BUILD)/plugin_test
 	$(BUILD)/plugin_test
 
 TESTS    := $(wildcard test/*_test.cpp)
 $(BUILD)/plugin_test: $(TESTS) $(wildcard test/*.h) $(SRC) $(HDR) $(GEN) | $(BUILD)
-	$(CXX) -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Wextra -pthread \
+	$(CXX) -std=c++17 -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Wall -Wextra -pthread \
 		$(INC) $(SRC) $(TESTS) -o $@
 
 # The same suite cross-compiled for the Force's CPU and run under qemu-user (no sanitizers):
@@ -100,11 +105,11 @@ bench: $(BUILD)/subforce.so $(BUILD)/subforce_stages.so $(BUILD)/sfbench
 	$(BUILD)/sfbench $(BUILD)/subforce.so -s 1 -c -1
 	$(BUILD)/sfbench $(BUILD)/subforce_stages.so -s 1 -c -1
 
-X86_SO_CMD = $(CXX) -std=c++17 -O3 -fno-tree-loop-distribute-patterns -fPIC -fvisibility=hidden -Wall -Wextra -pthread $(INC) -shared -Wl,--no-undefined
-$(BUILD)/subforce.so: $(SRC) $(HDR) $(GEN) | $(BUILD)
-	$(X86_SO_CMD) $(SRC) -o $@
-$(BUILD)/subforce_stages.so: $(SRC) $(HDR) $(GEN) | $(BUILD)
-	$(X86_SO_CMD) -DSF_STAGE_TIMING $(SRC) -o $@
+X86_SO_CMD = $(CXX) -std=c++17 -O3 -fno-tree-loop-distribute-patterns -fPIC -fvisibility=hidden -fno-gnu-unique -Wall -Wextra -pthread $(INC) -shared -Wl,--no-undefined
+$(BUILD)/subforce.so: $(SRC) $(HDR) $(GEN) plugin/exports.map | $(BUILD)
+	$(X86_SO_CMD) -Wl,--version-script=plugin/exports.map $(SRC) -o $@
+$(BUILD)/subforce_stages.so: $(SRC) $(HDR) $(GEN) plugin/exports_stages.map | $(BUILD)
+	$(X86_SO_CMD) -Wl,--version-script=plugin/exports_stages.map -DSF_STAGE_TIMING $(SRC) -o $@
 
 $(BUILD)/sfbench: tools/bench.cpp $(HDR) $(GEN) | $(BUILD)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra $(INC) $< -ldl -o $@
@@ -123,10 +128,11 @@ $(BUILD)/demos: tools/demos.cpp $(SRC) $(HDR) $(GEN) | $(BUILD)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pthread $(INC) $(SRC) $< -o $@
 
 # --- device -----------------------------------------------------------------------------------
-# The .so MPC loads: only VSTPluginMain exported; --no-undefined because an unresolved symbol
-# otherwise only shows up as MPC crashing on load.
-ARM_SO_FLAGS = -std=c++17 $(ARM_OPT) -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -Wno-psabi -pthread $(INC)
-ARM_SO_LINK  = -shared -Wl,--no-undefined -Wl,-soname,subforce.so
+# The .so MPC loads: only VSTPluginMain exported (a version script hides the C++ template
+# instantiations and typeinfo -fvisibility leaves; -fno-gnu-unique keeps it unloadable);
+# --no-undefined because an unresolved symbol otherwise only shows up as MPC crashing on load.
+ARM_SO_FLAGS = -std=c++17 $(ARM_OPT) -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-gnu-unique -Wall -Wextra -Wno-psabi -pthread $(INC)
+ARM_SO_LINK  = -shared -Wl,--no-undefined -Wl,-soname,subforce.so -Wl,--version-script=plugin/exports.map
 ARM_SO_CMD   = $(ARM_CXX) $(ARM_SO_FLAGS) $(ARM_SO_LINK)
 
 # Profile-guided: on by default when qemu-arm is installed (as test-arm needs); PGO=0 builds
@@ -152,7 +158,7 @@ $(ARM_SO_STAMP): FORCE
 FORCE:
 
 arm-plugin: $(ARM_SO)
-$(ARM_SO): $(SRC) $(HDR) $(GEN) tools/pgo_train.cpp $(ARM_SO_STAMP)
+$(ARM_SO): $(SRC) $(HDR) $(GEN) tools/pgo_train.cpp plugin/exports.map $(ARM_SO_STAMP)
 	mkdir -p $(BUILD)/arm
 ifeq ($(PGO_ON),1)
 	rm -rf $(PGO_DIR) && mkdir -p $(PGO_OBJ) $(PGO_PROF)
@@ -170,9 +176,10 @@ else
 	$(ARM_SO_CMD) $(SRC) -o $@
 	@echo "plain build (PGO=$(PGO): qemu-arm $(if $(QEMU_ARM),found,not found))"
 endif
-	arm-linux-gnueabihf-strip --strip-unneeded $@
-	@arm-linux-gnueabihf-readelf -V $@ | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | sed 's/^/needs /'
-	@arm-linux-gnueabihf-nm -D --defined-only $@ | grep -c ' T ' | sed 's/^/exported functions: /'
+	$(ARM_TOOL)strip --strip-unneeded $@
+	@$(ARM_TOOL)readelf -V $@ | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | sed 's/^/needs /'
+	@n=$$($(ARM_TOOL)nm -D --defined-only $@ | wc -l); echo "exported symbols: $$n"; \
+		[ $$n -eq 1 ] || { $(ARM_TOOL)nm -D --defined-only $@; echo "only VSTPluginMain may be exported"; exit 1; }
 
 # The suite against the objects the shipped .so is linked from (profile-guided), under qemu.
 test-arm-pgo: $(ARM_SO)
@@ -184,12 +191,14 @@ else
 endif
 
 # The profiling build: the same plugin with timers between the render stages (dsp/stages.h)
-# and one more export, SubForceStageTimes, which sfbench reads. Never shipped.
+# and one more export, SubForceStageTimes, which sfbench reads. Never shipped. A plain build
+# (not profile-guided): its times read a little higher than the shipped .so's.
 arm-bench-stages: $(ARM_SO_STAGES) $(ARM_BENCH)
-$(ARM_SO_STAGES): $(SRC) $(HDR) $(GEN)
+$(ARM_SO_STAGES): $(SRC) $(HDR) $(GEN) plugin/exports_stages.map $(ARM_SO_STAMP)
 	mkdir -p $(BUILD)/arm
-	$(ARM_SO_CMD) -DSF_STAGE_TIMING $(SRC) -o $@
-	arm-linux-gnueabihf-strip --strip-unneeded $@
+	$(ARM_CXX) $(ARM_SO_FLAGS) -shared -Wl,--no-undefined -Wl,-soname,subforce.so \
+		-Wl,--version-script=plugin/exports_stages.map -DSF_STAGE_TIMING $(SRC) -o $@
+	$(ARM_TOOL)strip --strip-unneeded $@
 
 arm-bench: $(ARM_BENCH)
 $(ARM_BENCH): tools/bench.cpp $(HDR) $(GEN)
@@ -213,7 +222,8 @@ bench-device: $(ARM_SO) $(ARM_SO_STAGES) $(ARM_BENCH)
 PLUGIN_VERSION ?= 0.0.1
 plugin-package: $(ARM_SO) $(SKIN)
 	@# Everything shipped runs under BusyBox on the device: a CR in a script breaks it there.
-	@! grep -l "$$(printf '\r')" $(MV)/tools/release/* || { echo "error: CRLF in a shipped script"; exit 1; }
+	@# grep: 1 = no CR found (good); 0 = found one; 2 = it couldn't read the scripts.
+	@grep -l "$$(printf '\r')" $(MV)/tools/release/*; r=$$?; [ $$r -eq 1 ] || { echo "error: CRLF in a shipped script, or no scripts"; exit 1; }
 	$(PY) $(MV)/tools/release.py --so $(ARM_SO) --skin "$(SKIN_DIR)" --entry $(SURF_OUT)/pluginlist-entry.xml \
 		--version $(PLUGIN_VERSION) --repo Devko/SubForce --license MIT \
 		--about "SubForce analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, noise, feedback, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode." \
