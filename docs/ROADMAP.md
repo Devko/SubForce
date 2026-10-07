@@ -42,6 +42,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 - ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS)
+- ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
 
 ## Phase 0
 

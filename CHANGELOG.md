@@ -4,6 +4,12 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## Unreleased
+
+- **11 more factory presets** (68 in all), in the direction of KVNDRA's melodic house and ambient
+  sound: Deep House Bass, Wah Bass, Dark Pulse Bass, Warm Glow Lead, Rising Lead, Pulsing Lead,
+  Melancholy Arp, Slow Analog Arp, Endless Steps, Desert Drone, Cinematic Swell.
+
 ## 0.0.2
 
 The first regular release: the plugin catalog lists it with a download button and its installers offer

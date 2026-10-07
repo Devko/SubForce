@@ -38,7 +38,7 @@ original* in these docs), built on the same plugin groundwork as its sibling
   **glide** (rate, time or exponential)
 - **Band-limited and oversampled**: polyBLEP oscillators and the whole voice at 2× (88.2 kHz) with a
   halfband decimator; worst aliasing −53 dB up to C7, hard sync −65 dB
-- **57 factory presets** in 7 categories, level-matched, many of them for
+- **68 factory presets** in 7 categories, level-matched, many of them for
   [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
   big leads); user presets, favorites, a browser, Init and Randomize
 - **Light on the CPU**: one voice, about 2.8% of a block on the Force (3.6% with everything on),

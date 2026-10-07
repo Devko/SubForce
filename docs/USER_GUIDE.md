@@ -149,7 +149,7 @@ triangle to Wave 1 with the wave near square.
 
 ## Presets
 
-57 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
+68 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
 level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick them on the BROWSE tab or
 step through them on KEYS.
 
@@ -203,6 +203,29 @@ Loop Ticker.
 Tips: 121–125 BPM; basslines live between about A0 and F2; ride Cutoff, Resonance, Multidrive and
 EG Amount on the FILTER Q-Link set (Q-Links 1–4); use MPC's delay and reverb on the track (SubForce
 has no effects of its own, on purpose).
+
+### In the direction of KVNDRA
+
+KVNDRA (Cologne) plays melodic house, techno and ambient live on the original's smaller sibling and
+describes his sound as melancholic arpeggios with warm analog leads; his breakdowns show drones
+under a huge reverb, slow arps, rising and pulsing leads, a fast filter wobble and patterns that never
+quite repeat. These presets go that way (his own presets are his; nothing is copied):
+
+| Preset | What it is | Play it |
+|---|---|---|
+| **Bass / Deep House Bass** | Saw-square and sub, a short filter blip, round and dry | 16ths or off-beats, C1–C2 |
+| **Bass / Wah Bass** | A 1/16-triplet triangle on the filter, resonant: the "wawawa" | Long notes; the wobble follows MPC's tempo |
+| **Bass / Dark Pulse Bass** | 16' and 8' saws, feedback and resonance, a 2-bar filter sweep | Long notes under a pad |
+| **Lead / Warm Glow Lead** | Detuned saw and square-ish wave, low resonance, exp legato glide | C4–C6, legato; wheel for vibrato |
+| **Lead / Rising Lead** | The filter opens over 1.4 s as you hold it; glide on every note | Long notes, into delay |
+| **Lead / Pulsing Lead** | A 1/16 square pulses the filter and level | Hold notes; it follows MPC's tempo |
+| **Keys / Melancholy Arp** | Triangle-saw blend, detuned, a slow random pitch wobble like tape | MPC's arpeggiator at 1/8 or 1/16, into delay |
+| **Keys / Slow Analog Arp** | One saw, resonant pluck; the wheel brings a slow filter sway | Slow arps (1/4, 1/8) |
+| **Sequence / Endless Steps** | Two slow movements at unrelated rates on cutoff and wave: no two bars alike | A short sequence, left running |
+| **Pad / Desert Drone** | Saw and a fifth, sub, feedback, a 14 s filter breath, slow swell | Hold one low note into a big reverb |
+| **Pad / Cinematic Swell** | Duo: two keys swell in over 2 s | Hold two-note intervals into a big reverb |
+
+Most of his sound is in the effects: put a long reverb (or two) and a delay on the track in MPC.
 
 ## MIDI
 
