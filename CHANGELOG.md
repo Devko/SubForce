@@ -4,6 +4,17 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.5
+
+- **Analog** (the knob that was Drift): besides the drift, now everything that makes an analog unit
+  sound like one, all of it scaled by the knob and kept small — cycle-to-cycle **jitter**, a faster
+  drift, slightly **imperfect shapes** (the saw's bow, the square a little off 50%, soft edges, the
+  mixer's AC coupling), **per-note** variation of shape, cutoff and resonance (as many "analog"
+  preset packs do), and the **unit**: every instance its own tuning error, square width, cutoff,
+  resonance and envelope times, kept by a project. At 0 the sound is 0.0.4's, sample for sample.
+- Factory presets re-levelled (49 of them by 0.1–0.3 dB).
+- CPU on the Force: +0.2% of a block with Analog up (Init 2.85%, the heavy patch 3.7%).
+
 ## 0.0.4
 
 The rest of the original's manual:

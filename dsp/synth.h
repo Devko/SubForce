@@ -102,7 +102,9 @@ struct Patch {
     int   subOctave = SO_ONE;
     float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the original's) .. 1 dark
     bool  kbReset = false;    // oscillators restart their cycle at each new note
-    float drift = 0.25f;      // 0..1 analog pitch and cutoff drift
+    float drift = 0.25f;      // 0..1 Analog: drift, jitter, per-note and per-unit variation, the
+                              // oscillators' imperfect shapes; 0 = ideal (the knob is called Analog)
+    uint32_t unit = 1;        // which unit this instance is: its tolerances (a project keeps it)
     // Mixer, 0..1 (audio taper). Several sources up high drive the filter, as on the hardware.
     float mixOsc1 = 0.8f, mixSub = 0.0f, mixOsc2 = 0.0f, mixNoise = 0.0f, mixFeedback = 0.0f;
     // Filter
@@ -210,6 +212,16 @@ private:
         int   left = 0;   // control steps to the next target
     };
     struct Key { int note, vel; };
+    // What Analog does, worked out in setPatch from the knob and the unit's tolerances.
+    struct Analog {
+        bool  on = false;                          // Analog > 0: the shape stages run
+        float pwOff[2] = {}, bow[2] = {};          // the oscillators' shapes
+        float lpK = 1.0f;                          // their bandwidth: a one-pole step at the 2x rate
+        float hpR = 1.0f;                          // their AC coupling into the mixer
+        float cents[2] = {}, cut = 0.0f, res = 0.0f, env[2] = {1.0f, 1.0f};   // the unit's tolerances
+        float jitter = 0.0f;                       // cycle to cycle, relative
+    };
+    enum UnitTol { U_DET1, U_DET2, U_PW1, U_PW2, U_BOW1, U_BOW2, U_LP, U_HP, U_CUT, U_RES, U_ENVF, U_ENVA, U_COUNT };
 
     void holdKey(int note, int vel);
     void dropKey(int note);
@@ -224,6 +236,8 @@ private:
     void  newCycle(Bus& b);
     void  fastMods(int n, FastRun& r);
     void  envCoefs();
+    void  analogSetup();
+    float fastStep(Drift& d, int n);
     void  releaseEnvs();
     void  envSync(int n);
     void advance(int n);
@@ -269,6 +283,7 @@ private:
     Env     fenv_, aenv_;
     EnvCoef fc_, ac_;
     uint32_t rng_ = 0x2545F491u, noiseRng_ = 0x9E3779B9u;
+    uint32_t anaRng_ = 0x6C8E9CF5u, jitRng_ = 0x3C6EF372u;   // Analog's own: per note, the fast drift; the jitter
     float   noiseLp_ = 0.0f, noiseHp_ = 0.0f, pink_[3] = {};   // noiseHp_: the 30 Hz high-pass's low part
     float   fbIn_ = 0.0f, fbX1_ = 0.0f, fbY1_ = 0.0f;   // feedback: the mixer's output, overloaded,
     float   fbLp_ = 0.0f;                                // band-limited and DC-blocked, a sample late
@@ -298,6 +313,14 @@ private:
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff
     float noteDrift_[2] = {}; // per-note offsets, cents
+    float fastNow_[3] = {};   // Analog: a faster, smaller drift (osc 1, osc 2, cutoff)...
+    Drift fastDrift_[3];
+    float noteWave_[2] = {}, noteCut_ = 0.0f, noteRes_ = 0.0f;   // ...per-note shape, cutoff, resonance
+    float jit_[2] = {1.0f, 1.0f};                                // ...this cycle's length
+    float oscLp_ = 0.0f, hpX_ = 0.0f, hpY_ = 0.0f;               // ...the oscillators' bandwidth and coupling
+    Analog an_;
+    float unitTol_[U_COUNT] = {};   // the unit's tolerances, -1..1
+    uint32_t unitMade_ = 0;
     float noiseK_ = 1.0f, noisePink_ = 1.0f, noiseComp_ = 1.0f;   // colour: dark one-pole, pink mix, level
     float driveBias_ = 0.0f;   // Multidrive's asymmetry (its tube-like even harmonics)
     double beats_ = 0.0, bpm_ = 120.0, beatsPerSample_ = 120.0 / 60.0 / 44100.0;

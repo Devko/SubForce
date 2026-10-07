@@ -90,6 +90,7 @@ struct Plugin {
 
     // audio thread only
     float    snapshot[P_COUNT] = {};
+    uint32_t unit = 0;            // the surface's unit the patch was built with
     bool     havePatch = false;   // patch below is built from snapshot
     uint32_t seenWrites = 0;      // the surface's write count that snapshot is current for
     RawMidi  midi[kMaxMidi] = {};
@@ -203,9 +204,13 @@ void runBlock(Plugin* p, float* L, float* R, int n, const Transport& tr) {
         float fresh[P_COUNT];
         if (p->surface.snapshot(fresh)) {   // mid-preset: false, look again next block
             p->seenWrites = writes;
-            if (!p->havePatch || std::memcmp(fresh, p->snapshot, sizeof fresh) != 0) {
+            const uint32_t unit = p->surface.unit();
+            if (!p->havePatch || unit != p->unit || std::memcmp(fresh, p->snapshot, sizeof fresh) != 0) {
                 std::memcpy(p->snapshot, fresh, sizeof fresh);
-                p->synth.setPatch(patchFromParams(p->snapshot));
+                p->unit = unit;
+                sf::Patch patch = patchFromParams(p->snapshot);
+                patch.unit = unit;
+                p->synth.setPatch(patch);
                 p->havePatch = true;
             }
         }
@@ -406,6 +411,7 @@ AEffect* createPlugin(audioMasterCallback master) {
     const uint32_t seed = instanceSeed(p);
     p->synth.seed(seed);
     p->surface.seed(seed * 0x2545F491u + 1u);
+    p->surface.setUnit((seed ^ 0x5BD1E995u) * 0x27D4EB2Du);   // a new instance, a new unit (a project restores its own)
 
     AEffect* e = &p->fx;
     std::memset(e, 0, sizeof(*e));

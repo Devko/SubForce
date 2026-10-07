@@ -123,7 +123,7 @@ num("o2_wave", "Osc 2 Wave", "lin", 0, 1, round(1 / 3, 6), "wave")
 enum("o2_sync", "Hard Sync", ON_OFF, "Off")
 enum("sub_oct", "Sub Octave", ["-1 Oct", "-2 Oct"], "-1 Oct")   # dsp/synth.h SubOctave
 enum("kb_reset", "KB Reset", ON_OFF, "Off")
-num("drift", "Drift", "lin", 0, 1, 0.25, "pct")
+num("drift", "Analog", "lin", 0, 1, 0.25, "pct")   # drift, jitter, per-note and per-unit variation, shapes
 
 # --- mixer ---
 num("mix_o1", "Osc 1 Level", "lin", 0, 1, 0.8, "pct")

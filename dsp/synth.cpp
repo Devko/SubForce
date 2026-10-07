@@ -29,6 +29,22 @@ constexpr float kMinCutoff = 8.0f;       // Hz
 constexpr int kTapFade = 32;             // samples to crossfade a slope change
 constexpr float kThermal = 1e-4f;        // the ladder's input noise floor (-80 dB)
 
+// Analog (the knob that was Drift), at full. Modelled on how an analog oscillator works (a ramp
+// core reset by a transistor, the other shapes made from it, AC coupled into the mixer) and kept
+// small: no unit to measure, so nothing a careful listener would call a fault.
+constexpr float kAnaJitter = 0.0006f;    // each cycle's length, relative: about +-1 cent
+constexpr float kAnaBow = 0.06f, kAnaBowTol = 0.03f;   // the ramp's bow, and how much units differ in it
+constexpr float kAnaPw = 0.012f;         // the comparator's error: the square's width +-1.2% of the cycle
+constexpr float kAnaBw = 40000.0f;       // Hz: the oscillators' bandwidth, Analog 0..1: 40 kHz down to
+constexpr float kAnaBwDrop = 20000.0f;   //     about 20 kHz (edges and tips a little soft)
+constexpr float kAnaCoupling = 3.0f;     // Hz: their coupling into the mixer (a square sags at bass notes)
+constexpr float kAnaDetune = 1.5f;       // cents: the unit's tuning error, per oscillator
+constexpr float kAnaCut = 0.25f, kAnaRes = 0.015f, kAnaEnv = 0.03f;   // the unit's cutoff (semitones),
+                                                                      // resonance (knob), envelope times
+constexpr float kAnaFast = 1.2f, kAnaFastCut = 0.12f;   // the faster drift: cents, semitones
+constexpr float kAnaNoteWave = 0.012f, kAnaNoteCut = 0.3f, kAnaNoteRes = 0.012f;   // per note: wave knob,
+                                                                                    // semitones, resonance knob
+
 // Mixer knobs: an audio taper.
 inline float taper(float k) {
     k = clampf(k, 0.0f, 1.0f);
@@ -82,6 +98,7 @@ void Synth::setPatch(const Patch& p) {
         if (unlatch[0]) fenv_.release();
         if (unlatch[1]) aenv_.release();
     }
+    analogSetup();
     havePatch_ = true;
     cutNote_ = noteOf(p.cutoffHz);
     // A bus whose rate the other one modulates runs free even when synced (a locked phase can't
@@ -119,8 +136,36 @@ float Synth::kbScale(float kb) const { return exp2Fast(-clampf(kb, 0.0f, 1.0f) *
 // The envelopes' coefficients: their times, keyboard tracking (from the key playing) and the
 // busses' EG Time.
 void Synth::envCoefs() {
-    fc_ = envCoef(patch_.fenv, sr_, kbScale(patch_.fenv.kb) * egTimeMul_[0]);
-    ac_ = envCoef(patch_.aenv, sr_, kbScale(patch_.aenv.kb) * egTimeMul_[1]);
+    fc_ = envCoef(patch_.fenv, sr_, kbScale(patch_.fenv.kb) * egTimeMul_[0] * an_.env[0]);
+    ac_ = envCoef(patch_.aenv, sr_, kbScale(patch_.aenv.kb) * egTimeMul_[1] * an_.env[1]);
+}
+
+// Analog: the unit's tolerances (from its number: the same unit, the same instrument) scaled by the
+// knob, and what they do to the oscillators. At 0 everything here is exactly neutral.
+void Synth::analogSetup() {
+    if (patch_.unit != unitMade_) {
+        uint32_t h = patch_.unit * 0x9E3779B9u ^ 0x85EBCA6Bu;
+        if (!h) h = 1u;
+        for (int k = 0; k < 4; ++k) xorshift(h);
+        for (float& t : unitTol_) t = randBipolar(h);
+        unitMade_ = patch_.unit;
+    }
+    const float a = clampf(patch_.drift, 0.0f, 1.0f);
+    const float* u = unitTol_;
+    an_.on = a > 0.0f;
+    for (int o = 0; o < 2; ++o) {
+        an_.pwOff[o] = a * kAnaPw * u[U_PW1 + o];
+        an_.bow[o] = a * (kAnaBow + kAnaBowTol * u[U_BOW1 + o]);
+        an_.cents[o] = a * kAnaDetune * u[U_DET1 + o];
+    }
+    const float bw = kAnaBw - a * kAnaBwDrop * (1.0f + 0.15f * u[U_LP]);
+    an_.lpK = 1.0f - std::exp(-2.0f * kPi * bw * invOsr_);
+    an_.hpR = 1.0f - 2.0f * kPi * a * kAnaCoupling * (1.0f + 0.3f * u[U_HP]) * invOsr_;
+    an_.cut = a * kAnaCut * u[U_CUT];
+    an_.res = a * kAnaRes * u[U_RES];
+    an_.env[0] = 1.0f + a * kAnaEnv * u[U_ENVF];
+    an_.env[1] = 1.0f + a * kAnaEnv * u[U_ENVA];
+    an_.jitter = a * kAnaJitter;
 }
 
 // --- keys ---------------------------------------------------------------------------------
@@ -239,6 +284,12 @@ void Synth::trigger(int vel) {
         }
     if (patch_.kbReset) resetPending_ = true;
     for (float& d : noteDrift_) d = randBipolar(rng_) * patch_.drift * 3.0f;   // cents
+    // Analog, per note (its own random numbers: at 0 nothing else changes): a slightly different
+    // shape, cutoff and resonance every note, as on a real unit.
+    const float a = patch_.drift;
+    for (float& w : noteWave_) w = randBipolar(anaRng_) * a * kAnaNoteWave;
+    noteCut_ = randBipolar(anaRng_) * a * kAnaNoteCut;
+    noteRes_ = randBipolar(anaRng_) * a * kAnaNoteRes;
     if (silent_) {   // waking: nothing to glide from, every value starts where it belongs
         silent_ = false;
         snapAll_ = true;
@@ -341,6 +392,10 @@ void Synth::seed(uint32_t s) {
     rng_ = s ? s : 1u;
     noiseRng_ = s * 0x9E3779B9u + 0x2545F491u;
     if (!noiseRng_) noiseRng_ = 1u;
+    anaRng_ = (s ^ 0x6C8E9CF5u) * 0x85EBCA6Bu;
+    if (!anaRng_) anaRng_ = 1u;
+    jitRng_ = (s ^ 0x3C6EF372u) * 0xC2B2AE35u;
+    if (!jitRng_) jitRng_ = 1u;
 }
 
 void Synth::setTransport(double bpm, double beats, bool playing, bool beatsValid) {
@@ -435,6 +490,17 @@ float Synth::driftStep(Drift& d, int n) {
     return d.v;
 }
 
+// Analog's faster drift: toward a new target every 40-200 ms, smoothed over 60 ms.
+float Synth::fastStep(Drift& d, int n) {
+    d.left -= n;
+    if (d.left <= 0) {
+        d.target = randBipolar(anaRng_);
+        d.left = static_cast<int>(sr_ * (0.04f + 0.16f * static_cast<float>(xorshift(anaRng_) >> 8) / 16777216.0f));
+    }
+    d.v += (d.target - d.v) * std::min(1.0f, static_cast<float>(n) / (0.06f * sr_));
+    return d.v;
+}
+
 // Every kControl samples: glide, the mod busses, drift, and the targets every control value
 // glides to over the next kControl samples.
 // Time passes for everything that moves at the control rate: the song position, glides, the
@@ -467,6 +533,7 @@ void Synth::advance(int n) {
     // A Hi-range bus moves in renderRun while the voice sounds, here while it is silent.
     for (int b = 0; b < 2; ++b) busOut_[b] = busValue(bus_[b], patch_.mod[b], fast_[b] && !silent_ ? 0 : n);
     for (int k = 0; k < 3; ++k) driftNow_[k] = driftStep(drift_[k], n);
+    for (int k = 0; k < 3; ++k) fastNow_[k] = fastStep(fastDrift_[k], n);
 }
 
 // A note event between control steps: bring the control-rate time up to this sample first, so a
@@ -570,8 +637,11 @@ void Synth::control() {
     }
     if (retime) envCoefs();
 
-    const float driftCents[2] = {driftNow_[0] * p.drift * 6.0f + noteDrift_[0], driftNow_[1] * p.drift * 6.0f + noteDrift_[1]};
-    const float driftCut = driftNow_[2] * p.drift * 0.6f;
+    // Drift: the slow wander, the note's offset; Analog's faster wander and the unit's tuning.
+    const float driftCents[2] = {
+        driftNow_[0] * p.drift * 6.0f + noteDrift_[0] + fastNow_[0] * p.drift * kAnaFast + an_.cents[0],
+        driftNow_[1] * p.drift * 6.0f + noteDrift_[1] + fastNow_[1] * p.drift * kAnaFast + an_.cents[1]};
+    const float driftCut = driftNow_[2] * p.drift * 0.6f + fastNow_[2] * p.drift * kAnaFastCut + noteCut_ + an_.cut;
     const float bend = bend_ * (bend_ > 0.0f ? p.bendUp : p.bendDown);
     const float bend1 = p.bendDest == BD_BOTH || p.bendDest == BD_OSC1 ? bend : 0.0f;
     const float bend2 = p.bendDest == BD_BOTH || p.bendDest == BD_OSC2 ? bend : 0.0f;
@@ -590,11 +660,11 @@ void Synth::control() {
     const float target[] = {
         clampf(noteHz(pitch[0]) * invOsr_, 1e-7f, 0.45f),
         clampf((noteHz(pitch[1]) + p.beatHz + kBeatRange * beatMod) * invOsr_, 1e-7f, 0.45f),   // Beat Freq: Hz
-        clampf(p.osc[0].wave + waveMod[0], 0.0f, 1.0f),
-        clampf(p.osc[1].wave + waveMod[1], 0.0f, 1.0f),
+        clampf(p.osc[0].wave + waveMod[0] + noteWave_[0], 0.0f, 1.0f),
+        clampf(p.osc[1].wave + waveMod[1] + noteWave_[1], 0.0f, 1.0f),
         cutNote_ + clampf(p.keyTrack + 2.0f * kbMod, 0.0f, 2.0f) * (glide_[0].pitch - kKeyCentre) + cutMod + driftCut,
         envSemis(clampf(p.envAmount + egAmtMod, -1.0f, 1.0f)) * fVel_,
-        resFeedback(clampf(p.res + resMod, 0.0f, 1.0f)),
+        resFeedback(clampf(p.res + resMod + noteRes_ + an_.res, 0.0f, 1.0f)),
         kInGain * driveGain,
         0.5f + drive,                  // Multidrive's second stage: into the clipper...
         2.0f / (1.0f + 2.0f * drive),  // ...and out of it
@@ -643,6 +713,7 @@ void Synth::goSilent() {
     fbIn_ = fbX1_ = fbY1_ = fbLp_ = 0.0f;
     dcX1_ = dcY1_ = 0.0f;
     noiseLp_ = noiseHp_ = pink_[0] = pink_[1] = pink_[2] = 0.0f;
+    oscLp_ = hpX_ = hpY_ = 0.0f;
     aePrev_ = 0.0f;
 }
 
@@ -781,7 +852,8 @@ void Synth::renderRun(float* out, int n) {
     const bool fw1 = fast && (fm_[0].wave[0] != 0.0f || fm_[1].wave[0] != 0.0f);
     const bool fw2 = fast && (fm_[0].wave[1] != 0.0f || fm_[1].wave[1] != 0.0f);
     const bool morph1 = wave_[0].d != 0.0f || fw1, morph2 = wave_[1].d != 0.0f || fw2;
-    Shape s1 = shapeOf(wave_[0].v), s2 = shapeOf(wave_[1].v);
+    const Analog an = an_;   // a copy in registers: the per-sample loop reads it
+    Shape s1 = shapeOf(wave_[0].v, an.pwOff[0], an.bow[0]), s2 = shapeOf(wave_[1].v, an.pwOff[1], an.bow[1]);
     float peak = peak_;
     for (int i = 0; i < n; ++i) {
         float dt1 = dt_[0].next(), dt2 = dt_[1].next(), vm = 1.0f;
@@ -790,8 +862,12 @@ void Synth::renderRun(float* out, int n) {
             dt2 = std::min(dt2 * fr.pm[1][i], 0.45f);
             vm = fr.vol[i];
         }
-        if (morph1) s1 = shapeOf(wave_[0].next() + (fw1 ? fr.wave[0][i] : 0.0f));
-        if (morph2) s2 = shapeOf(wave_[1].next() + (fw2 ? fr.wave[1][i] : 0.0f));
+        if (an.on) {   // this cycle's length (jitter)
+            dt1 *= jit_[0];
+            dt2 *= jit_[1];
+        }
+        if (morph1) s1 = shapeOf(wave_[0].next() + (fw1 ? fr.wave[0][i] : 0.0f), an.pwOff[0], an.bow[0]);
+        if (morph2) s2 = shapeOf(wave_[1].next() + (fw2 ? fr.wave[1][i] : 0.0f), an.pwOff[1], an.bow[1]);
         const float l0 = lvl_[0].next(), l1 = lvl_[1].next(), l2 = lvl_[2].next(), l3 = lvl_[3].next() * nc,
                     l4 = lvl_[4].next();
         const float r = res_.next(), gain = inGain_.next(), postIn = postIn_.next(), postOut = postOut_.next(),
@@ -804,6 +880,7 @@ void Synth::renderRun(float* out, int n) {
             const float fk = k == 0 ? 0.5f * (fq[i] + fq[i + 1]) : fq[i + 1];
             const float amp = (k == 0 ? 0.5f * (ae[i] + ae[i + 1]) : ae[i + 1]) * vca;
             float v1, v2, vs;
+            bool w1 = false, w2 = false;
             if (resetPending_) {   // keyboard reset: every oscillator restarts its cycle here
                 v1 = osc_[0].tickReset(dt1, s1, 1.0f);
                 v2 = osc_[1].tickReset(dt2, s2, 1.0f);
@@ -811,14 +888,25 @@ void Synth::renderRun(float* out, int n) {
                 vs = sub_.tick(false, 0.0f, subOct);
                 resetPending_ = false;
             } else {
-                bool w1 = false, w2 = false;
                 float x1 = 0.0f, x2 = 0.0f;
                 v1 = osc_[0].tick(dt1, s1, w1, x1);
                 v2 = sync && w1 ? osc_[1].tickReset(dt2, s2, x1) : osc_[1].tick(dt2, s2, w2, x2);
                 vs = sub_.tick(w1, x1, subOct);
             }
+            if (an.on) {   // a new cycle, a slightly different length
+                if (w1) jit_[0] = 1.0f + an.jitter * randBipolar(jitRng_);
+                if (w2) jit_[1] = 1.0f + an.jitter * randBipolar(jitRng_);
+            }
             const float white = randBipolar(noiseRng_);
             float mix = l0 * v1 + l1 * vs + l2 * v2;
+            if (an.on) {
+                // The oscillators' bandwidth (soft edges and tips) and their coupling into the mixer
+                // (a square sags at bass notes): one stage for the three, the same as one each.
+                oscLp_ += (mix - oscLp_) * an.lpK;
+                hpY_ = oscLp_ - hpX_ + an.hpR * hpY_;
+                hpX_ = oscLp_;
+                mix = hpY_;
+            }
             if (noiseOn) {
                 pink_[0] = kPinkPole[0] * pink_[0] + kPinkGain[0] * white;
                 pink_[1] = kPinkPole[1] * pink_[1] + kPinkGain[1] * white;

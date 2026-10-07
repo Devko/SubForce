@@ -42,13 +42,16 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 - ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS), 0.0.3
-  (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets)
+  (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets),
+  0.0.5 (Analog)
 - ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
 - ✅ Closer to the original's modulation: Beat Freq; Hi range (audio-rate busses, up to 1 kHz, every
   sample on pitch, cutoff, wave and volume); Sine, Noise, Amp EG, Velocity, Aftertouch, Key and
   Constant sources; EG Amount, Key Track, the oscillator levels, Beat Freq, EG / FEG / AEG Time and
   Glide Time destinations; wheel, velocity and pressure depth amounts (a DEPTH tab); 3 presets
   that show them (71 in all)
+- ✅ Analog (was Drift): jitter, a faster drift, imperfect shapes, per-note and per-unit variation;
+  0 = the ideal synth, bit for bit
 - ✅ The rest of the original's manual: LFO key tracking (0–200%), Duo's KB CTRL (oscillator 2 on
   the high or low key, or a drone), gated glide, an exponential attack option, envelope latch and
   tempo sync, the bend per oscillator; 3 presets that show them (74 in all)

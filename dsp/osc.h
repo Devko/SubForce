@@ -15,16 +15,20 @@ namespace sf {
 //   saw       2t - 1 (rises, drops by 2 at the wrap)
 //   pulse     +1 for t < pw, else -1, minus its mean (AC coupled, like the analog output)
 // 0 = triangle, 1/3 = saw, 2/3 = square, 1 = a 6% pulse; crossfades in between.
+// An analog oscillator's ramp bows (its capacitor charges a little less as it fills): the saw gets
+// -bow * ((2t - 1)^2 - 1/3), concave, zero-mean, continuous at the wrap (its slope jumps there:
+// a corner the polyBLAMP corrects). And its comparator's 50% isn't quite: pwOff moves the width.
 struct Shape {
     float tri = 0.0f, saw = 1.0f, pul = 0.0f;
     float pw = 0.5f;    // pulse width
     float dc = 0.0f;    // pul * (2 pw - 1): the pulse's mean, removed
-    bool  hasTri = false, hasPul = false;   // tri / pul != 0, worked out once (a float compare costs ~10 cycles)
+    float bow = 0.0f;   // the saw's bow (its weight in it)
+    bool  hasTri = false, hasPul = false, hasBow = false;   // worked out once (a float compare costs ~10 cycles)
 };
 
 constexpr float kMinPulse = 0.06f;
 
-inline Shape shapeOf(float m) {
+inline Shape shapeOf(float m, float pwOff = 0.0f, float bow = 0.0f) {
     Shape s;
     m = clampf(m, 0.0f, 1.0f) * 3.0f;
     if (m < 1.0f) {
@@ -40,20 +44,29 @@ inline Shape shapeOf(float m) {
         s.pul = 1.0f;
         s.pw = 0.5f - (m - 2.0f) * (0.5f - kMinPulse);
     }
+    if (pwOff != 0.0f) s.pw = clampf(s.pw + pwOff, kMinPulse, 1.0f - kMinPulse);
     s.dc = s.pul * (2.0f * s.pw - 1.0f);
+    s.bow = bow * s.saw;
     s.hasTri = s.tri != 0.0f;
     s.hasPul = s.pul != 0.0f;
+    s.hasBow = s.bow != 0.0f;
     return s;
 }
 
 inline float waveValue(const Shape& s, float t) {
     const float tri = t < 0.5f ? 4.0f * t - 1.0f : 3.0f - 4.0f * t;
     const float pul = t < s.pw ? 1.0f : -1.0f;
-    return s.tri * tri + s.saw * (2.0f * t - 1.0f) + s.pul * pul - s.dc;
+    const float v = s.tri * tri + s.saw * (2.0f * t - 1.0f) + s.pul * pul - s.dc;
+    if (!s.hasBow) return v;
+    const float r = 2.0f * t - 1.0f;
+    return v - s.bow * (r * r - (1.0f / 3.0f));
 }
 
 // d value / d phase (the pulse is flat between its edges).
-inline float waveSlope(const Shape& s, float t) { return s.tri * (t < 0.5f ? 4.0f : -4.0f) + 2.0f * s.saw; }
+inline float waveSlope(const Shape& s, float t) {
+    const float d = s.tri * (t < 0.5f ? 4.0f : -4.0f) + 2.0f * s.saw;
+    return s.hasBow ? d - s.bow * 4.0f * (2.0f * t - 1.0f) : d;
+}
 
 // The two samples a discontinuity touches: `pending` is sample n-1 (not yet returned), `cur`
 // collects corrections for sample n. x = how far before sample n the event happened, in
@@ -108,6 +121,7 @@ SF_INLINE bool advance(float& t, float len, float dt, float pw0, float pw1, floa
         const float x = xAt(uw);
         b.step(2.0f * (s.pul - s.saw), x);   // saw falls by 2, the pulse rises back above its width
         if (s.hasTri) b.corner(8.0f * s.tri * dt, x);
+        if (s.hasBow) b.corner(8.0f * s.bow * dt, x);   // the bow's slope: -4 bow -> +4 bow
         if (wrapX) *wrapX = x;
     }
     t = wraps ? t1 - 1.0f : t1;

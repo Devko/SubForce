@@ -94,7 +94,7 @@
   },
   {
    "key": "drift",
-   "name": "Drift",
+   "name": "Analog",
    "min": 0,
    "max": 1,
    "default": 0.25,

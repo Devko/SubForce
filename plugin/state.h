@@ -2,7 +2,8 @@
 // The plugin's state text, shared by projects (effGetChunk / effSetChunk) and preset files.
 //
 // "subforce 1": key=value lines of REAL values (Hz, seconds, semitones, option index) for every
-// sound parameter, plus, in a project, the preset it came from. Survives parameters being added
+// sound parameter, plus, in a project, the preset it came from and the unit the instance is
+// (Analog's tolerances). Survives parameters being added
 // or reordered AND ranges changing (a 0..1 value would silently move when a range does).
 #include "surface.h"
 

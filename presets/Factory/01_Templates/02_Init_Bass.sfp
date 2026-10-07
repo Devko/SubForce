@@ -1,5 +1,5 @@
 subforce 1
-volume=-1.9
+volume=-1.8
 mix_sub=0.45
 f_cut=250
 f_res=0.121

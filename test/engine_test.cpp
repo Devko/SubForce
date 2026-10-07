@@ -574,6 +574,116 @@ void testEnvelopeExtras() {
     CHECK(locked.info().filterEnv < 1e-3f);
 }
 
+// Analog (the knob that was Drift): at 0 the ideal oscillators; up, a real unit's.
+void testAnalog() {
+    std::printf("== analog: shapes, jitter, per-note and per-unit variation\n");
+    // The bowed ramp stays band-limited (its corner at the wrap corrected) and free of DC.
+    for (int note : {84, 96}) {
+        sf::Osc o;
+        sf::Decimator d;
+        const sf::Shape sh = sf::shapeOf(1.0f / 3.0f, 0.0f, 0.09f);
+        const float dt = static_cast<float>(noteHzD(note) / 88200.0);
+        std::vector<float> x(32768 + 2048);
+        bool wr = false;
+        float wx = 0.0f;
+        double mean = 0.0;
+        for (float& v : x) {
+            const float a = o.tick(dt, sh, wr, wx), b = o.tick(dt, sh, wr, wx);
+            v = d.process(a, b);
+            mean += v;
+        }
+        x.erase(x.begin(), x.begin() + 2048);
+        const double alias = worstAliasDb(x, noteHzD(note));
+        std::printf("  bowed saw, note %d: worst alias %.1f dB\n", note, alias);
+        CHECK(alias < -50.0 && std::fabs(mean / static_cast<double>(x.size())) < 0.005);
+    }
+
+    // Jitter: each cycle a little longer or shorter. The spread of one period against the next
+    // (the slow drift cancels in it; +-0.06% uniform: 0.049%) at full, nothing at 0. Measured on a
+    // triangle at 110 Hz through a low cutoff: nearly a sine, its zero crossings clean (the filter
+    // averages neighbouring cycles a little: about 0.03%).
+    auto spread = [](float analog) {
+        Patch p = plain();
+        p.drift = analog;
+        p.osc[0].wave = 0.0f;
+        p.cutoffHz = 300.0f;
+        const auto x = play(p, 45, 88200);
+        std::vector<double> at;
+        for (size_t i = 1; i < x.size(); ++i)
+            if (x[i - 1] < 0.0f && x[i] >= 0.0f)
+                at.push_back(static_cast<double>(i - 1) + x[i - 1] / static_cast<double>(x[i - 1] - x[i]));
+        double mean = 0.0, sq = 0.0;
+        const size_t n = at.size() - 2;
+        for (size_t k = 0; k < n; ++k) mean += (at[k + 1] - at[k]) / static_cast<double>(n);
+        for (size_t k = 0; k < n; ++k) {
+            const double d = (at[k + 2] - at[k + 1]) - (at[k + 1] - at[k]);
+            sq += d * d / static_cast<double>(n);
+        }
+        return std::sqrt(sq) / mean;
+    };
+    const double j0 = spread(0.0f), j1 = spread(1.0f);
+    std::printf("  period to period: %.5f%% at 0, %.4f%% at full\n", 100.0 * j0, 100.0 * j1);
+    CHECK(j0 < 0.00003 && j1 > 0.0002 && j1 < 0.0007);
+
+    // A unit is an instrument: the same unit plays the same, another a little differently (its
+    // tuning, its square's width); at 0 every unit is the ideal one.
+    auto square = [](float analog, uint32_t unit) {
+        Patch p = plain();
+        p.osc[0].wave = 2.0f / 3.0f;
+        p.drift = analog;
+        p.unit = unit;
+        return play(p, 45, 32768);
+    };
+    auto maxDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        double m = 0.0;
+        for (size_t i = 0; i < a.size(); ++i) m = std::max(m, std::fabs(static_cast<double>(a[i]) - b[i]));
+        return m;
+    };
+    CHECK(maxDiff(square(1.0f, 7), square(1.0f, 7)) == 0.0 && maxDiff(square(1.0f, 7), square(1.0f, 8)) > 1e-3 &&
+          maxDiff(square(0.0f, 7), square(0.0f, 8)) == 0.0);
+    // The square's width off 50% gives it a 2nd harmonic (an ideal square has none).
+    double even = -300.0;
+    for (uint32_t unit = 1; unit <= 8; ++unit) {
+        const auto x = square(1.0f, unit);
+        even = std::max(even, 20.0 * std::log10(toneAmp(x, 220.0) / toneAmp(x, 110.0)));
+    }
+    const auto ideal = square(0.0f, 1);
+    const double even0 = 20.0 * std::log10(toneAmp(ideal, 220.0) / toneAmp(ideal, 110.0) + 1e-12);
+    std::printf("  square's 2nd harmonic: %.1f dB ideal, up to %.1f dB over 8 units\n", even0, even);
+    CHECK(even0 < -80.0 && even > -45.0 && even < -25.0);
+
+    // Every note a little different (shape, cutoff, resonance): the same key twice, its level over
+    // whole cycles (66 at 220 Hz in 0.3 s).
+    auto twice = [](float analog) {
+        Patch p = plain();
+        p.drift = analog;
+        p.osc[0].wave = 0.4f;
+        p.cutoffHz = 800.0f;
+        p.res = 0.3f;
+        Synth s;
+        s.setPatch(p);
+        std::vector<float> L(22050), R(L.size());
+        double level[2] = {};
+        for (int k = 0; k < 2; ++k) {
+            s.noteOn(57, 100);
+            s.render(L.data(), R.data(), 22050);
+            level[k] = rms(L, 22050 - 13230, 22050);
+            s.noteOff(57);
+            s.render(L.data(), R.data(), 22050);
+        }
+        return std::fabs(level[1] - level[0]) / level[0];
+    };
+    const double n0 = twice(0.0f), n1 = twice(1.0f);
+    std::printf("  the same key twice: %.5f%% apart at 0, %.3f%% at full\n", 100.0 * n0, 100.0 * n1);
+    CHECK(n0 < 1e-4 && n1 > 2e-3);
+
+    // A project keeps its unit (its state's unit=); a project without one, or a preset, leaves it.
+    Host h;
+    CHECK(h.chunk().find("\nunit=") != std::string::npos);
+    CHECK(h.load("subforce 1\nf_cut=500\nunit=12345\n") == 1 && h.chunk().find("\nunit=12345\n") != std::string::npos);
+    CHECK(h.load("subforce 1\nf_cut=600\n") == 1 && h.chunk().find("\nunit=12345\n") != std::string::npos);
+}
+
 } // namespace
 
 void engineTests() {
@@ -583,6 +693,7 @@ void engineTests() {
     testLadder();
     testEnvelopes();
     testEnvelopeExtras();
+    testAnalog();
     testIdleAndStability();
 }
 

@@ -23,6 +23,8 @@ original* in these docs), built on the same plugin groundwork as its sibling
 - **Two oscillators** with a continuously variable wave (triangle → saw → square → narrow pulse),
   32' to 2', hard sync, a square **sub oscillator** (−1 or −2 octaves) and **noise** (white, pink
   or dark)
+- **Analog**: one knob from ideal to a real unit's habits — drift, cycle-to-cycle jitter, slightly
+  imperfect wave shapes, every note a little different, and every instance its own instrument
 - **Mixer with feedback** — the mixer's output back into it, as on the original: thicker, then
   gritty, then the chaos of an overdriven loop — and the classic habit of overdriving the filter
   when the levels are high
@@ -121,6 +123,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | 0.0.2 — the first regular release (in the plugin catalog, with a download) | ✅ |
 | 0.0.3 — the original's modulation: Beat Freq, Hi range, more sources and destinations, depth amounts; 71 presets | ✅ |
 | 0.0.4 — the rest of the original's manual: LFO key tracking, exponential attack, latch, EG sync, osc 2's keys and drone, gated glide, Bend To; 74 presets | ✅ |
+| 0.0.5 — Analog: jitter, imperfect shapes, per-note and per-unit variation | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

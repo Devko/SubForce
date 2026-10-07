@@ -50,6 +50,7 @@ std::string saveState(const Surface& s, bool asPreset) {
         out += '\n';
     }
     if (!asPreset && !s.presetKey().empty()) out += "preset=" + s.presetKey() + "\n";
+    if (!asPreset) out += "unit=" + std::to_string(s.unit()) + "\n";   // the instrument, not the sound
     return out;
 }
 
@@ -73,6 +74,12 @@ bool loadState(Surface& s, const std::string& textIn, bool asPreset) {
         const std::string key = line.substr(0, eq), val = line.substr(eq + 1);
         if (key == "preset") {
             preset = val;
+            continue;
+        }
+        if (key == "unit") {   // a project's: the same unit as before (a preset never sets it)
+            uint32_t u = 0;
+            const auto r = std::from_chars(val.data(), val.data() + val.size(), u);
+            if (!asPreset && r.ec == std::errc() && u != 0) s.setUnit(u);
             continue;
         }
         for (int i = 0; i < P_COUNT; ++i)

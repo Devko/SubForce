@@ -28,7 +28,7 @@ audio lasts), PEAK its slowest block in that time; VOICES is 0, 1 or 2 (Duo on t
 
 | Tab | What's on it |
 |---|---|
-| **OSC** | Oscillator 1 (octave, wave, sub octave), oscillator 2 (octave, frequency, beat frequency, wave, hard sync), the mixer (osc 1, sub, osc 2, noise, feedback, noise colour, drift, keyboard reset) |
+| **OSC** | Oscillator 1 (octave, wave, sub octave), oscillator 2 (octave, frequency, beat frequency, wave, hard sync), the mixer (osc 1, sub, osc 2, noise, feedback, noise colour, Analog, keyboard reset) |
 | **FILTER** | Cutoff, resonance, Multidrive, filter EG amount, key track, the filter EG's velocity and key tracking, slope; the filter EG (with loop, reset, latch, attack curve, sync) |
 | **AMP** | The amp EG (the same options); velocity, key tracking and volume |
 | **MOD** | Mod 1 and mod 2: source, rate mode (Free, Sync, Hi), sync rate, control, trigger; rate, pitch amount and where it goes, filter amount, the third destination and its amount, key tracking of the rate |
@@ -66,8 +66,24 @@ step per Q-Link detent or data-wheel click.
 - **Sub Octave**: the sub oscillator is a square one or two octaves under oscillator 1.
 - **KB Reset**: On, every note that starts the envelopes starts the oscillators at the beginning of
   their cycle too (the same punch every time); Off, they run free, as analog oscillators do.
-- **Drift**: slow random pitch movement of each oscillator (up to ±6 cents) and of the cutoff,
-  plus a small offset per note. 0 is perfectly stable.
+- **Analog** (was Drift): how far from an ideal, digital synth — at 0 every oscillator is perfect
+  and every note the same; turned up, it behaves like an analog unit, all of it scaled by the knob
+  (the figures here are at full):
+  - **Drift**: each oscillator's pitch wanders slowly (±6 cents) and a little faster (±1.2 cents,
+    tenths of a second), the cutoff too; each note starts a little off (±3 cents).
+  - **Jitter**: each cycle is a little longer or shorter than the last (±0.06%): two oscillators in
+    unison never lock, they breathe.
+  - **Shapes**: the saw's ramp bows slightly, the square isn't quite 50% (a trace of even harmonics,
+    as a real comparator gives), edges and the triangle's tips are a little soft (the oscillators'
+    bandwidth, from 40 kHz down to about 20 kHz), and the oscillators are AC coupled into the mixer
+    (a square's top sags at bass notes).
+  - **Per note**: every note a slightly different wave shape, cutoff (±0.3 semitones) and resonance.
+  - **The unit**: every SubForce instance is a slightly different instrument — its own tuning error
+    per oscillator (±1.5 cents), square width, cutoff, resonance and envelope times (±3%). A project
+    keeps its instances' units; a new instance is a new unit; presets don't change it.
+
+  None of it is measured from a real unit (there isn't one here): it is modelled on how analog
+  oscillators work and kept small. Presets mostly sit between 15% and 50%.
 
 All oscillators are band-limited (polyBLEP) and run at twice the sample rate.
 

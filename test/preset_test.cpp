@@ -70,7 +70,7 @@ void testPresets() {
     CHECK(h.display(sf::P_PRESET) == "PRESET  User / User 001");
     std::string text;
     CHECK(sf::presetText("plugin:User/User 001.sfp", text) && text.find("f_cut=444\n") != std::string::npos &&
-          text.find("preset=") == std::string::npos);
+          text.find("preset=") == std::string::npos && text.find("unit=") == std::string::npos);   // a sound, not an instrument
     h.press(sf::P_PRE_SAVE);
     CHECK(std::filesystem::exists(root + "/User/User 002.sfp"));
     // Next / previous walk the flat list; the stepper turns one preset per event.

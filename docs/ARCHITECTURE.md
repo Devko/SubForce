@@ -37,7 +37,7 @@ flowchart LR
 
 | Path | Contents |
 |---|---|
-| `dsp/synth.*` | The engine: keys (priority, trigger, Duo, pedal), glide, the mod busses, drift, the control step, the 2x render loop, idling |
+| `dsp/synth.*` | The engine: keys (priority, trigger, Duo, pedal), glide, the mod busses, Analog (drift, jitter, shapes, per-note and per-unit variation), the control step, the 2x render loop, idling |
 | `dsp/osc.h` | The morphing oscillator, hard sync and the sub, band-limited with polyBLEP / polyBLAMP |
 | `dsp/ladder.h` | The nonlinear transistor ladder (zero-delay feedback, four taps), its four stages in vector lanes |
 | `dsp/simd.h` | Four-float vectors: NEON on the Force, GCC's generic vectors on x86 (the tests run the same arithmetic); NEON reciprocals instead of divisions |

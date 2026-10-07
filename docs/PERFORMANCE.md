@@ -62,6 +62,9 @@ steps (it reads the clock between stages, so it reads higher than the plain buil
 - **Idle costs next to nothing:** when the amp EG has finished and the output died away, the engine
   stops rendering, and the control grid only keeps time (glides, busses, drift) until a note wakes
   it; block sizes still never change the sound.
+- **Analog** costs a random number per cycle (jitter), a bowed ramp, and one low-pass and one
+  high-pass on the oscillators' mix (the same as one per oscillator, a third of the work): +0.2% of a
+  block on the Force; at 0 it is skipped.
 - **Hi range only where it is on:** a Hi-range bus is worked out every sample (its phase, its
   value, four pitch multipliers at a time with NEON), and only on what needs it at audio rate:
   pitch, cutoff, wave and volume; everything else, and every other bus, at the control rate.

@@ -70,6 +70,14 @@ public:
 
     void        seed(uint32_t s) { rng_ = s ? s : 1u; }   // RANDOM and RND's random numbers
 
+    // Which unit this instance is (Analog's tolerances): a new instance draws one, a project keeps
+    // it (its state's `unit=`), a preset doesn't touch it. Any thread.
+    uint32_t    unit() const { return unit_.load(std::memory_order_acquire); }
+    void        setUnit(uint32_t u) {
+        unit_.store(u ? u : 1u, std::memory_order_release);
+        changes_.fetch_add(1, std::memory_order_release);   // the audio thread rebuilds the patch
+    }
+
     static int  kFine;   // ranges with this many steps or more follow MPC's value
     // Milliseconds for telling gestures apart (null: the steady clock). Tests set one that only
     // moves when they say, so stepping doesn't depend on how fast the machine is.
@@ -105,6 +113,7 @@ private:
     std::atomic<uint32_t> textGen_{0};
     std::atomic<uint32_t> batchSeq_{0};    // odd while a batch is being written (a seqlock)
     std::atomic<uint32_t> changes_{0};     // bumped by every write to want_ / shown_ (notify's cue)
+    std::atomic<uint32_t> unit_{1};
     std::atomic<int>      batchDepth_{0};
 
     // Browser state + text cache (refresh writes, the UI thread reads).
