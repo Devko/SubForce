@@ -41,8 +41,14 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ The original's behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
-- ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS)
+- ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS), 0.0.3
+  (the original's modulation, 71 presets)
 - ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
+- ✅ Closer to the original's modulation: Beat Freq; Hi range (audio-rate busses, up to 1 kHz, every
+  sample on pitch, cutoff, wave and volume); Sine, Noise, Amp EG, Velocity, Aftertouch, Key and
+  Constant sources; EG Amount, Key Track, the oscillator levels, Beat Freq, EG / FEG / AEG Time and
+  Glide Time destinations; wheel, velocity and pressure depth amounts (a DEPTH tab); 3 presets
+  that show them (71 in all)
 
 ## Phase 0
 
@@ -75,7 +81,11 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 ## Planned
 
-- ⬜ **Audio-rate bus sources**: oscillator 2 and noise as mod sources (FM to pitch and cutoff).
+- ⬜ **Closer still to the original** (its manual): LFO key tracking (0–200%), Duo's KB CTRL
+  (oscillator 2 on the high or low key, or a drone), gated glide, an exponential attack option,
+  envelope latch and tempo sync, the bend per oscillator, C3 (MIDI 48) as the key-tracking centre.
+- ⬜ **Oscillator 2 as a bus source** (true oscillator FM, tracking the keys), if Hi range isn't
+  enough.
 - ⬜ **Quality switch**: 4x oversampling, if listening shows a need (the device bench leaves room).
 - ⬜ **Arpeggiator / sequencer**: low priority — the Force sequences better than any plugin page can.
 - ⬜ **More presets** after the listening pass.

@@ -7,12 +7,13 @@
 //                         └── feedback ◄┘ (the mixer's own output back into it, as on the original)
 //
 // Mono, or Duo (paraphonic: each oscillator its own key, one filter and VCA). Two DAHDSR
-// envelopes (filter, amp), two mod busses (an LFO or the filter envelope to pitch, cutoff and
-// one more destination), glide, note priority, single or multi trigger, analog drift.
+// envelopes (filter, amp), two mod busses (an LFO, an envelope, a key or a controller to pitch,
+// cutoff and one more destination), glide, note priority, single or multi trigger, analog drift.
 //
 // Everything from the oscillators to the VCA runs at 2x (88.2 kHz) and is folded back by a
 // halfband decimator (dsp/halfband.h). Modulation and glide run every kControl samples and
-// glide across them; the envelopes and the cutoff they move are computed every sample.
+// glide across them; the envelopes and the cutoff they move are computed every sample, and so
+// is a Hi-range bus (up to 1 kHz) on pitch, cutoff, wave and volume.
 //
 // Real-time rules: no allocation, no locks, no exceptions after construction. The plugin layer
 // feeds it a Patch once per block (only when something changed).
@@ -45,6 +46,7 @@ constexpr int kOctaveMax = 2;
 constexpr float kResMax = 4.6f;  // ladder feedback at full resonance (self-oscillation from ~4)
 constexpr float kResEdge = 0.7f; // the knob where it reaches 4: "settings above 7 cause the filter
                                  // to self-oscillate" (the original's manual)
+constexpr float kBeatRange = 3.5f;   // Hz: osc 2's beat frequency, either way (the original's BEAT FREQ)
 
 // Resonance knob 0..1 -> ladder feedback: 0..4 up to kResEdge, on to kResMax at full.
 inline float resFeedback(float k) {
@@ -65,6 +67,7 @@ struct EnvPatch : EnvTimes {
 struct ModPatch {
     int   src = MS_TRIANGLE;
     bool  sync = false;     // false: rateHz; true: one cycle per kSyncBeats[div] beats
+    bool  hi = false;       // rateHz x kHiRange, every sample (RM_HI; it outranks sync)
     float rateHz = 5.0f;
     int   div = 9;          // 1/8
     float pitch = 0.0f;     // -1..1 (a * |a| * kModPitchRange semitones)
@@ -73,6 +76,9 @@ struct ModPatch {
     int   dest = MD_OFF;
     float amount = 0.0f;    // -1..1 on `dest`
     int   control = MC_ALWAYS;
+    // Depth amounts, -1..1, added to `control`'s depth (the original's MOD WHEEL / VELOCITY /
+    // AFTERTOUCH amounts); the depth stays within -1..1.
+    float wheel = 0.0f, vel = 0.0f, at = 0.0f;
     bool  retrig = false;   // restart at each new note (else free running; synced: locked to the bar)
 };
 
@@ -80,6 +86,7 @@ struct Patch {
     float volumeDb = 0.0f;
     OscPatch osc[2];
     float osc2Semis = 0.0f;   // Osc 2 frequency against osc 1, -7..+7 semitones
+    float beatHz = 0.0f;      // ...and detuned by this many Hz on every note (-kBeatRange..kBeatRange)
     bool  sync = false;       // Osc 2 hard-synced to osc 1
     int   subOctave = SO_ONE;
     float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the original's) .. 1 dark
@@ -173,8 +180,17 @@ private:
     struct Bus {
         float phase = 0.0f;
         float held = 0.0f, from = 0.0f, to = 0.0f;   // S&H / Smooth random values
+        float lp = 0.0f, noise = 0.0f;              // Noise: its low-pass, and that at unit rms
         float rateMul = 1.0f;                       // from the other bus (Other Rate)
         bool  rateModulated = false;                // ...which it does: never locked to the bar
+    };
+    // A Hi-range bus's reach per unit of its source, worked out at the control rate (the depth in
+    // them) and applied every base sample.
+    struct FastMod {
+        float pitch[2] = {}, cut = 0.0f, wave[2] = {}, vol = 0.0f;   // semitones; wave; volume (1 + vol v)
+    };
+    struct FastRun {   // a run's per-sample offsets from the Hi-range busses
+        float pm[2][kControl], cut[kControl], wave[2][kControl], vol[kControl];
     };
     struct Drift {
         float v = 0.0f, target = 0.0f;
@@ -190,6 +206,11 @@ private:
     void glideTo(Glide& g, float target, bool glide);
     void stepGlide(Glide& g, int n) const;
     float busValue(Bus& b, const ModPatch& p, int n);
+    float busHz(const Bus& b, const ModPatch& m) const;
+    float sourceValue(const Bus& b, int src) const;
+    void  newCycle(Bus& b);
+    void  fastMods(int n, FastRun& r);
+    void  envCoefs();
     void advance(int n);
     void catchUp();
     void control();
@@ -220,6 +241,7 @@ private:
     int   note1_ = 60, note2_ = 60;
     float vel_ = 0.8f;            // the triggering key, 0..1
     float fVel_ = 1.0f;           // the filter envelope's velocity scaling for it
+    float aVel_ = 1.0f;           // ...and the amp envelope's (the Amp EG source)
     float bend_ = 0.0f;
     float wheel_ = 0.0f, pressure_ = 0.0f;
 
@@ -252,6 +274,10 @@ private:
     Ramp  dt_[2], wave_[2], cut_, egAmt_, res_, inGain_, postIn_, postOut_, lvl_[5], vca_, vol_;
     Bus   bus_[2];
     float busOut_[2] = {};    // the busses' sources at the last control-rate time
+    bool  fast_[2] = {};      // a Hi-range LFO: its phase moves every base sample (renderRun)
+    FastMod fm_[2];
+    float egTimeMul_[2] = {1.0f, 1.0f};   // filter / amp EG times from the busses (EG Time)
+    float glideMul_ = 1.0f;               // glide times from the busses (Glide Time)
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff
     float noteDrift_[2] = {}; // per-note offsets, cents

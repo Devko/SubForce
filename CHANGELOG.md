@@ -4,9 +4,31 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
-## Unreleased
+## 0.0.3
 
-- **11 more factory presets** (68 in all), in the direction of KVNDRA's melodic house and ambient
+Closer to the original's modulation, from its manual, and 14 more presets:
+
+- **Beat Freq** (OSC tab): oscillator 2 detuned by up to ±3.5 Hz, so it beats at the same rate on
+  every note, as the original's BEAT FREQ.
+- **Hi range** for the mod busses (the Rate Mode is now Free, Sync or **Hi**): 0.5–1000 Hz, worked
+  out every sample on pitch, cutoff, wave and volume — audio-rate FM, filter FM and ring modulation,
+  as the original's HI RANGE.
+- **Seven more sources**: Sine, Noise (random, the rate its speed), Amp EG, Velocity, Aftertouch, Key
+  and Constant (the original's programmable sources).
+- **Nine more destinations**: EG Amount, Key Track, Osc 1 Level, Osc 2 Level, Beat Freq, EG Time
+  (both envelopes), FEG Time, AEG Time, Glide Time.
+- **DEPTH tab**: how much the mod wheel, velocity and pressure add to each bus's depth (−100%..+100%,
+  the original's MOD WHEEL / VELOCITY / AFTERTOUCH amounts), and a fifth Control, *None*.
+- **3 presets** that show them: Beating Bass, Velocity Growl, Ring Lead (71 in all).
+- Block sizes no longer change the free-running oscillators' phase across a silence (it differed by
+  about 10⁻⁵ of a cycle, inaudible): the sound is now the same sample for sample however MPC splits
+  the audio.
+- The new parameters are added at the end of the list and the new options at the end of theirs, so
+  saved sounds and projects keep their settings and their Q-Link assignments.
+- CPU on the Force: unchanged for the existing sounds; both busses in Hi range on top of the heavy
+  patch, 4.6% of a block (p99).
+
+- **11 more factory presets** in the direction of KVNDRA's melodic house and ambient
   sound: Deep House Bass, Wah Bass, Dark Pulse Bass, Warm Glow Lead, Rising Lead, Pulsing Lead,
   Melancholy Arp, Slow Analog Arp, Endless Steps, Desert Drone, Cinematic Swell.
 

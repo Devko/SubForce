@@ -373,7 +373,14 @@
     "Ramp",
     "S&H",
     "Smooth",
-    "Filter EG"
+    "Filter EG",
+    "Sine",
+    "Noise",
+    "Amp EG",
+    "Velocity",
+    "Aftertouch",
+    "Key",
+    "Constant"
    ],
    "default": "Triangle"
   },
@@ -390,10 +397,11 @@
   },
   {
    "key": "m1_sync",
-   "name": "M1 Sync",
+   "name": "M1 Rate Mode",
    "options": [
     "Free",
-    "Sync"
+    "Sync",
+    "Hi"
    ],
    "default": "Free"
   },
@@ -480,7 +488,16 @@
     "Noise Level",
     "Feedback",
     "Volume",
-    "Other Rate"
+    "Other Rate",
+    "EG Amount",
+    "Key Track",
+    "Osc 1 Level",
+    "Osc 2 Level",
+    "Beat Freq",
+    "EG Time",
+    "FEG Time",
+    "AEG Time",
+    "Glide Time"
    ],
    "default": "Off"
   },
@@ -510,7 +527,8 @@
     "Always",
     "Mod Wheel",
     "Aftertouch",
-    "Velocity"
+    "Velocity",
+    "None"
    ],
    "default": "Mod Wheel"
   },
@@ -544,7 +562,14 @@
     "Ramp",
     "S&H",
     "Smooth",
-    "Filter EG"
+    "Filter EG",
+    "Sine",
+    "Noise",
+    "Amp EG",
+    "Velocity",
+    "Aftertouch",
+    "Key",
+    "Constant"
    ],
    "default": "Triangle"
   },
@@ -561,10 +586,11 @@
   },
   {
    "key": "m2_sync",
-   "name": "M2 Sync",
+   "name": "M2 Rate Mode",
    "options": [
     "Free",
-    "Sync"
+    "Sync",
+    "Hi"
    ],
    "default": "Free"
   },
@@ -651,7 +677,16 @@
     "Noise Level",
     "Feedback",
     "Volume",
-    "Other Rate"
+    "Other Rate",
+    "EG Amount",
+    "Key Track",
+    "Osc 1 Level",
+    "Osc 2 Level",
+    "Beat Freq",
+    "EG Time",
+    "FEG Time",
+    "AEG Time",
+    "Glide Time"
    ],
    "default": "Off"
   },
@@ -681,7 +716,8 @@
     "Always",
     "Mod Wheel",
     "Aftertouch",
-    "Velocity"
+    "Velocity",
+    "None"
    ],
    "default": "Always"
   },
@@ -1307,6 +1343,62 @@
    "max": 1,
    "momentary": true,
    "type": "trigger"
+  },
+  {
+   "key": "o2_beat",
+   "name": "Beat Freq",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_wheel",
+   "name": "M1 Wheel",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_vel",
+   "name": "M1 Velocity",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m1_at",
+   "name": "M1 Pressure",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_wheel",
+   "name": "M2 Wheel",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_vel",
+   "name": "M2 Velocity",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
+  },
+  {
+   "key": "m2_at",
+   "name": "M2 Pressure",
+   "min": 0,
+   "max": 1,
+   "default": 0.5,
+   "display": "string"
   }
  ]
 }

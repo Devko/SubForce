@@ -1,0 +1,21 @@
+subforce 1
+volume=-2.8
+mix_o1=0.8
+mix_o2=0.75
+o2_beat=1.2
+mix_sub=0.45
+f_cut=240
+f_res=0.2
+f_drive=0.35
+f_env=0.35
+f_kb=0.4
+fe_a=0.001
+fe_d=0.35
+fe_s=0.15
+fe_r=0.15
+ae_a=0.002
+ae_d=0.5
+ae_s=0.8
+ae_r=0.12
+ae_vel=0.25
+drift=0.2

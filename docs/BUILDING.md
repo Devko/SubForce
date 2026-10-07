@@ -90,7 +90,7 @@ chords; FX and any other category, held notes. A new category folder plays the F
 | `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
 | `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
 | `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
-| `PLUGIN_VERSION` | Release version (default `0.0.2`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
+| `PLUGIN_VERSION` | Release version (default `0.0.3`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
 
@@ -115,7 +115,7 @@ turn, `sft::Turn`), so stepping never depends on the machine's speed:
 |---|---|
 | `test/engine_test.cpp` | The math helpers' error bounds; the decimator's passband and stopband; every wave shape's aliasing, pitch and DC; a swept pulse width; sync, the sub (and its octave switch), the keyboard reset; the ladder's self-oscillation (the edge at 70%: 65% silent, 76% sings), slopes, bass loss, key tracking and drive; Multidrive's even harmonics; the mixer's feedback loop (level, grit, no subharmonics); envelope timing (the linear attack), loop through the release, reset, velocity; noise colour loudness (white, pink, dark); idling; stability with everything at full |
 | `test/keys_test.cpp` | Note priority, multi and single trigger (Multi not retriggering when a release hands back to a held key, in Mono and Duo), re-striking a sounding key, the pedal, more keys than remembered, Duo, mode changes with keys down, glide (Rate, Time, Exp; Always, Legato; which oscillators; from the note's own sample) |
-| `test/mod_test.cpp` | The busses: every source, depth, rate, sync (free and locked to the bar), mod wheel / velocity / pressure, the filter EG as a source, every destination, Other Rate (on a locked bus too) |
+| `test/mod_test.cpp` | The busses: every source, depth, rate, sync (free and locked to the bar), mod wheel / velocity / pressure, the depth amounts, every destination, Other Rate (on a locked bus too), EG and glide times, Hi range (FM and AM sidebands where they belong, no control-rate images), block-size invariance across a silence; Beat Freq; the rate text and saved state |
 | `test/preset_test.cpp` | Saved state round trips and bad input, presets (init, save, step, the ends, after RANDOM, missing files), user numbering, files appearing and renamed while running, the browser, favorites, stepping and the values pushed back (a Force Q-Link turn on the preset stepper: one preset per detent; a tile's release echo), randomize, every factory preset playing |
 | `test/plugin_test.cpp` | The VST2 basics, MIDI timing and mapping (pedal, mod wheel, channel pressure and poly aftertouch on the sounding key only, bend both ways), pitch, octaves, CC 120 / 121 / 123, suspend, `process()` against `processReplacing`, floods of events and random patches |
 

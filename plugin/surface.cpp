@@ -383,7 +383,7 @@ void Surface::randomize(float amount) {
     };
     struct Range { int id; float lo, hi; };   // in real units (Hz, seconds, ...): drawn on the knob's curve
     static const Range ranges[] = {
-        {P_O1_WAVE, 0.0f, 1.0f}, {P_O2_WAVE, 0.0f, 1.0f}, {P_O2_FREQ, -0.15f, 0.15f},
+        {P_O1_WAVE, 0.0f, 1.0f}, {P_O2_WAVE, 0.0f, 1.0f}, {P_O2_FREQ, -0.15f, 0.15f}, {P_O2_BEAT, -0.8f, 0.8f},
         {P_MIX_O1, 0.6f, 1.0f}, {P_MIX_SUB, 0.0f, 0.6f}, {P_MIX_O2, 0.0f, 0.9f}, {P_MIX_NOISE, 0.0f, 0.2f},
         {P_MIX_FB, 0.0f, 0.3f}, {P_F_CUT, 150.0f, 4000.0f}, {P_F_RES, 0.0f, 0.7f}, {P_F_DRIVE, 0.0f, 0.6f},
         {P_F_ENV, 0.0f, 0.6f}, {P_F_KB, 0.1f, 0.6f},
@@ -410,7 +410,13 @@ std::string Surface::display(int i) const {
     if (i < 0 || i >= P_COUNT) return {};
     switch (PARAM_INFO[i].kind) {
         case Kind::Synth:
-        case Kind::Ui: return paramDisplay(i, want_[i].load());
+        case Kind::Ui:
+            if (i == P_M1_RATE || i == P_M2_RATE) {   // a bus in Hi range runs ten times as fast
+                const int mode = i == P_M1_RATE ? P_M1_SYNC : P_M2_SYNC;
+                if (static_cast<int>(paramValue(mode, want_[mode].load())) == RM_HI)
+                    return lfoHzText(paramValue(i, want_[i].load()) * kHiRange);
+            }
+            return paramDisplay(i, want_[i].load());
         case Kind::Stepper:
         case Kind::Tile:
         case Kind::Readout: {

@@ -11,6 +11,7 @@ namespace sf {
 float paramValue(int id, float norm);          // real value (Hz, seconds, semitones, option index...)
 float paramNorm(int id, float value);          // inverse, for state text, tests and the bench
 std::string paramDisplay(int id, float norm);  // what the knob's value label shows
+std::string lfoHzText(float hz);               // a bus's rate: "0.50 Hz", "5.0 Hz", "120 Hz"
 std::string waveName(float wave);              // "Saw", "Tri-Saw 40%", "Pulse 23%"
 Patch patchFromParams(const float* norm);      // norm[P_COUNT]
 

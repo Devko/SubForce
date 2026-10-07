@@ -157,10 +157,14 @@ for e, name, (a, d, s, r, vel) in (("fe", "FEG", (0.002, 0.4, 0.3, 0.3, 0.3)),
     enum(e + "_reset", name + " Reset", ["Off", "Reset"], "Off")
 
 # --- the two mod busses (dsp/mod.h) ---
-MOD_SOURCES = ["Triangle", "Square", "Saw", "Ramp", "S&H", "Smooth", "Filter EG"]   # ModSource
+# Saved state keeps an option's index: new options go at the end.
+MOD_SOURCES = ["Triangle", "Square", "Saw", "Ramp", "S&H", "Smooth", "Filter EG",
+               "Sine", "Noise", "Amp EG", "Velocity", "Aftertouch", "Key", "Constant"]   # ModSource
 MOD_DESTS = ["Off", "Wave 1+2", "Wave 1", "Wave 2", "Resonance", "Multidrive", "Sub Level", "Noise Level",
-             "Feedback", "Volume", "Other Rate"]                                    # ModDest
-MOD_CONTROLS = ["Always", "Mod Wheel", "Aftertouch", "Velocity"]                    # ModControl
+             "Feedback", "Volume", "Other Rate", "EG Amount", "Key Track", "Osc 1 Level", "Osc 2 Level",
+             "Beat Freq", "EG Time", "FEG Time", "AEG Time", "Glide Time"]          # ModDest
+MOD_CONTROLS = ["Always", "Mod Wheel", "Aftertouch", "Velocity", "None"]            # ModControl
+RATE_MODES = ["Free", "Sync", "Hi"]                                                 # dsp/mod.h RateMode
 OSC_DESTS = ["Osc 1+2", "Osc 1", "Osc 2"]                                           # dsp/synth.h OscDest
 SYNC_DIVS = ["8 bars", "4 bars", "2 bars", "1 bar", "1/2", "1/2T", "1/4", "1/4T", "1/4.", "1/8", "1/8T", "1/8.",
              "1/16", "1/16T", "1/16.", "1/32", "1/32T"]                              # dsp/mod.h kSyncBeats
@@ -168,7 +172,7 @@ for b, (rate, ctl) in ((1, (5.0, "Mod Wheel")), (2, (0.5, "Always"))):
     p = "m%d_" % b
     enum(p + "src", "M%d Source" % b, MOD_SOURCES, "Triangle")
     popup_flag(p + "src")
-    enum(p + "sync", "M%d Sync" % b, ["Free", "Sync"], "Free")
+    enum(p + "sync", "M%d Rate Mode" % b, RATE_MODES, "Free")
     num(p + "rate", "M%d Rate" % b, "log", 0.05, 100, rate, "lfohz")
     enum(p + "div", "M%d Sync Rate" % b, SYNC_DIVS, "1/8")
     popup_flag(p + "div")
@@ -213,6 +217,14 @@ readout("item_page", "Items Page")
 readout("br_now", "Loaded")
 toggle("fav", "Favorite")
 button("rnd", "Random Pick")
+
+# --- added in 0.0.3 (appended: MPC keeps parameters by index) ---
+num("o2_beat", "Beat Freq", "lin", -3.5, 3.5, 0, "beathz")   # dsp/synth.h kBeatRange: Hz on every note
+for b in (1, 2):   # what scales the bus's depth, added to its Control (the original's MOD x CONTROL amounts)
+    p = "m%d_" % b
+    num(p + "wheel", "M%d Wheel" % b, "lin", -1, 1, 0, "bipct")
+    num(p + "vel", "M%d Velocity" % b, "lin", -1, 1, 0, "bipct")
+    num(p + "at", "M%d Pressure" % b, "lin", -1, 1, 0, "bipct")
 
 
 def norm(p):
@@ -385,21 +397,22 @@ def pages():
     # OSC: the two oscillators side by side, the mixer below.
     L.tab("OSC")
     L.header()
-    L.card(24, R1, 608, 270, "OSCILLATOR 1")
-    L.vseg(100, R1 + 160, "o1_oct", label="OCTAVE")
-    L.knob(290, R1 + 126, "o1_wave")
-    L.vseg(480, R1 + 160, "sub_oct", label="SUB OSC")
-    L.card(648, R1, 608, 270, "OSCILLATOR 2")
-    L.vseg(R4[0], R1 + 160, "o2_oct", label="OCTAVE")
-    L.knob(R4[1], R1 + 126, "o2_freq")
-    L.knob(R4[2], R1 + 126, "o2_wave")
-    L.vseg(R4[3], R1 + 160, "o2_sync", label="HARD SYNC")
+    L.card(24, R1, 456, 270, "OSCILLATOR 1")
+    L.vseg(S8[0], R1 + 160, "o1_oct", label="OCTAVE")
+    L.knob(S8[1], R1 + 126, "o1_wave")
+    L.vseg(S8[2], R1 + 160, "sub_oct", label="SUB OSC")
+    L.card(496, R1, 760, 270, "OSCILLATOR 2")
+    for cx, k in zip((572,) + tuple(R4), ("o2_oct", "o2_freq", "o2_beat", "o2_wave", "o2_sync")):
+        if k in ("o2_oct", "o2_sync"):
+            L.vseg(cx, R1 + 160, k, label="OCTAVE" if k == "o2_oct" else "HARD SYNC")
+        else:
+            L.knob(cx, R1 + 126, k)
     L.card(24, R2, 1232, 270, "MIXER")
     for cx, k in zip(S8, ("mix_o1", "mix_sub", "mix_o2", "mix_noise", "mix_fb", "noise_color", "drift")):
         L.knob(cx, R2 + 126, k)
     L.vseg(S8[7], R2 + 160, "kb_reset", label="KB RESET")
-    L.qlinks("OSC + MIX", ["o1_oct", "o1_wave", "o2_oct", "o2_freq", "o2_wave", "o2_sync", "sub_oct", "kb_reset",
-                           "mix_o1", "mix_sub", "mix_o2", "mix_noise", "mix_fb", "noise_color", "drift", "volume"])
+    L.qlinks("OSC + MIX", ["o1_oct", "o1_wave", "o2_oct", "o2_freq", "o2_beat", "o2_wave", "o2_sync", "sub_oct",
+                           "mix_o1", "mix_sub", "mix_o2", "mix_noise", "mix_fb", "noise_color", "drift", "kb_reset"])
 
     # FILTER: the ladder (and how the filter EG reaches it), the filter EG below.
     filt = ("f_cut", "f_res", "f_drive", "f_env", "f_kb", "fe_vel", "fe_kb")
@@ -431,7 +444,7 @@ def pages():
         for cx, label in ((144, "SOURCE"), (590, "SYNC RATE"), (820, "CONTROL")):
             L.text(cx, top + 50, label)
         L.popup(144, top + 88, 200, p + "src")
-        L.hseg(380, top + 88, p + "sync", 100)
+        L.hseg(380, top + 88, p + "sync", 76)
         L.popup(590, top + 88, 170, p + "div")
         L.popup(820, top + 88, 190, p + "ctl")
         L.hseg(1110, top + 88, p + "trig", 110)
@@ -488,6 +501,20 @@ def pages():
     L.knob(1186, R2 + 76, "rand_amt", "small")
     L.qlinks("KEYS", ["kmode", "prio", "trig", "glide_mode", "glide_type", "glide", "glide_dest", "bend_up",
                       "bend_dn", "preset", "rand_amt", "volume"])
+
+    # DEPTH: what scales each bus (its Control, plus the wheel, velocity and pressure amounts).
+    L.tab("DEPTH")
+    L.header()
+    for b, top in ((1, R1), (2, R2)):
+        p = "m%d_" % b
+        L.card(24, top, 1232, 270, "MOD %d DEPTH" % b)
+        L.text(144, top + 86, "CONTROL")
+        L.popup(144, top + 126, 190, p + "ctl")
+        for cx, k in zip(S8[2:5], ("wheel", "vel", "at")):
+            L.knob(cx, top + 126, p + k)
+        L.text(1012, top + 112, "THE DEPTH: CONTROL")
+        L.text(1012, top + 142, "+ WHEEL + VELOCITY + PRESSURE")
+    L.qlinks("DEPTH", ["m%d_%s" % (b, k) for b in (1, 2) for k in ("ctl", "wheel", "vel", "at")])
     return "\n".join(L.lines) + "\n"
 
 
@@ -869,7 +896,7 @@ CURVE = {"readout": "Readout", "enum": "Enum", "lin": "Lin", "log": "Log", "int"
 FMT = {"none": "None", "enum": "Enum", "pct": "Percent", "bipct": "Bipolar", "hz": "Hz", "time": "Time",
        "semi": "Semi", "count": "Count", "db": "Db", "text": "Text", "lfohz": "LfoHz", "wave": "Wave",
        "semifine": "SemiFine", "envamt": "EnvAmt", "modpitch": "ModPitch", "modcut": "ModCut", "noise": "Noise",
-       "range": "Range"}
+       "range": "Range", "beathz": "BeatHz"}
 KIND = {"synth": "Synth", "ui": "Ui", "readout": "Readout", "stepper": "Stepper", "button": "Button",
         "tile": "Tile", "toggle": "Toggle", "popup": "Popup", "meter": "Meter"}
 

@@ -196,7 +196,7 @@ void testStepping() {
     // A popup's list closes when an option is picked.
     h.setN(sf::P_M1_SRC__OPEN, 1.0f);
     CHECK(h.get(sf::P_M1_SRC__OPEN) > 0.5f);
-    h.setN(sf::P_M1_SRC, 2.0f / 6.0f);
+    h.setN(sf::P_M1_SRC, 2.0f / static_cast<float>(sf::MS_COUNT - 1));
     CHECK(h.get(sf::P_M1_SRC__OPEN) == 0.0f && h.value(sf::P_M1_SRC) == sf::MS_SAW);
     // Continuous knobs follow MPC as they are.
     h.setN(sf::P_F_RES, 0.37f);

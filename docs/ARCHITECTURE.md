@@ -43,7 +43,7 @@ flowchart LR
 | `dsp/simd.h` | Four-float vectors: NEON on the Force, GCC's generic vectors on x86 (the tests run the same arithmetic); NEON reciprocals instead of divisions |
 | `dsp/halfband.h` | The 2x decimator (polyphase IIR halfband); `tools/halfband_design.py` designs it |
 | `dsp/env.h` | The DAHDSR envelope |
-| `dsp/mod.h` | The busses' sources, destinations, controls and synced rates |
+| `dsp/mod.h` | The busses' sources, destinations, controls, rate modes and synced rates |
 | `dsp/fastmath.h` | exp2, log2, tan, tanh(x)/x, softclip, floor, random numbers |
 | `dsp/stages.h` | Stage timers for the profiling build (`-DSF_STAGE_TIMING`) |
 | `plugin/plugin.cpp` | VST2 glue: MIDI with sample offsets, transport, chunk state, denormal flush, CPU meter |
@@ -88,7 +88,9 @@ Everything from the oscillators to the VCA runs at **88.2 kHz** (2x), in one loo
    VCA gain). Each glides linearly to its target over the next 8 samples, so nothing steps.
 2. **Every sample (44.1 kHz)**: both envelopes and the cutoff they move (`exp2` and `tan` per
    sample, so a 1 ms filter EG snaps), four at a time and ahead of the audio for each control run;
-   the oscillator shapes (once per run while the wave knobs hold still).
+   a bus in Hi range (up to 1 kHz) on pitch, cutoff, wave and volume (the control step only sets
+   how far); the oscillator shapes (once per run while the wave knobs and Hi-range busses hold
+   still).
 3. **Twice per sample (88.2 kHz)**: oscillators, sub and noise, the mixer with the feedback, the
    ladder, the drive stage, the VCA. Cutoff and VCA move halfway on the first half-step.
 4. The halfband decimator folds the two samples into one; a 5 Hz DC blocker; the volume.
@@ -97,8 +99,9 @@ The oscillators run one high-rate sample late (11 µs): a discontinuity between 
 corrects both, so hard sync and the keyboard reset are exact to the sub-sample.
 
 When the amp EG has finished and the output has died away, the engine stops rendering (the
-oscillators keep their free-running phase, the filter EG its release, the control grid keeps time:
-glides, busses, drift); a new note wakes it, every control value starting at its target.
+filter EG keeps its release; the control grid keeps time: glides, busses, drift, the oscillators'
+free-running phase, all summed per control step so block sizes never change them); a new note wakes
+it, every control value starting at its target.
 
 ## Threads and real-time rules
 

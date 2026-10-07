@@ -8,7 +8,9 @@
 // Cases: idle (no note), the Init patch on a held note, a heavy patch (both oscillators, sub,
 // noise, feedback, sync, full Multidrive and high resonance; bus 1 a 60 Hz triangle on pitch,
 // cutoff and Multidrive, bus 2 a 7 Hz smooth random on pitch, cutoff and both waves; a looping
-// filter envelope, Duo on two keys), and the heavy patch retriggered every 50 ms with glide. Hermetic: the plugin reads no user folders and saves nothing.
+// filter envelope, Duo on two keys), the heavy patch retriggered every 50 ms with glide, and the
+// heavy patch with both busses in Hi range, or with an LFO on EG Time and a Hi-range bus.
+// Hermetic: the plugin reads no user folders and saves nothing.
 // A profiling build of the plugin (make arm-bench-stages: subforce_stages.so) also reports where
 // each case's time goes.
 #ifndef _GNU_SOURCE
@@ -98,6 +100,23 @@ void heavy(AEffect* e) {
     }
 }
 
+// The busses at their dearest: both in Hi range (worked out every sample) on pitch, cutoff,
+// wave and volume; or an LFO on EG Time (new envelope coefficients every control step) and a
+// Hi-range FM bus.
+void hiRange(AEffect* e, bool egTime) {
+    auto set = [e](int id, float v) { e->setParameter(e, id, norm(id, v)); };
+    set(sf::P_O2_BEAT, 1.2f);
+    for (int b = 0; b < 2; ++b) {
+        const int d = b * (sf::P_M2_SRC - sf::P_M1_SRC);
+        const bool eg = egTime && b == 0;
+        set(sf::P_M1_SRC + d, b ? sf::MS_NOISE : sf::MS_SINE);
+        set(sf::P_M1_SYNC + d, eg ? sf::RM_FREE : sf::RM_HI);
+        set(sf::P_M1_RATE + d, eg ? 3.0f : b ? 50.0f : 22.0f);
+        set(sf::P_M1_DEST + d, eg ? sf::MD_EG_TIME : b ? sf::MD_VOLUME : sf::MD_WAVE);
+        set(sf::P_M1_AMT + d, 0.4f);
+    }
+}
+
 struct Result { double avg, p99, max; };
 
 using StageFn = int (*)(double*, const char**, int);
@@ -111,6 +130,7 @@ Result runCase(void* lib, int seconds, const char* name, int mode, StageFn stage
     }
     e->dispatcher(e, vst::effOpen, 0, 0, nullptr, 0.0f);
     if (mode >= 2) heavy(e);
+    if (mode >= 4) hiRange(e, mode == 5);
     if (mode == 3) {
         e->setParameter(e, sf::P_GLIDE_MODE, norm(sf::P_GLIDE_MODE, sf::GL_ALWAYS));
         e->setParameter(e, sf::P_GLIDE, norm(sf::P_GLIDE, 0.04f));
@@ -184,9 +204,10 @@ int main(int argc, char** argv) {
     }
     auto stages = reinterpret_cast<StageFn>(dlsym(lib, "SubForceStageTimes"));
     std::printf("%s, %d s per case, %s\n", argv[1], seconds, stages ? "profiling build" : "plain build");
-    const char* names[] = {"idle (no note)", "Init, one held note", "heavy patch, Duo", "heavy, retrig + glide 50 ms"};
+    const char* names[] = {"idle (no note)", "Init, one held note", "heavy patch, Duo", "heavy, retrig + glide 50 ms",
+                           "heavy, both busses Hi range", "heavy, EG Time LFO + Hi FM"};
     bool fail = false;
-    for (int mode = 0; mode < 4; ++mode) {
+    for (int mode = 0; mode < 6; ++mode) {
         double us[8] = {};
         const char* stageNames[8] = {};
         const Result r = runCase(lib, seconds, names[mode], mode, stages);

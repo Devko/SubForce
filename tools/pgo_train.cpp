@@ -1,8 +1,9 @@
 // The profile-guided build's trainer (make arm-plugin with PGO): an instrumented copy of the
 // plugin is linked in and plays a spread of patches through VSTPluginMain under qemu-arm, the
 // way MPC drives it: every slope and wave region, sync, the sub, noise, feedback, drive and
-// resonance, Mono and Duo, the trigger and glide modes, both busses on their destinations, and
-// the factory presets. The profile only steers the compiler (which paths are hot); what the
+// resonance, Mono and Duo, the trigger and glide modes, both busses with every source and
+// destination (free, synced and Hi range), the beat frequency, the depth amounts, and the factory
+// presets. The profile only steers the compiler (which paths are hot); what the
 // trainer leaves out is still optimised as usual (-fprofile-partial-training).
 #include "../dsp/synth.h"
 #include "../plugin/vst2.h"
@@ -90,22 +91,27 @@ int main() {
             phrase(e, L, R, 30);
             ++patches;
         }
-    // Noise, feedback, Duo, the trigger and glide modes, the busses.
+    // Noise, feedback, Duo, the trigger and glide modes, the busses: every source and destination
+    // on one bus or the other, free, synced and in Hi range.
     set(sf::P_MIX_NOISE, 0.3f);
     set(sf::P_MIX_FB, 0.4f);
-    for (int k = 0; k < 6; ++k) {
+    for (int k = 0; k < sf::MS_COUNT; ++k) {
         set(sf::P_KMODE, k % 2);
         set(sf::P_TRIG, (k / 2) % 2);
         set(sf::P_GLIDE_MODE, k % 3);
         set(sf::P_GLIDE_TYPE, k % 3);
+        set(sf::P_O2_BEAT, k % 3 ? 1.5f : 0.0f);
         for (int b = 0; b < 2; ++b) {
-            const int d = b * (sf::P_M2_SRC - sf::P_M1_SRC);
-            set(sf::P_M1_SRC + d, (k + b) % sf::MS_COUNT);
-            set(sf::P_M1_DEST + d, (k * 2 + b) % sf::MD_COUNT);
+            const int d = b * (sf::P_M2_SRC - sf::P_M1_SRC), a = b * (sf::P_M2_WHEEL - sf::P_M1_WHEEL);
+            set(sf::P_M1_SRC + d, (k + 5 * b) % sf::MS_COUNT);
+            set(sf::P_M1_DEST + d, (k + 10 * b) % sf::MD_COUNT);
             set(sf::P_M1_PITCH + d, 0.2f);
             set(sf::P_M1_FILTER + d, 0.4f);
             set(sf::P_M1_AMT + d, 0.5f);
-            set(sf::P_M1_SYNC + d, k % 2);
+            set(sf::P_M1_SYNC + d, (k + b) % sf::RM_COUNT);
+            set(sf::P_M1_RATE + d, (k + b) % sf::RM_COUNT == sf::RM_HI ? 30.0f : 4.0f);
+            set(sf::P_M1_CTL + d, (k + b) % sf::MC_COUNT);
+            set(sf::P_M1_VEL + a, k % 2 ? 0.5f : 0.0f);
         }
         phrase(e, L, R, 30);
         ++patches;

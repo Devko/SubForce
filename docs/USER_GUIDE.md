@@ -22,18 +22,19 @@ resonance knob, Multidrive's character, the envelopes' attack and loop, the pink
 
 ## The screen
 
-Six tabs. Every tab has the status line at the top: `VOICES 1   CPU 3%   PEAK 4%`. CPU is the
+Seven tabs. Every tab has the status line at the top: `VOICES 1   CPU 3%   PEAK 4%`. CPU is the
 plugin's share of one core over the last half second (100% would be rendering taking as long as the
 audio lasts), PEAK its slowest block in that time; VOICES is 0, 1 or 2 (Duo on two keys).
 
 | Tab | What's on it |
 |---|---|
-| **OSC** | Oscillator 1 (octave, wave, sub octave), oscillator 2 (octave, frequency, wave, hard sync), the mixer (osc 1, sub, osc 2, noise, feedback, noise colour, drift, keyboard reset) |
+| **OSC** | Oscillator 1 (octave, wave, sub octave), oscillator 2 (octave, frequency, beat frequency, wave, hard sync), the mixer (osc 1, sub, osc 2, noise, feedback, noise colour, drift, keyboard reset) |
 | **FILTER** | Cutoff, resonance, Multidrive, filter EG amount, key track, the filter EG's velocity and key tracking, slope; the filter EG |
 | **AMP** | The amp EG; velocity, key tracking and volume |
-| **MOD** | Mod 1 and mod 2: source, sync, sync rate, control, trigger; rate, pitch amount and where it goes, filter amount, the third destination and its amount |
+| **MOD** | Mod 1 and mod 2: source, rate mode (Free, Sync, Hi), sync rate, control, trigger; rate, pitch amount and where it goes, filter amount, the third destination and its amount |
 | **BROWSE** | Preset categories and presets; favorite, a random preset, save, init |
 | **KEYS** | Mono / Duo, note priority, trigger; bend ranges; glide; the preset stepper, save, init, randomize |
+| **DEPTH** | For each bus: its control, and how much the mod wheel, velocity and pressure add to its depth |
 
 The pages, rendered offline from the skin (on the device MPC fills in the values and lights the
 chosen options):
@@ -42,10 +43,10 @@ chosen options):
 |---|---|
 | ![OSC](img/osc.png) | ![FILTER](img/filter.png) |
 | ![AMP](img/amp.png) | ![MOD](img/mod.png) |
-| ![KEYS](img/keys.png) | |
+| ![KEYS](img/keys.png) | ![DEPTH](img/depth.png) |
 
 Every tab has a Q-Link set named after what it controls (`OSC + MIX`, `FILTER`, `AMP`, `MOD 1+2`,
-`BROWSE`, `KEYS`). Stepped controls (octaves, slopes, modes, the preset stepper) move exactly one
+`BROWSE`, `KEYS`, `DEPTH`). MPC shows five tabs at a time: KEYS and DEPTH are on its next page. Stepped controls (octaves, slopes, modes, the preset stepper) move exactly one
 step per Q-Link detent or data-wheel click.
 
 ## The sound engine
@@ -57,6 +58,9 @@ step per Q-Link detent or data-wheel click.
   the shapes cross-fade; past square the pulse narrows. The value shows the shape: `Saw`,
   `Saw-Sqr 40%`, `Pulse 23%`.
 - **Osc 2 Freq**: ±7 semitones against oscillator 1, for beating, intervals, or sync sweeps.
+- **Beat Freq**: detunes oscillator 2 by up to ±3.5 Hz — Hz, not cents, so the two oscillators beat
+  at the same rate on every note, as the original's BEAT FREQ does (detuning with Osc 2 Freq beats
+  twice as fast an octave up). Keep Osc 2 Freq at 0 for an even beat across the keyboard.
 - **Hard Sync**: oscillator 2 restarts its cycle with oscillator 1's; move osc 2's frequency (by
   hand, or with a bus) for the tearing sync sound. Osc 1 can be silent in the mixer and still lead.
 - **Sub Octave**: the sub oscillator is a square one or two octaves under oscillator 1.
@@ -132,24 +136,42 @@ Two identical busses. Each takes one **source** and sends it to three places at 
 
 | | |
 |---|---|
-| **Source** | Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Filter EG |
-| **Rate** / **Sync** / **Sync Rate** | 0.05–100 Hz free, or a note value of MPC's tempo (8 bars to 1/32T) |
+| **Source** | LFO shapes: Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Sine, Noise (random, the rate its speed). Envelopes: Filter EG, Amp EG. Players: Velocity, Aftertouch, Key (the key against C3: +1 two octaves up, −1 two down), Constant (always 1: with Control, the wheel, velocity or pressure itself) |
+| **Rate** / **Rate Mode** / **Sync Rate** | *Free* 0.05–100 Hz, *Sync* a note value of MPC's tempo (8 bars to 1/32T), or *Hi* 0.5–1000 Hz (the knob ×10; the value shows the real rate) |
 | **Trigger** | *Free*: runs on its own (a synced bus locks to the bar while MPC plays, unless the other bus is modulating its rate); *Retrig*: restarts at every new note |
 | **Pitch** + **Pitch To** | pitch amount (up to ±24 st, fine near 0) for osc 1+2, osc 1 or osc 2 |
 | **Filter** | cutoff amount (up to ±5 octaves) |
-| **Destination** + **Amount** | one more target: Wave 1+2, Wave 1, Wave 2, Resonance, Multidrive, Sub, Noise, Feedback, Volume, or Other Rate (the other bus's rate, ×1/16..×16) |
-| **Control** | what sets the depth: *Always*, the *Mod Wheel*, *Aftertouch* (channel pressure) or *Velocity* |
+| **Destination** + **Amount** | one more target: Wave 1+2, Wave 1, Wave 2, Resonance, Multidrive, Sub, Noise, Feedback, Volume, Other Rate (the other bus's rate, ×1/16..×16), EG Amount, Key Track, Osc 1 Level, Osc 2 Level, Beat Freq, EG Time (both envelopes' times, ×1/8..×8: negative shorter, positive longer), FEG Time, AEG Time, Glide Time (each glide's time as it starts, ×1/8..×8) |
+| **Control** | what sets the depth: *Always*, the *Mod Wheel*, *Aftertouch* (channel pressure), *Velocity*, or *None* (only the amounts on DEPTH) |
+
+**Hi** is the original's HI RANGE: the bus runs up to 1 kHz, into the audio range, and is worked out
+for every sample on pitch (FM), the filter (filter FM: growl and grit), the waves and the volume
+(ring and amplitude modulation); its other destinations take it at the control rate. A Hi bus can't
+be synced. The rate doesn't follow the keyboard: one rate against different notes gives different,
+mostly inharmonic, sidebands — metallic on leads, growling on basses.
+
+**DEPTH** (a tab of its own) sets how much the **mod wheel**, **velocity** and **pressure** add to
+the bus's depth, each −100%..+100%, on top of its Control, as the original's MOD WHEEL / VELOCITY /
+AFTERTOUCH amounts. The depth stays within −100%..+100%: with Control at *Always* the bus is full
+already, so there the amounts only take it away (Wheel −100%: the wheel fades the bus out). With
+Control *None*, the amounts alone: Velocity +100% and Pressure +50% is a bus that hard notes and
+pressing bring in.
 
 Mod 1 starts on the mod wheel, so its pitch amount gives vibrato under the wheel; mod 2 starts on
 Always.
 
 Recipes: **sync sweep** — source Filter EG, pitch to Osc 2, Hard Sync on. **Laser** — Filter EG to
 pitch at a large amount. **Wobble** — a synced triangle on the filter, Retrig. **PWM** — a slow
-triangle to Wave 1 with the wave near square.
+triangle to Wave 1 with the wave near square. **Growl** — a Hi sine at 4–8 (40–80 Hz) on the
+filter, resonance up, Control None and Velocity +100% (*Bass / Velocity Growl*). **Ring** — a Hi
+sine at 20–60 on Volume (*Lead / Ring Lead*: the wheel or pressure brings it in). **Snappier hard
+notes** — Velocity on EG Time at a negative amount. **Wider with the key** — Key on Pitch To Osc 2.
+**Thick, even beating** — Beat Freq at 0.5–2 Hz with both oscillators up (*Bass / Beating
+Bass*).
 
 ## Presets
 
-68 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
+71 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
 level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick them on the BROWSE tab or
 step through them on KEYS.
 

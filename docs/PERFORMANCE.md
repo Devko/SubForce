@@ -29,6 +29,12 @@ percent of the 2902 µs block, the profile-guided build:
 | heavy patch, Duo (noise and feedback on) | 3.70% / 4.19% | 3.55% / 4.07% |
 | heavy, retrig + glide every 50 ms | 3.75% / 4.28% | 3.60% / 4.15% |
 
+0.0.3 (2026-10-07, the same device and build): idle 0.17% / 0.24%, Init 2.65% / 3.04%, heavy
+3.49% / 4.06%, retrig + glide 3.55% / 4.00% — the existing cases unchanged — and two new ones: the
+heavy patch with **both busses in Hi range** (on pitch, cutoff, wave and volume, every sample)
+4.10% / 4.64%, and with an **LFO on EG Time** (new envelope coefficients every control step) and a
+Hi-range FM bus 3.87% / 4.48%.
+
 The heavy patch now runs the original's feedback loop (the mixer's output back into it), which is
 serial by nature; Init leaves noise and feedback off and pays for neither.
 
@@ -56,6 +62,9 @@ steps (it reads the clock between stages, so it reads higher than the plain buil
 - **Idle costs next to nothing:** when the amp EG has finished and the output died away, the engine
   stops rendering, and the control grid only keeps time (glides, busses, drift) until a note wakes
   it; block sizes still never change the sound.
+- **Hi range only where it is on:** a Hi-range bus is worked out every sample (its phase, its
+  value, four pitch multipliers at a time with NEON), and only on what needs it at audio rate:
+  pitch, cutoff, wave and volume; everything else, and every other bus, at the control rate.
 - **Control rate:** modulation and glide every 8 samples, gliding in between; no libm calls
   (`log2Fast`, `exp2Fast`, the cutoff note and the fixed coefficients worked out ahead),
   multiplications instead of divisions.
@@ -89,8 +98,9 @@ From the test suite (`make test` prints these):
   4x would double the voice's cost for the ladder's own nonlinear harmonics, which the halfband
   removes above 24 kHz anyway. The device bench leaves room (3.6% of a block with everything on);
   a quality switch can come if listening shows a need.
-- **Audio-rate modulation** (oscillator 2 or noise as a bus source for FM): needs the cutoff and
-  pitch computed per high-rate sample. Possible, at a cost; not in 0.0.1.
+- **Oscillator 2 as a bus source** (FM that tracks the keys): Hi range covers audio-rate modulation
+  up to 1 kHz, as the original's LFOs do; oscillator 2 as a source would need its output per
+  2x sample on the pitch of oscillator 1. Not yet.
 - **Compensating the bass loss.** The ladder's thinning with resonance is kept, as on the
   original; Multidrive and the mixer make up for it.
 - **Hand-written assembly for the ladder.** GCC moves some vector lanes through core registers; a

@@ -37,6 +37,18 @@ inline float taper(float k) {
 
 inline float noteOf(float hz) { return 69.0f + 12.0f * std::log2(std::max(hz, 1.0f) / 440.0f); }
 
+// The Noise source: white noise (a new value each step) through a one-pole at the bus's rate.
+// noisePole: the step for a bandwidth of hz over `samples` (1 - e^-x, its series for small x: no
+// cancellation at the slowest rates). noiseGain: what brings the one-pole's output (uniform white
+// in, rms 1/sqrt(3) * sqrt(k / (2 - k))) to kNoiseRms, whatever the rate: within -1..1 all but
+// about 3% of the time (it is clipped there).
+constexpr float kNoiseRms = 0.45f;
+inline float noisePole(float hz, float samples, float invSr) {
+    const float x = std::min(2.0f * kPi * hz * samples * invSr, 8.0f);
+    return x < 1e-3f ? x - 0.5f * x * x : 1.0f - exp2Fast(-1.442695041f * x);
+}
+inline float noiseGain(float k) { return kNoiseRms * 1.732050808f * std::sqrt((2.0f - k) / k); }
+
 // Pink noise at the 2x rate: Paul Kellet's "economy" filter (three one-poles and a direct term,
 // within about 1 dB of -3 dB/oct from 10 Hz up), its corners moved to 88.2 kHz.
 constexpr float kPinkPole[3] = {0.998824309f, 0.981325634f, 0.754983444f};
@@ -67,8 +79,10 @@ void Synth::setPatch(const Patch& p) {
     cutNote_ = noteOf(p.cutoffHz);
     // A bus whose rate the other one modulates runs free even when synced (a locked phase can't
     // speed up and slow down).
-    for (int b = 0; b < 2; ++b)
+    for (int b = 0; b < 2; ++b) {
         bus_[b].rateModulated = p.mod[1 - b].dest == MD_OTHER_RATE && p.mod[1 - b].amount != 0.0f;
+        fast_[b] = p.mod[b].hi && isLfo(p.mod[b].src);
+    }
     // Mono <-> Duo or another priority with keys down: the oscillators take the keys the new rule
     // picks, as a legato move (no new attack, no glide).
     if (repick && gate_ && nHeld_ > 0) {
@@ -82,8 +96,7 @@ void Synth::setPatch(const Patch& p) {
             ctlLeft_ = 0;
         }
     }
-    fc_ = envCoef(p.fenv, sr_, kbScale(p.fenv.kb));
-    ac_ = envCoef(p.aenv, sr_, kbScale(p.aenv.kb));
+    envCoefs();
     // Noise colour: white crossfading to pink up to 0.5, then pink through a one-pole down to ~220
     // Hz; the same RMS at every colour (kNoiseComp).
     const float nc = clampf(p.noiseColor, 0.0f, 1.0f);
@@ -95,6 +108,13 @@ void Synth::setPatch(const Patch& p) {
 }
 
 float Synth::kbScale(float kb) const { return exp2Fast(-clampf(kb, 0.0f, 1.0f) * static_cast<float>(note1_ - 60) / 12.0f); }
+
+// The envelopes' coefficients: their times, keyboard tracking (from the key playing) and the
+// busses' EG Time.
+void Synth::envCoefs() {
+    fc_ = envCoef(patch_.fenv, sr_, kbScale(patch_.fenv.kb) * egTimeMul_[0]);
+    ac_ = envCoef(patch_.aenv, sr_, kbScale(patch_.aenv.kb) * egTimeMul_[1]);
+}
 
 // --- keys ---------------------------------------------------------------------------------
 
@@ -185,17 +205,13 @@ void Synth::update(int pressed) {
 
 void Synth::trigger(int vel) {
     vel_ = static_cast<float>(std::clamp(vel, 1, 127)) / 127.0f;
-    fc_ = envCoef(patch_.fenv, sr_, kbScale(patch_.fenv.kb));
-    ac_ = envCoef(patch_.aenv, sr_, kbScale(patch_.aenv.kb));
+    envCoefs();
     fenv_.trigger(fc_, patch_.fenv.reset);
     aenv_.trigger(ac_, patch_.aenv.reset);
     for (int b = 0; b < 2; ++b)
         if (patch_.mod[b].retrig) {
-            Bus& x = bus_[b];
-            x.phase = 0.0f;
-            x.held = randBipolar(rng_);
-            x.from = x.to;
-            x.to = randBipolar(rng_);
+            bus_[b].phase = 0.0f;
+            newCycle(bus_[b]);
         }
     if (patch_.kbReset) resetPending_ = true;
     for (float& d : noteDrift_) d = randBipolar(rng_) * patch_.drift * 3.0f;   // cents
@@ -211,7 +227,8 @@ void Synth::trigger(int vel) {
 void Synth::glideTo(Glide& g, float target, bool glide) {
     g.target = target;
     const float dist = std::fabs(target - g.pitch);
-    if (!glide || dist < 1e-4f || patch_.glideTime < 1e-4f) {
+    const float time = patch_.glideTime * glideMul_;   // Glide Time from the busses, as it starts
+    if (!glide || dist < 1e-4f || time < 1e-4f) {
         g.pitch = target;
         g.left = 0;
         snap_ = true;
@@ -219,12 +236,12 @@ void Synth::glideTo(Glide& g, float target, bool glide) {
     }
     if (patch_.glideType == GT_EXP) {   // RC: 99% of the way at glideTime (e^-4.6)
         g.exp = true;
-        g.lk = -4.6f / (patch_.glideTime * sr_ * 0.693147181f);
+        g.lk = -4.6f / (time * sr_ * 0.693147181f);
         g.left = 1;
         return;
     }
     // Counted in samples, not summed steps: a slow, small glide never stalls on rounding.
-    const float samples = patch_.glideTime * sr_ * (patch_.glideType == GT_RATE ? dist / 12.0f : 1.0f);
+    const float samples = time * sr_ * (patch_.glideType == GT_RATE ? dist / 12.0f : 1.0f);
     g.exp = false;
     g.from = g.pitch;
     g.len = g.left = static_cast<int>(std::clamp(samples, 1.0f, 1e9f));
@@ -317,38 +334,64 @@ Synth::Info Synth::info() const {
 
 // --- modulation ---------------------------------------------------------------------------
 
-// One bus's source over n samples: its value at the end of them (-1..1; the filter envelope 0..1).
-float Synth::busValue(Bus& b, const ModPatch& m, int n) {
-    const double perBeat = kSyncPerBeat[std::clamp(m.div, 0, kNumSyncDivs - 1)];   // cycles
-    auto newCycle = [&] {
-        b.held = randBipolar(rng_);
-        b.from = b.to;
-        b.to = randBipolar(rng_);
-    };
-    if (m.sync && !m.retrig && playing_ && beatsValid_ && !b.rateModulated) {   // locked to MPC's bar position
-        double ph = beats_ * perBeat;
-        ph -= floorFast(ph);
-        if (static_cast<float>(ph) < b.phase) newCycle();
-        b.phase = static_cast<float>(ph);
-    } else {
-        const float hz = (m.sync ? static_cast<float>(bpm_ * (1.0 / 60.0) * perBeat) : m.rateHz) * b.rateMul;
-        float next = b.phase + hz * static_cast<float>(n) * invSr_;
-        if (next >= 1.0f) {
-            next -= floorFast(next);
-            newCycle();
-        }
-        b.phase = next;
-    }
+// A bus's rate in Hz: free, Hi range or MPC's tempo, the other bus's Other Rate in it.
+float Synth::busHz(const Bus& b, const ModPatch& m) const {
+    if (m.hi) return m.rateHz * kHiRange * b.rateMul;
+    if (!m.sync) return m.rateHz * b.rateMul;
+    return static_cast<float>(bpm_ * (1.0 / 60.0) * kSyncPerBeat[std::clamp(m.div, 0, kNumSyncDivs - 1)]) * b.rateMul;
+}
+
+void Synth::newCycle(Bus& b) {
+    b.held = randBipolar(rng_);
+    b.from = b.to;
+    b.to = randBipolar(rng_);
+}
+
+// A source's value now: -1..1 for the LFO shapes (from the bus's phase), 0..1 for the envelopes
+// and controllers, the key either way.
+float Synth::sourceValue(const Bus& b, int src) const {
     const float ph = b.phase;
-    switch (m.src) {
+    switch (src) {
         case MS_SQUARE: return ph < 0.5f ? 1.0f : -1.0f;
         case MS_SAW: return 1.0f - 2.0f * ph;
         case MS_RAMP: return 2.0f * ph - 1.0f;
         case MS_SAMPLE_HOLD: return b.held;
         case MS_SMOOTH: return b.from + (b.to - b.from) * (0.5f - 0.5f * sinQuarter(kPi * (0.5f - ph)));   // cos(pi ph)
         case MS_FILTER_EG: return fenv_.v * fVel_;
+        case MS_SINE: return sinCycle(ph);
+        case MS_NOISE: return b.noise;
+        case MS_AMP_EG: return aenv_.v * aVel_;
+        case MS_VELOCITY: return vel_;
+        case MS_AFTERTOUCH: return pressure_;
+        case MS_KEY: return (glide_[0].pitch - 60.0f) * (1.0f / kKeySpan);
+        case MS_CONSTANT: return 1.0f;
         default: return ph < 0.25f ? 4.0f * ph : (ph < 0.75f ? 2.0f - 4.0f * ph : 4.0f * ph - 4.0f);   // triangle
     }
+}
+
+// One bus's source over n samples: its value at the end of them. (A sounding Hi-range bus: n =
+// 0, a read; renderRun moves it.)
+float Synth::busValue(Bus& b, const ModPatch& m, int n) {
+    const float hz = busHz(b, m);
+    if (m.sync && !m.hi && !m.retrig && playing_ && beatsValid_ && !b.rateModulated) {   // locked to MPC's bar position
+        double ph = beats_ * kSyncPerBeat[std::clamp(m.div, 0, kNumSyncDivs - 1)];
+        ph -= floorFast(ph);
+        if (static_cast<float>(ph) < b.phase) newCycle(b);
+        b.phase = static_cast<float>(ph);
+    } else {
+        float next = b.phase + hz * static_cast<float>(n) * invSr_;
+        if (next >= 1.0f) {
+            next -= floorFast(next);
+            newCycle(b);
+        }
+        b.phase = next;
+    }
+    if (m.src == MS_NOISE && n > 0) {   // a new random value every step, through the one-pole
+        const float k = noisePole(hz, static_cast<float>(n), invSr_);
+        b.lp += (randBipolar(rng_) - b.lp) * k;
+        b.noise = clampf(b.lp * noiseGain(k), -1.0f, 1.0f);
+    }
+    return sourceValue(b, m.src);
 }
 
 // A slow random walk toward a new target every 0.3-1.5 s.
@@ -371,13 +414,22 @@ void Synth::advance(int n) {
     stepGlide(glide_[0], n);
     stepGlide(glide_[1], n);
     fVel_ = 1.0f - patch_.fenv.vel + patch_.fenv.vel * vel_;
-    for (int b = 0; b < 2; ++b) busOut_[b] = busValue(bus_[b], patch_.mod[b], n);
+    aVel_ = 1.0f - patch_.aenv.vel + patch_.aenv.vel * vel_;
+    // A Hi-range bus moves in renderRun while the voice sounds, here while it is silent.
+    for (int b = 0; b < 2; ++b) busOut_[b] = busValue(bus_[b], patch_.mod[b], fast_[b] && !silent_ ? 0 : n);
     for (int k = 0; k < 3; ++k) driftNow_[k] = driftStep(drift_[k], n);
 }
 
 // A note event between control steps: bring the control-rate time up to this sample first, so a
 // new glide or a retriggered bus starts here, not some samples into the next step.
 void Synth::catchUp() {
+    // Silent: the oscillators run free on the control grid too (their phase summed the same
+    // way whatever the block sizes; the ramps have arrived).
+    if (silent_)
+        for (int o = 0; o < 2; ++o) {
+            const float d = dt_[o].v * static_cast<float>(kOversample * sinceCtl_);
+            osc_[o].t += d - floorFast(osc_[o].t + d);
+        }
     advance(sinceCtl_);
     sinceCtl_ = 0;
 }
@@ -387,33 +439,87 @@ void Synth::control() {
     const Patch& p = patch_;
 
     float pitchMod[2] = {}, cutMod = 0.0f, waveMod[2] = {}, resMod = 0.0f, driveMod = 0.0f, lvlMod[5] = {};
-    float volMul = 1.0f, otherRate[2] = {1.0f, 1.0f};
+    float volMul = 1.0f, otherRate[2] = {1.0f, 1.0f}, egAmtMod = 0.0f, kbMod = 0.0f, beatMod = 0.0f;
+    float timeMod[2] = {}, glideMod = 0.0f;
     for (int b = 0; b < 2; ++b) {
         const ModPatch& m = p.mod[b];
-        const float depth = m.control == MC_MODWHEEL ? wheel_ : m.control == MC_AFTERTOUCH ? pressure_
-                          : m.control == MC_VELOCITY ? vel_ : 1.0f;
+        // The depth: the control's, plus the wheel, velocity and pressure amounts.
+        const float ctl = m.control == MC_MODWHEEL ? wheel_ : m.control == MC_AFTERTOUCH ? pressure_
+                        : m.control == MC_VELOCITY ? vel_ : m.control == MC_NONE ? 0.0f : 1.0f;
+        const float depth = clampf(ctl + m.wheel * wheel_ + m.vel * vel_ + m.at * pressure_, -1.0f, 1.0f);
         const float out = busOut_[b] * depth;
-        const float semis = m.pitch * std::fabs(m.pitch) * kModPitchRange * out;
-        if (m.pitchDest != OD_OSC2) pitchMod[0] += semis;
-        if (m.pitchDest != OD_OSC1) pitchMod[1] += semis;
-        cutMod += m.filter * std::fabs(m.filter) * kModCutoffRange * out;
-        const float a = m.amount * out;
+        const float semis = m.pitch * std::fabs(m.pitch) * kModPitchRange;   // per unit of the source
+        const float cut = m.filter * std::fabs(m.filter) * kModCutoffRange;
+        // A Hi-range bus moves pitch, cutoff, wave and volume every sample (renderRun); here only
+        // how far, with its depth. Its other destinations take it at the control rate.
+        const bool fast = fast_[b];
+        FastMod& f = fm_[b];
+        f = FastMod{};
+        if (fast) {
+            f.pitch[0] = m.pitchDest != OD_OSC2 ? semis * depth : 0.0f;
+            f.pitch[1] = m.pitchDest != OD_OSC1 ? semis * depth : 0.0f;
+            f.cut = cut * depth;
+        } else {
+            if (m.pitchDest != OD_OSC2) pitchMod[0] += semis * out;
+            if (m.pitchDest != OD_OSC1) pitchMod[1] += semis * out;
+            cutMod += cut * out;
+        }
+        const float a = m.amount * out, af = m.amount * depth;
         switch (m.dest) {
-            case MD_WAVE: waveMod[0] += a; waveMod[1] += a; break;
-            case MD_WAVE1: waveMod[0] += a; break;
-            case MD_WAVE2: waveMod[1] += a; break;
+            case MD_WAVE:
+                if (fast) {
+                    f.wave[0] = f.wave[1] = af;
+                } else {
+                    waveMod[0] += a;
+                    waveMod[1] += a;
+                }
+                break;
+            case MD_WAVE1:
+                if (fast) f.wave[0] = af;
+                else waveMod[0] += a;
+                break;
+            case MD_WAVE2:
+                if (fast) f.wave[1] = af;
+                else waveMod[1] += a;
+                break;
+            case MD_VOLUME:
+                if (fast) f.vol = af;
+                else volMul *= std::max(0.0f, 1.0f + a);
+                break;
             case MD_RES: resMod += a; break;
             case MD_DRIVE: driveMod += a; break;
+            case MD_OSC1: lvlMod[0] += a; break;
             case MD_SUB: lvlMod[1] += a; break;
+            case MD_OSC2: lvlMod[2] += a; break;
             case MD_NOISE: lvlMod[3] += a; break;
             case MD_FEEDBACK: lvlMod[4] += a; break;
-            case MD_VOLUME: volMul *= std::max(0.0f, 1.0f + a); break;
             case MD_OTHER_RATE: otherRate[1 - b] = exp2Fast(a * kOtherRateOctaves); break;
+            case MD_EG_AMOUNT: egAmtMod += a; break;
+            case MD_KEY_TRACK: kbMod += a; break;
+            case MD_BEAT: beatMod += a; break;
+            case MD_EG_TIME:
+                timeMod[0] += a;
+                timeMod[1] += a;
+                break;
+            case MD_FEG_TIME: timeMod[0] += a; break;
+            case MD_AEG_TIME: timeMod[1] += a; break;
+            case MD_GLIDE: glideMod += a; break;
             default: break;
         }
     }
     bus_[0].rateMul = otherRate[0];
     bus_[1].rateMul = otherRate[1];
+    glideMul_ = glideMod == 0.0f ? 1.0f : exp2Fast(kModTimeOctaves * glideMod);
+    // EG Time: new coefficients once the times have moved (by 0.2%, or back to where they were).
+    bool retime = false;
+    for (int e = 0; e < 2; ++e) {
+        const float mul = timeMod[e] == 0.0f ? 1.0f : exp2Fast(kModTimeOctaves * timeMod[e]);
+        if (mul != egTimeMul_[e] && (mul == 1.0f || std::fabs(mul - egTimeMul_[e]) > 0.002f * egTimeMul_[e])) {
+            egTimeMul_[e] = mul;
+            retime = true;
+        }
+    }
+    if (retime) envCoefs();
 
     const float driftCents[2] = {driftNow_[0] * p.drift * 6.0f + noteDrift_[0], driftNow_[1] * p.drift * 6.0f + noteDrift_[1]};
     const float driftCut = driftNow_[2] * p.drift * 0.6f;
@@ -429,11 +535,11 @@ void Synth::control() {
 
     const float target[] = {
         clampf(noteHz(pitch[0]) * invOsr_, 1e-7f, 0.45f),
-        clampf(noteHz(pitch[1]) * invOsr_, 1e-7f, 0.45f),
+        clampf((noteHz(pitch[1]) + p.beatHz + kBeatRange * beatMod) * invOsr_, 1e-7f, 0.45f),   // Beat Freq: Hz
         clampf(p.osc[0].wave + waveMod[0], 0.0f, 1.0f),
         clampf(p.osc[1].wave + waveMod[1], 0.0f, 1.0f),
-        cutNote_ + p.keyTrack * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
-        envSemis(p.envAmount) * fVel_,
+        cutNote_ + clampf(p.keyTrack + 2.0f * kbMod, 0.0f, 2.0f) * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
+        envSemis(clampf(p.envAmount + egAmtMod, -1.0f, 1.0f)) * fVel_,
         resFeedback(clampf(p.res + resMod, 0.0f, 1.0f)),
         kInGain * driveGain,
         0.5f + drive,                  // Multidrive's second stage: into the clipper...
@@ -515,17 +621,62 @@ void Synth::render(float* outL, float* outR, int n) {
     for (int i = 0; i < n; ++i) outR[i] = outL[i];
 }
 
-// Nothing sounds: the oscillators keep running (free phase), the filter envelope keeps its
-// release, the control values arrive where they were going (and snap to new ones on waking).
+// Nothing sounds: the filter envelope keeps its release, the control values arrive where they
+// were going (and snap to new ones on waking); the oscillators run free in catchUp().
 void Synth::renderSilent(float* out, int n) {
     for (int i = 0; i < n; ++i) out[i] = 0.0f;
-    for (int o = 0; o < 2; ++o) {
-        const float d = dt_[o].v * static_cast<float>(kOversample * n);
-        osc_[o].t += d - floorFast(osc_[o].t + d);
-    }
     for (Ramp* r : ramps()) r->arrive();
     if (fenv_.stage != E_IDLE)
         for (int i = 0; i < n; ++i) fenv_.tick(fc_);
+}
+
+// The Hi-range busses over a run of n base samples: their phases move every sample, and what
+// they do to pitch (as frequency multipliers), cutoff (semitones), wave and volume.
+void Synth::fastMods(int n, FastRun& r) {
+    float semis[2][kControl];
+    for (int i = 0; i < kControl; ++i) {
+        semis[0][i] = semis[1][i] = 0.0f;
+        r.cut[i] = r.wave[0][i] = r.wave[1][i] = 0.0f;
+        r.vol[i] = 1.0f;
+    }
+    float inc[2] = {}, k[2] = {}, g[2] = {};
+    for (int b = 0; b < 2; ++b)
+        if (fast_[b]) {
+            const float hz = busHz(bus_[b], patch_.mod[b]);
+            inc[b] = hz * invSr_;
+            if (patch_.mod[b].src == MS_NOISE) {
+                k[b] = noisePole(hz, 1.0f, invSr_);
+                g[b] = noiseGain(k[b]);
+            }
+        }
+    // Sample by sample, both busses in turn: the random values they draw come in the same order
+    // however a block splits the run.
+    for (int i = 0; i < n; ++i)
+        for (int b = 0; b < 2; ++b) {
+            if (!fast_[b]) continue;
+            Bus& x = bus_[b];
+            const int src = patch_.mod[b].src;
+            const FastMod& f = fm_[b];
+            float ph = x.phase + inc[b];
+            if (ph >= 1.0f) {
+                ph -= floorFast(ph);
+                newCycle(x);
+            }
+            x.phase = ph;
+            if (src == MS_NOISE) {
+                x.lp += (randBipolar(rng_) - x.lp) * k[b];
+                x.noise = clampf(x.lp * g[b], -1.0f, 1.0f);
+            }
+            const float v = sourceValue(x, src);
+            semis[0][i] += f.pitch[0] * v;
+            semis[1][i] += f.pitch[1] * v;
+            r.cut[i] += f.cut * v;
+            r.wave[0][i] += f.wave[0] * v;
+            r.wave[1][i] += f.wave[1] * v;
+            r.vol[i] *= std::max(0.0f, 1.0f + f.vol * v);
+        }
+    for (int o = 0; o < 2; ++o)
+        for (int i = 0; i < kControl; i += 4) store4(r.pm[o] + i, exp2Fast4(load4(semis[o] + i) * splat(1.0f / 12.0f)));
 }
 
 // n <= kControl samples of the voice, in two passes. First, per base sample: the envelopes, the
@@ -534,10 +685,13 @@ void Synth::renderSilent(float* out, int n) {
 void Synth::renderRun(float* out, int n) {
     // [0]: the previous base sample's, for the first half-step; [1..n]: this run's.
     float fq[kControl + 1], ae[kControl + 1], cs[kControl];
+    const bool fast = fast_[0] || fast_[1];   // a Hi-range bus: its offsets for every sample of the run
+    FastRun fr;
+    if (fast) fastMods(n, fr);
     for (int i = 0; i < n; ++i) {
         const float fe = fenv_.tick(fc_);
         ae[i + 1] = aenv_.tick(ac_);
-        cs[i] = cut_.next() + egAmt_.next() * fe;
+        cs[i] = cut_.next() + egAmt_.next() * fe + (fast ? fr.cut[i] : 0.0f);
     }
     for (int i = n; i < kControl; ++i) cs[i] = cs[n - 1];   // the last vector's spare lanes
     {
@@ -570,17 +724,24 @@ void Synth::renderRun(float* out, int n) {
     if (!fbOn) fbIn_ = fbLp_ = fbX1_ = fbY1_ = 0.0f;   // off: it starts clean when it comes up
     const float dcR = 1.0f - 2.0f * kPi * 5.0f * invSr_;       // output DC blocker, 5 Hz
     // A still wave knob (no sweep, no bus on it): its shape once, not every sample.
-    const bool morph1 = wave_[0].d != 0.0f, morph2 = wave_[1].d != 0.0f;
+    const bool fw1 = fast && (fm_[0].wave[0] != 0.0f || fm_[1].wave[0] != 0.0f);
+    const bool fw2 = fast && (fm_[0].wave[1] != 0.0f || fm_[1].wave[1] != 0.0f);
+    const bool morph1 = wave_[0].d != 0.0f || fw1, morph2 = wave_[1].d != 0.0f || fw2;
     Shape s1 = shapeOf(wave_[0].v), s2 = shapeOf(wave_[1].v);
     float peak = peak_;
     for (int i = 0; i < n; ++i) {
-        const float dt1 = dt_[0].next(), dt2 = dt_[1].next();
-        if (morph1) s1 = shapeOf(wave_[0].next());
-        if (morph2) s2 = shapeOf(wave_[1].next());
+        float dt1 = dt_[0].next(), dt2 = dt_[1].next(), vm = 1.0f;
+        if (fast) {
+            dt1 = std::min(dt1 * fr.pm[0][i], 0.45f);
+            dt2 = std::min(dt2 * fr.pm[1][i], 0.45f);
+            vm = fr.vol[i];
+        }
+        if (morph1) s1 = shapeOf(wave_[0].next() + (fw1 ? fr.wave[0][i] : 0.0f));
+        if (morph2) s2 = shapeOf(wave_[1].next() + (fw2 ? fr.wave[1][i] : 0.0f));
         const float l0 = lvl_[0].next(), l1 = lvl_[1].next(), l2 = lvl_[2].next(), l3 = lvl_[3].next() * nc,
                     l4 = lvl_[4].next();
         const float r = res_.next(), gain = inGain_.next(), postIn = postIn_.next(), postOut = postOut_.next(),
-                    vca = vca_.next();
+                    vca = vca_.next() * vm;
         const bool fade = xfLeft_ > 0;   // a slope change, crossfading the taps
         const float xf = fade ? static_cast<float>(xfLeft_--) * (1.0f / kTapFade) : 0.0f;   // of the old tap
         float hi[kOversample];

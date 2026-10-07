@@ -17,6 +17,8 @@ static_assert(PARAM_INFO[P_KMODE].nopts == KM_DUO + 1 && PARAM_INFO[P_PRIO].nopt
                   PARAM_INFO[P_GLIDE_TYPE].nopts == GT_EXP + 1 && PARAM_INFO[P_GLIDE_DEST].nopts == OD_OSC2 + 1 &&
                   PARAM_INFO[P_M1_PDEST].nopts == OD_OSC2 + 1 && PARAM_INFO[P_SUB_OCT].nopts == SO_TWO + 1,
               "surface.py keyboard / glide / destination lists must match dsp/synth.h");
+static_assert(PARAM_INFO[P_M1_SYNC].nopts == RM_COUNT && PARAM_INFO[P_M2_SYNC].nopts == RM_COUNT,
+              "surface.py RATE_MODES must match dsp/mod.h RateMode");
 
 // patchFromParams walks envelope 2 and mod bus 2 at a fixed offset from 1: every member of the
 // second block must be the first's, in the same order ("fe_a" ~ "ae_a": the part after '_').
@@ -37,6 +39,7 @@ constexpr bool sameBlock(int first, int other, int count) {
 } // namespace
 static_assert(sameBlock(P_FE_DLY, P_AE_DLY, P_FE_RESET - P_FE_DLY + 1), "amp EG params must mirror the filter EG's");
 static_assert(sameBlock(P_M1_SRC, P_M2_SRC, P_M1_TRIG - P_M1_SRC + 1), "mod bus 2 params must mirror bus 1's");
+static_assert(sameBlock(P_M1_WHEEL, P_M2_WHEEL, P_M1_AT - P_M1_WHEEL + 1), "bus 2's depth amounts must mirror bus 1's");
 
 float paramValue(int id, float n) {
     if (id < 0 || id >= P_COUNT) return 0.0f;
@@ -86,6 +89,12 @@ std::string waveName(float w) {
     return b;
 }
 
+std::string lfoHzText(float hz) {
+    char b[32];
+    std::snprintf(b, sizeof b, hz < 0.995f ? "%.2f Hz" : (hz < 9.95f ? "%.1f Hz" : "%.0f Hz"), hz);
+    return b;
+}
+
 std::string paramDisplay(int id, float n) {
     if (id < 0 || id >= P_COUNT) return {};
     const float v = paramValue(id, n);
@@ -121,7 +130,11 @@ std::string paramDisplay(int id, float n) {
             if (v <= -59.5f) return "-inf dB";
             std::snprintf(b, sizeof b, "%.1f dB", std::fabs(v) < 0.05f ? 0.0f : v);   // never "-0.0 dB"
             break;
-        case Fmt::LfoHz: std::snprintf(b, sizeof b, v < 0.995f ? "%.2f Hz" : (v < 9.95f ? "%.1f Hz" : "%.0f Hz"), v); break;
+        case Fmt::LfoHz: return lfoHzText(v);
+        case Fmt::BeatHz:
+            if (std::fabs(v) < 0.005f) return "0.00 Hz";
+            std::snprintf(b, sizeof b, "%+.2f Hz", v);
+            break;
         case Fmt::Wave: return waveName(v);
         case Fmt::EnvAmt: {
             const float oct = envSemis(v) / 12.0f;
@@ -162,6 +175,7 @@ Patch patchFromParams(const float* norm) {
     p.osc[1].octave = I(P_O2_OCT) + kOctaveMin;
     p.osc[1].wave = V(P_O2_WAVE);
     p.osc2Semis = V(P_O2_FREQ);
+    p.beatHz = V(P_O2_BEAT);
     p.sync = I(P_O2_SYNC) != 0;
     p.subOctave = I(P_SUB_OCT);
     p.kbReset = I(P_KB_RESET) != 0;
@@ -196,7 +210,9 @@ Patch patchFromParams(const float* norm) {
         const int d = b * (P_M2_SRC - P_M1_SRC);
         ModPatch& m = p.mod[b];
         m.src = I(P_M1_SRC + d);
-        m.sync = I(P_M1_SYNC + d) != 0;
+        const int rateMode = I(P_M1_SYNC + d);
+        m.sync = rateMode == RM_SYNC;
+        m.hi = rateMode == RM_HI;
         m.rateHz = V(P_M1_RATE + d);
         m.div = I(P_M1_DIV + d);
         m.pitch = V(P_M1_PITCH + d);
@@ -206,6 +222,10 @@ Patch patchFromParams(const float* norm) {
         m.amount = V(P_M1_AMT + d);
         m.control = I(P_M1_CTL + d);
         m.retrig = I(P_M1_TRIG + d) != 0;
+        const int a = b * (P_M2_WHEEL - P_M1_WHEEL);   // the depth amounts (appended in 0.0.3)
+        m.wheel = V(P_M1_WHEEL + a);
+        m.vel = V(P_M1_VEL + a);
+        m.at = V(P_M1_AT + a);
     }
     p.keyMode = I(P_KMODE);
     p.priority = I(P_PRIO);

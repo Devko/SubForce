@@ -31,14 +31,16 @@ original* in these docs), built on the same plugin groundwork as its sibling
   keyboard tracking up to 200%
 - **Two DAHDSR envelopes** (filter, amp) with a linear attack, velocity, keyboard tracking, reset,
   and a loop that runs through the release as the original's does
-- **Two mod busses**: triangle, square, saw, ramp, S&H, smooth random or the filter EG, free or
-  locked to MPC's tempo, to pitch, cutoff and one more destination, scaled by the mod wheel,
-  pressure or velocity
+- **Two mod busses**: eight LFO shapes, the envelopes, velocity, pressure, the key or a constant,
+  free, locked to MPC's tempo or in **Hi range** up to 1 kHz (audio-rate FM, filter FM and ring
+  modulation, worked out every sample), to pitch, cutoff and one of 19 more destinations (the
+  envelopes' and glide's times among them), their depth from the mod wheel, velocity and pressure
+- **Beat Freq**: oscillator 2 detuned by up to ±3.5 Hz, beating at the same rate on every note
 - **Mono or Duo** (each oscillator its own key), note priority, single or multi trigger,
   **glide** (rate, time or exponential)
 - **Band-limited and oversampled**: polyBLEP oscillators and the whole voice at 2× (88.2 kHz) with a
   halfband decimator; worst aliasing −53 dB up to C7, hard sync −65 dB
-- **68 factory presets** in 7 categories, level-matched, many of them for
+- **71 factory presets** in 7 categories, level-matched, many of them for
   [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
   big leads); user presets, favorites, a browser, Init and Randomize
 - **Light on the CPU**: one voice, about 2.8% of a block on the Force (3.6% with everything on),
@@ -115,6 +117,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | Release build in CI (glibc 2.31, profile-guided, catalog-checked) | ✅ |
 | On the device: installs, loads and benches (`make bench-device`) | ✅ |
 | 0.0.2 — the first regular release (in the plugin catalog, with a download) | ✅ |
+| 0.0.3 — the original's modulation: Beat Freq, Hi range, more sources and destinations, depth amounts; 71 presets | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 
