@@ -1,1 +1,2 @@
-[ { "version": "0.0.2", "device": "Akai Force", "firmware": "3.9.0.31", "date": "2026-10-05" } ]
+[ {"version": "0.0.2", "device": "Akai Force", "firmware": "3.9.0.31", "date": "2026-10-05"},
+  {"version": "0.0.3", "device": "Akai Force", "firmware": "3.9.0.31", "date": "2026-10-07"} ]
