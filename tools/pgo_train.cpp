@@ -2,8 +2,9 @@
 // plugin is linked in and plays a spread of patches through VSTPluginMain under qemu-arm, the
 // way MPC drives it: every slope and wave region, sync, the sub, noise, feedback, drive and
 // resonance, Mono and Duo, the trigger and glide modes, both busses with every source and
-// destination (free, synced and Hi range), the beat frequency, the depth amounts, and the factory
-// presets. The profile only steers the compiler (which paths are hot); what the
+// destination (free, synced and Hi range, key tracked), the beat frequency, the depth amounts, the
+// envelopes' attack curves, latch and sync, osc 2's keys, the bend's oscillators, gated glide, and the
+// factory presets. The profile only steers the compiler (which paths are hot); what the
 // trainer leaves out is still optimised as usual (-fprofile-partial-training).
 #include "../dsp/synth.h"
 #include "../plugin/vst2.h"
@@ -98,9 +99,17 @@ int main() {
     for (int k = 0; k < sf::MS_COUNT; ++k) {
         set(sf::P_KMODE, k % 2);
         set(sf::P_TRIG, (k / 2) % 2);
-        set(sf::P_GLIDE_MODE, k % 3);
         set(sf::P_GLIDE_TYPE, k % 3);
         set(sf::P_O2_BEAT, k % 3 ? 1.5f : 0.0f);
+        set(sf::P_O2_KB, k % 4);
+        set(sf::P_BEND_DEST, (k / 2) % 4);
+        set(sf::P_GLIDE_MODE, k % 5);
+        for (int e = 0; e < 2; ++e) {   // the envelopes' 0.0.4 options
+            const int d = e * (sf::P_AE_EXP - sf::P_FE_EXP);
+            set(sf::P_FE_EXP + d, (k + e) % 2);
+            set(sf::P_FE_LATCH + d, k % 7 == 3 + e ? 1 : 0);
+            set(sf::P_FE_SYNC + d, k % 3 == e ? 1 + (k % sf::kNumSyncDivs) : 0);
+        }
         for (int b = 0; b < 2; ++b) {
             const int d = b * (sf::P_M2_SRC - sf::P_M1_SRC), a = b * (sf::P_M2_WHEEL - sf::P_M1_WHEEL);
             set(sf::P_M1_SRC + d, (k + 5 * b) % sf::MS_COUNT);
@@ -112,6 +121,7 @@ int main() {
             set(sf::P_M1_RATE + d, (k + b) % sf::RM_COUNT == sf::RM_HI ? 30.0f : 4.0f);
             set(sf::P_M1_CTL + d, (k + b) % sf::MC_COUNT);
             set(sf::P_M1_VEL + a, k % 2 ? 0.5f : 0.0f);
+            set(b ? sf::P_M2_KBT : sf::P_M1_KBT, k % 3 ? 1.0f : 0.0f);
         }
         phrase(e, L, R, 30);
         ++patches;

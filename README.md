@@ -29,18 +29,20 @@ original* in these docs), built on the same plugin groundwork as its sibling
 - **4-pole transistor ladder filter**: 6, 12, 18 or 24 dB, resonance self-oscillating past 70% of
   the knob, the ladder's bass loss, **Multidrive** (asymmetric, tube-like warmth to hard clipping),
   keyboard tracking up to 200%
-- **Two DAHDSR envelopes** (filter, amp) with a linear attack, velocity, keyboard tracking, reset,
-  and a loop that runs through the release as the original's does
+- **Two DAHDSR envelopes** (filter, amp) with a linear or exponential attack, velocity, keyboard
+  tracking, reset, latch, sync to MPC's tempo, and a loop that runs through the release as the
+  original's does
 - **Two mod busses**: eight LFO shapes, the envelopes, velocity, pressure, the key or a constant,
   free, locked to MPC's tempo or in **Hi range** up to 1 kHz (audio-rate FM, filter FM and ring
-  modulation, worked out every sample), to pitch, cutoff and one of 19 more destinations (the
+  modulation, worked out every sample; key-tracked for harmonic FM), to pitch, cutoff and one of 19 more destinations (the
   envelopes' and glide's times among them), their depth from the mod wheel, velocity and pressure
 - **Beat Freq**: oscillator 2 detuned by up to ±3.5 Hz, beating at the same rate on every note
-- **Mono or Duo** (each oscillator its own key), note priority, single or multi trigger,
-  **glide** (rate, time or exponential)
+- **Mono or Duo** (each oscillator its own key: by priority, the highest and lowest, or oscillator
+  2 as a drone), note priority, single or multi trigger, **glide** (rate, time or exponential; gated
+  or not), the bend on either oscillator
 - **Band-limited and oversampled**: polyBLEP oscillators and the whole voice at 2× (88.2 kHz) with a
   halfband decimator; worst aliasing −53 dB up to C7, hard sync −65 dB
-- **71 factory presets** in 7 categories, level-matched, many of them for
+- **74 factory presets** in 7 categories, level-matched, many of them for
   [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
   big leads); user presets, favorites, a browser, Init and Randomize
 - **Light on the CPU**: one voice, about 2.8% of a block on the Force (3.6% with everything on),
@@ -118,6 +120,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | On the device: installs, loads and benches (`make bench-device`) | ✅ |
 | 0.0.2 — the first regular release (in the plugin catalog, with a download) | ✅ |
 | 0.0.3 — the original's modulation: Beat Freq, Hi range, more sources and destinations, depth amounts; 71 presets | ✅ |
+| 0.0.4 — the rest of the original's manual: LFO key tracking, exponential attack, latch, EG sync, osc 2's keys and drone, gated glide, Bend To; 74 presets | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

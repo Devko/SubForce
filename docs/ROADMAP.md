@@ -42,13 +42,16 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 - ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS), 0.0.3
-  (the original's modulation, 71 presets)
+  (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets)
 - ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
 - ✅ Closer to the original's modulation: Beat Freq; Hi range (audio-rate busses, up to 1 kHz, every
   sample on pitch, cutoff, wave and volume); Sine, Noise, Amp EG, Velocity, Aftertouch, Key and
   Constant sources; EG Amount, Key Track, the oscillator levels, Beat Freq, EG / FEG / AEG Time and
   Glide Time destinations; wheel, velocity and pressure depth amounts (a DEPTH tab); 3 presets
   that show them (71 in all)
+- ✅ The rest of the original's manual: LFO key tracking (0–200%), Duo's KB CTRL (oscillator 2 on
+  the high or low key, or a drone), gated glide, an exponential attack option, envelope latch and
+  tempo sync, the bend per oscillator; 3 presets that show them (74 in all)
 
 ## Phase 0
 
@@ -81,9 +84,6 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 ## Planned
 
-- ⬜ **Closer still to the original** (its manual): LFO key tracking (0–200%), Duo's KB CTRL
-  (oscillator 2 on the high or low key, or a drone), gated glide, an exponential attack option,
-  envelope latch and tempo sync, the bend per oscillator, C3 (MIDI 48) as the key-tracking centre.
 - ⬜ **Oscillator 2 as a bus source** (true oscillator FM, tracking the keys), if Hi range isn't
   enough.
 - ⬜ **Quality switch**: 4x oversampling, if listening shows a need (the device bench leaves room).
@@ -110,5 +110,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   output is 2 dB up (the quietest presets' volume was at the knob's top already).
 - 2026-10-05 — **Regular releases** from plain `vX.Y.Z` tags: the catalog hides prereleases (no
   download button) and its installers never offer them.
+- 2026-10-07 — **Key tracking stays centred on MIDI 60** (MPC's C3), not the original's MIDI 48 (its
+  C3): the knob means the same, an octave apart, and moving it would brighten every saved sound.
 - Moog, Subsequent and other product names are not used in the plugin, its presets, its pages or
   its docs (beyond the trademark notice): the docs say *the original*.

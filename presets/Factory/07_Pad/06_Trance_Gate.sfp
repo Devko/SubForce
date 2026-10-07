@@ -1,0 +1,24 @@
+subforce 1
+volume=4.6
+kmode=1
+prio=1
+o2_wave=0.45
+mix_o1=0.85
+mix_o2=0.8
+mix_sub=0.3
+o2_freq=0.08
+f_cut=1600
+f_res=0.3
+f_drive=0.3
+f_env=0.2
+fe_a=0.5
+fe_d=2
+fe_s=0.5
+ae_a=0.003
+ae_d=0.3
+ae_s=0.12
+ae_r=0.12
+ae_sync=13
+m2_rate=0.15
+m2_filter=0.3
+drift=0.4

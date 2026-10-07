@@ -13,12 +13,15 @@ static_assert(kNumModSources == MS_COUNT && kNumModDests == MD_COUNT && kNumModC
                   kNumSyncDivisions == kNumSyncDivs,
               "surface.py mod lists must match dsp/mod.h");
 static_assert(PARAM_INFO[P_KMODE].nopts == KM_DUO + 1 && PARAM_INFO[P_PRIO].nopts == PR_HIGH + 1 &&
-                  PARAM_INFO[P_TRIG].nopts == TR_SINGLE + 1 && PARAM_INFO[P_GLIDE_MODE].nopts == GL_LEGATO + 1 &&
+                  PARAM_INFO[P_TRIG].nopts == TR_SINGLE + 1 && PARAM_INFO[P_GLIDE_MODE].nopts == GL_LEGATO + 3 &&
                   PARAM_INFO[P_GLIDE_TYPE].nopts == GT_EXP + 1 && PARAM_INFO[P_GLIDE_DEST].nopts == OD_OSC2 + 1 &&
                   PARAM_INFO[P_M1_PDEST].nopts == OD_OSC2 + 1 && PARAM_INFO[P_SUB_OCT].nopts == SO_TWO + 1,
               "surface.py keyboard / glide / destination lists must match dsp/synth.h");
 static_assert(PARAM_INFO[P_M1_SYNC].nopts == RM_COUNT && PARAM_INFO[P_M2_SYNC].nopts == RM_COUNT,
               "surface.py RATE_MODES must match dsp/mod.h RateMode");
+static_assert(PARAM_INFO[P_O2_KB].nopts == O2_DRONE + 1 && PARAM_INFO[P_BEND_DEST].nopts == BD_OFF + 1 &&
+                  PARAM_INFO[P_FE_SYNC].nopts == kNumSyncDivs + 1,
+              "surface.py Osc 2 Keys / Bend To / EG Sync lists must match dsp/synth.h and dsp/mod.h");
 
 // patchFromParams walks envelope 2 and mod bus 2 at a fixed offset from 1: every member of the
 // second block must be the first's, in the same order ("fe_a" ~ "ae_a": the part after '_').
@@ -40,6 +43,7 @@ constexpr bool sameBlock(int first, int other, int count) {
 static_assert(sameBlock(P_FE_DLY, P_AE_DLY, P_FE_RESET - P_FE_DLY + 1), "amp EG params must mirror the filter EG's");
 static_assert(sameBlock(P_M1_SRC, P_M2_SRC, P_M1_TRIG - P_M1_SRC + 1), "mod bus 2 params must mirror bus 1's");
 static_assert(sameBlock(P_M1_WHEEL, P_M2_WHEEL, P_M1_AT - P_M1_WHEEL + 1), "bus 2's depth amounts must mirror bus 1's");
+static_assert(sameBlock(P_FE_EXP, P_AE_EXP, P_AE_EXP - P_FE_EXP), "the amp EG's 0.0.4 params must mirror the filter EG's");
 
 float paramValue(int id, float n) {
     if (id < 0 || id >= P_COUNT) return 0.0f;
@@ -205,6 +209,10 @@ Patch patchFromParams(const float* norm) {
         x.kb = V(P_FE_KB + d);
         x.loop = I(P_FE_LOOP + d) != 0;
         x.reset = I(P_FE_RESET + d) != 0;
+        const int a = e * (P_AE_EXP - P_FE_EXP);   // appended in 0.0.4
+        x.expAttack = I(P_FE_EXP + a) != 0;
+        x.latch = I(P_FE_LATCH + a) != 0;
+        x.sync = I(P_FE_SYNC + a);
     }
     for (int b = 0; b < 2; ++b) {
         const int d = b * (P_M2_SRC - P_M1_SRC);
@@ -226,16 +234,21 @@ Patch patchFromParams(const float* norm) {
         m.wheel = V(P_M1_WHEEL + a);
         m.vel = V(P_M1_VEL + a);
         m.at = V(P_M1_AT + a);
+        m.keyTrack = V(b ? P_M2_KBT : P_M1_KBT);
     }
     p.keyMode = I(P_KMODE);
     p.priority = I(P_PRIO);
     p.trigger = I(P_TRIG);
-    p.glideMode = I(P_GLIDE_MODE);
+    const int glide = I(P_GLIDE_MODE);   // Off, Always, Legato, then Always and Legato gated
+    p.glideMode = glide > GL_LEGATO ? glide - 2 : glide;
+    p.glideGated = glide > GL_LEGATO;
     p.glideType = I(P_GLIDE_TYPE);
     p.glideTime = V(P_GLIDE);
     p.glideDest = I(P_GLIDE_DEST);
     p.bendUp = V(P_BEND_UP);
     p.bendDown = V(P_BEND_DN);
+    p.bendDest = I(P_BEND_DEST);
+    p.osc2Keys = I(P_O2_KB);
     return p;
 }
 

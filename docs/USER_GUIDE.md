@@ -29,11 +29,11 @@ audio lasts), PEAK its slowest block in that time; VOICES is 0, 1 or 2 (Duo on t
 | Tab | What's on it |
 |---|---|
 | **OSC** | Oscillator 1 (octave, wave, sub octave), oscillator 2 (octave, frequency, beat frequency, wave, hard sync), the mixer (osc 1, sub, osc 2, noise, feedback, noise colour, drift, keyboard reset) |
-| **FILTER** | Cutoff, resonance, Multidrive, filter EG amount, key track, the filter EG's velocity and key tracking, slope; the filter EG |
-| **AMP** | The amp EG; velocity, key tracking and volume |
-| **MOD** | Mod 1 and mod 2: source, rate mode (Free, Sync, Hi), sync rate, control, trigger; rate, pitch amount and where it goes, filter amount, the third destination and its amount |
+| **FILTER** | Cutoff, resonance, Multidrive, filter EG amount, key track, the filter EG's velocity and key tracking, slope; the filter EG (with loop, reset, latch, attack curve, sync) |
+| **AMP** | The amp EG (the same options); velocity, key tracking and volume |
+| **MOD** | Mod 1 and mod 2: source, rate mode (Free, Sync, Hi), sync rate, control, trigger; rate, pitch amount and where it goes, filter amount, the third destination and its amount, key tracking of the rate |
 | **BROWSE** | Preset categories and presets; favorite, a random preset, save, init |
-| **KEYS** | Mono / Duo, note priority, trigger; bend ranges; glide; the preset stepper, save, init, randomize |
+| **KEYS** | Mono / Duo, note priority, trigger; bend ranges and which oscillators bend; oscillator 2's keys (by priority, the highest, the lowest, or a drone); glide; the preset stepper, save, init, randomize |
 | **DEPTH** | For each bus: its control, and how much the mod wheel, velocity and pressure add to its depth |
 
 The pages, rendered offline from the skin (on the device MPC fills in the values and lights the
@@ -94,21 +94,33 @@ A 4-pole transistor ladder, modelled with its nonlinearities.
   its range, toward hard clipping at full. Louder too, but by a few dB, not a jump.
 - **Slope**: 6, 12, 18 or 24 dB per octave (the outputs of the ladder's four stages).
 - **EG Amount**: the filter EG's sweep, up to ±10 octaves (the value shows octaves).
-- **Key Track**: 0–200%; 100% makes the cutoff follow the keyboard exactly (around middle C).
+- **Key Track**: 0–200%; 100% makes the cutoff follow the keyboard exactly, around C3 as MPC numbers
+  it (MIDI 60; the original pivots on MIDI 48, which it also calls C3: the knob's sound is the same,
+  an octave apart).
 - **FEG Velocity**: how much velocity scales the filter EG (and so the sweep).
 - **FEG Key Track**: higher notes, shorter filter EG times.
 
 ### Envelopes
 
 Both are **DAHDSR**: Delay, Attack, Hold, Decay, Sustain, Release (every stage up to 10 s; attack,
-decay and release from 1 ms, delay and hold from 0). As on the original, the attack is linear (its
-default curve); decay and release fall exponentially (the times are to −60 dB).
+decay and release from 1 ms, delay and hold from 0). As on the original, the attack is linear by
+default; decay and release fall exponentially (the times are to −60 dB).
 
 - **Loop**: while the key is held the envelope cycles delay → attack → hold → decay → release and
   round again, the release stage included, as on the original. With Sustain at 0 that is a plain
   D-A-H-D cycle; with Sustain up, decay falls to it and release takes it the rest of the way.
 - **Reset**: a new note's attack starts from 0. Off, it starts from wherever the envelope is (smooth
   legato, the analog way).
+- **Attack**: *Linear*, or *Exp* (the original's EXP ATTACK): an analog RC charge, steep at first and
+  rounding off into the top (63% of the way at half the attack time), still at the top on time.
+  Snappier on short attacks, a swell that blooms early on long ones.
+- **Latch**: once a note has started it, the envelope stays as if the key were held — at its sustain,
+  or looping — after the key is up (the original's LATCH ON). Latch the amp EG for a drone that
+  keeps sounding; switch Latch off to let it release. MPC's stop silences it.
+- **Sync**: while the key is held (or the envelope latched) it restarts every note value of MPC's
+  tempo, 8 bars to 1/32T — on the bar's grid while MPC plays, counted from the note while it is
+  stopped. With the amp EG's sustain low: a trance gate (*Pad / Trance Gate*); on the filter EG:
+  rhythmic plucks out of one held note.
 - **Velocity** and **Key Track** as above; the amp EG's are on the AMP tab.
 
 ## Keys, glide and Duo
@@ -118,14 +130,23 @@ default curve); decay and release fall exponentially (the times are to −60 dB)
 - **Priority**: which key sounds when several are down — *Last*, *Low* or *High*. Releasing a key
   returns to the next one by the same rule. In Duo, oscillator 1 takes the first by priority,
   oscillator 2 the second.
+- **Osc 2 Keys** (the original's KB CTRL): *Priority* as above; in Duo, *High* puts oscillator 2 on
+  the highest key held and oscillator 1 on the lowest, *Low* the other way round. *Drone* (Mono or
+  Duo): oscillator 2 follows no key — C3 at 8', its Freq knob reaching ±3 octaves instead of ±7
+  semitones — under whatever oscillator 1 plays (*Lead / Drone Lead*). The amp EG still gates it:
+  latch the amp EG for a drone that never stops.
 - **Trigger**: *Multi* restarts the envelopes on every key struck, a sounding key struck again too
   (held by the pedal, or repeated); releasing a key hands the oscillators back to one still held
   without a new attack. *Single* only when the gate was closed (legato phrases play on one
   envelope).
-- **Glide**: *Off*, *Always*, or *Legato* (only between overlapping keys). **Type**: *Rate* (the
-  time per octave: big leaps take longer), *Time* (every glide takes the same time), *Exp*
-  (exponential, fast then slow, like an RC). **Osc**: which oscillators glide.
-- **Bend Up / Down**: the pitch bend range, 0–24 semitones each way.
+- **Glide**: *Off*, *Always*, or *Legato* (only between overlapping keys); *Gated* and *Legato
+  Gated* are the same, the original's GATED: the glide moves only while a key is held, and stops
+  where it is when you let go (the next note glides on from there). **Type**: *Rate* (the time per
+  octave: big leaps take longer), *Time* (every glide takes the same time), *Exp* (exponential, fast
+  then slow, like an RC). **Osc**: which oscillators glide.
+- **Bend Up / Down**: the pitch bend range, 0–24 semitones each way. **Bend To**: which oscillators
+  the bend moves — both, one, or *Off* (the bend free for a mod bus, or to bend one oscillator
+  against the other).
 - The sustain pedal keeps the last note sounding until it lifts. While it holds the gate open, the
   next key plays legato, as on the original: Single doesn't restart the envelopes and Legato glide
   glides.
@@ -138,6 +159,7 @@ Two identical busses. Each takes one **source** and sends it to three places at 
 |---|---|
 | **Source** | LFO shapes: Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Sine, Noise (random, the rate its speed). Envelopes: Filter EG, Amp EG. Players: Velocity, Aftertouch, Key (the key against C3: +1 two octaves up, −1 two down), Constant (always 1: with Control, the wheel, velocity or pressure itself) |
 | **Rate** / **Rate Mode** / **Sync Rate** | *Free* 0.05–100 Hz, *Sync* a note value of MPC's tempo (8 bars to 1/32T), or *Hi* 0.5–1000 Hz (the knob ×10; the value shows the real rate) |
+| **Key Track** | 0–200%: the rate follows the key, around C3 (100%: twice as fast an octave up); free and Hi rates |
 | **Trigger** | *Free*: runs on its own (a synced bus locks to the bar while MPC plays, unless the other bus is modulating its rate); *Retrig*: restarts at every new note |
 | **Pitch** + **Pitch To** | pitch amount (up to ±24 st, fine near 0) for osc 1+2, osc 1 or osc 2 |
 | **Filter** | cutoff amount (up to ±5 octaves) |
@@ -147,8 +169,10 @@ Two identical busses. Each takes one **source** and sends it to three places at 
 **Hi** is the original's HI RANGE: the bus runs up to 1 kHz, into the audio range, and is worked out
 for every sample on pitch (FM), the filter (filter FM: growl and grit), the waves and the volume
 (ring and amplitude modulation); its other destinations take it at the control rate. A Hi bus can't
-be synced. The rate doesn't follow the keyboard: one rate against different notes gives different,
-mostly inharmonic, sidebands — metallic on leads, growling on basses.
+be synced. Without Key Track the rate stays put: one rate against different notes gives different,
+mostly inharmonic, sidebands — metallic on leads, growling on basses. With **Key Track at 100%** it
+follows the keys and the FM stays harmonic: at C3 the key is 261.6 Hz, so a rate of 26.2 (×10 =
+261.6 Hz) modulates 1:1, 52.3 2:1 (*Keys / Harmonic FM*), 13.1 1:2.
 
 **DEPTH** (a tab of its own) sets how much the **mod wheel**, **velocity** and **pressure** add to
 the bus's depth, each −100%..+100%, on top of its Control, as the original's MOD WHEEL / VELOCITY /
@@ -171,7 +195,7 @@ Bass*).
 
 ## Presets
 
-71 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
+74 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
 level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick them on the BROWSE tab or
 step through them on KEYS.
 

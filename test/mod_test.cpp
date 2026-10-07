@@ -631,6 +631,61 @@ void testHiRange() {
     CHECK(sameSound(t));   // ...at the control rate
 }
 
+void testLfoKeyTrack() {
+    std::printf("== mod busses: key tracking\n");
+    // 100%: a 1 Hz square at C3 is 2 Hz an octave up, 0.5 Hz an octave down.
+    auto halvesAt = [](int note, double period, double& up, double& down) {
+        Patch p = base();
+        p.mod[0].src = sf::MS_SQUARE;
+        p.mod[0].rateHz = 1.0f;
+        p.mod[0].pitch = kOneSemi;
+        p.mod[0].retrig = true;
+        p.mod[0].keyTrack = 1.0f;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(note, 100);
+        const auto x = render(s, static_cast<int>(44100 * period) + 4410);
+        const double f0 = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        auto st = [&](double t0, double t1) {
+            return 12.0 * std::log2(pitchHz(x, static_cast<size_t>(t0 * 44100), static_cast<size_t>(t1 * 44100)) / f0);
+        };
+        up = st(0.1 * period, 0.4 * period);
+        down = st(0.6 * period, 0.9 * period);
+    };
+    double up = 0.0, down = 0.0;
+    halvesAt(72, 0.5, up, down);
+    CHECK(up > 0.95 && down < -0.95);
+    halvesAt(48, 2.0, up, down);
+    CHECK(up > 0.95 && down < -0.95);
+
+    // Hi range at 100%: the modulator follows the key, so FM stays harmonic. Rate 26.16 (261.6 Hz
+    // at C3) on a triangle at C4 (523 Hz): sidebands at the carrier's octave (1047 Hz), none at
+    // 785 Hz; without key tracking it stays at 261.6 Hz, and 785 Hz is there.
+    auto fm = [](float keyTrack, double& octave, double& between) {
+        Patch p = base();
+        p.osc[0].wave = 0.0f;
+        p.mod[0].src = sf::MS_SINE;
+        p.mod[0].hi = true;
+        p.mod[0].rateHz = 26.163f;
+        p.mod[0].pitch = std::sqrt(1.0f / 6.0f);   // 4 st
+        p.mod[0].retrig = true;
+        p.mod[0].keyTrack = keyTrack;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(72, 100);
+        const auto x = render(s, 4410 + 32768);
+        const double c = toneDb(x, 523.25, 4410, 32768);
+        octave = toneDb(x, 1046.5, 4410, 32768) - c;
+        between = toneDb(x, 784.9, 4410, 32768) - c;
+    };
+    double oct = 0.0, mid = 0.0;
+    fm(1.0f, oct, mid);
+    std::printf("  Hi, key tracked: %.1f dB at the octave, %.1f dB between\n", oct, mid);
+    CHECK(oct > -24.0 && oct < -12.0 && mid < -50.0);
+    fm(0.0f, oct, mid);
+    CHECK(mid > -20.0);
+}
+
 void testPluginSide() {
     std::printf("== mod busses: the plugin side (rate text, saved state)\n");
     Host h;
@@ -651,6 +706,20 @@ void testPluginSide() {
     CHECK(g.load(st) == 1 && g.value(sf::P_M1_SYNC) == sf::RM_HI && g.value(sf::P_M2_SRC) == sf::MS_KEY &&
           g.value(sf::P_M2_DEST) == sf::MD_GLIDE && g.value(sf::P_M2_CTL) == sf::MC_NONE &&
           std::fabs(g.value(sf::P_O2_BEAT) + 1.25f) < 1e-4f);
+    // 0.0.4's: key tracking, the envelopes' options, osc 2's keys, the bend's, gated glide.
+    h.set(sf::P_M2_KBT, 1.5f);
+    h.set(sf::P_AE_EXP, 1);
+    h.set(sf::P_FE_LATCH, 1);
+    h.set(sf::P_AE_SYNC, 1 + 9);   // 1/8
+    h.set(sf::P_O2_KB, sf::O2_DRONE);
+    h.set(sf::P_BEND_DEST, sf::BD_OSC2);
+    h.set(sf::P_GLIDE_MODE, 4);    // Legato Gated
+    CHECK(h.display(sf::P_AE_SYNC) == "1/8" && h.display(sf::P_GLIDE_MODE) == "Legato Gated" &&
+          h.display(sf::P_O2_KB) == "Drone" && h.display(sf::P_M2_KBT) == "150%");
+    Host k;
+    CHECK(k.load(h.chunk()) == 1 && std::fabs(k.value(sf::P_M2_KBT) - 1.5f) < 1e-4f && k.value(sf::P_AE_EXP) == 1 &&
+          k.value(sf::P_FE_LATCH) == 1 && k.value(sf::P_AE_SYNC) == 10 && k.value(sf::P_O2_KB) == sf::O2_DRONE &&
+          k.value(sf::P_BEND_DEST) == sf::BD_OSC2 && k.value(sf::P_GLIDE_MODE) == 4);
 }
 
 } // namespace
@@ -665,6 +734,7 @@ void modTests() {
     testDepthAmounts();
     testMoreDestinations();
     testHiRange();
+    testLfoKeyTrack();
     testPluginSide();
 }
 

@@ -39,6 +39,10 @@ enum Trigger : int { TR_MULTI, TR_SINGLE };           // Single: legato notes do
 enum GlideMode : int { GL_OFF, GL_ALWAYS, GL_LEGATO };
 enum GlideType : int { GT_RATE, GT_TIME, GT_EXP };    // Rate: time per octave; Time: any interval; Exp: RC
 enum OscDest : int { OD_BOTH, OD_OSC1, OD_OSC2 };     // which oscillators glide / take a bus's pitch
+enum BendDest : int { BD_BOTH, BD_OSC1, BD_OSC2, BD_OFF };   // which oscillators the pitch bend moves
+// Oscillator 2's key (the original's KB CTRL): in Duo by priority (the second key), the highest key
+// (osc 1 the lowest), the lowest (osc 1 the highest); or, Mono or Duo, a drone that no key moves.
+enum Osc2Keys : int { O2_PRIORITY, O2_HIGH, O2_LOW, O2_DRONE };
 enum SubOctave : int { SO_ONE, SO_TWO };
 
 constexpr int kOctaveMin = -2;   // 32' .. 2' (8' = 0)
@@ -47,6 +51,9 @@ constexpr float kResMax = 4.6f;  // ladder feedback at full resonance (self-osci
 constexpr float kResEdge = 0.7f; // the knob where it reaches 4: "settings above 7 cause the filter
                                  // to self-oscillate" (the original's manual)
 constexpr float kBeatRange = 3.5f;   // Hz: osc 2's beat frequency, either way (the original's BEAT FREQ)
+constexpr float kDroneNote = 60.0f;  // a droning osc 2 at 8' with its frequency at 0 (MPC's C3)
+constexpr float kDroneSpan = 36.0f;  // ...and its frequency knob's reach then (+-3 octaves, as on the original)
+constexpr float kKeyCentre = 60.0f;  // where key tracking pivots: filter, EG times, LFO rates, the Key source
 
 // Resonance knob 0..1 -> ladder feedback: 0..4 up to kResEdge, on to kResMax at full.
 inline float resFeedback(float k) {
@@ -62,6 +69,8 @@ struct EnvPatch : EnvTimes {
     float vel = 0.3f;      // 0..1: how much velocity scales the envelope
     float kb = 0.0f;       // 0..1: higher notes, shorter times (1: half the time an octave up)
     bool  reset = false;   // a new note's attack starts from 0 (else from where it is)
+    bool  latch = false;   // once a note starts it, it stays as if the key were held (no release)
+    int   sync = 0;        // 0 off, else 1 + a kSyncBeats index: restart every that while held
 };
 
 struct ModPatch {
@@ -80,6 +89,7 @@ struct ModPatch {
     // AFTERTOUCH amounts); the depth stays within -1..1.
     float wheel = 0.0f, vel = 0.0f, at = 0.0f;
     bool  retrig = false;   // restart at each new note (else free running; synced: locked to the bar)
+    float keyTrack = 0.0f;  // 0..2: the rate follows the key (1: doubles an octave up), free and Hi
 };
 
 struct Patch {
@@ -87,6 +97,7 @@ struct Patch {
     OscPatch osc[2];
     float osc2Semis = 0.0f;   // Osc 2 frequency against osc 1, -7..+7 semitones
     float beatHz = 0.0f;      // ...and detuned by this many Hz on every note (-kBeatRange..kBeatRange)
+    int   osc2Keys = O2_PRIORITY;
     bool  sync = false;       // Osc 2 hard-synced to osc 1
     int   subOctave = SO_ONE;
     float noiseColor = 0.5f;  // 0 white .. 0.5 pink (the original's) .. 1 dark
@@ -110,8 +121,10 @@ struct Patch {
     int   glideMode = GL_OFF;
     int   glideType = GT_TIME;
     int   glideDest = OD_BOTH;
+    bool  glideGated = false; // glides move only while a key is held (else on to the note after a release)
     float glideTime = 0.08f;  // seconds (Rate: per octave)
     float bendUp = 2.0f, bendDown = 2.0f;   // semitones
+    int   bendDest = BD_BOTH;
 };
 
 constexpr float kEnvRange = 120.0f;   // semitones at envAmount 1 (10 octaves: 20 Hz to 20 kHz)
@@ -211,6 +224,8 @@ private:
     void  newCycle(Bus& b);
     void  fastMods(int n, FastRun& r);
     void  envCoefs();
+    void  releaseEnvs();
+    void  envSync(int n);
     void advance(int n);
     void catchUp();
     void control();
@@ -277,6 +292,8 @@ private:
     bool  fast_[2] = {};      // a Hi-range LFO: its phase moves every base sample (renderRun)
     FastMod fm_[2];
     float egTimeMul_[2] = {1.0f, 1.0f};   // filter / amp EG times from the busses (EG Time)
+    double envBeats_[2] = {};             // EG Sync: beats since the envelope's note (MPC stopped)...
+    double envCycle_[2] = {};             // ...and the sync unit it restarted at last
     float glideMul_ = 1.0f;               // glide times from the busses (Glide Time)
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff

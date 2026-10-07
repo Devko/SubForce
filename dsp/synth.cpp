@@ -73,8 +73,15 @@ Synth::Synth(float sampleRate)
 }
 
 void Synth::setPatch(const Patch& p) {
-    const bool repick = havePatch_ && (p.keyMode != patch_.keyMode || p.priority != patch_.priority);
+    const bool repick = havePatch_ && (p.keyMode != patch_.keyMode || p.priority != patch_.priority ||
+                                       p.osc2Keys != patch_.osc2Keys);
+    // A latch let go with no key down: that envelope releases now.
+    const bool unlatch[2] = {havePatch_ && patch_.fenv.latch && !p.fenv.latch, havePatch_ && patch_.aenv.latch && !p.aenv.latch};
     patch_ = p;
+    if (!gate_) {
+        if (unlatch[0]) fenv_.release();
+        if (unlatch[1]) aenv_.release();
+    }
     havePatch_ = true;
     cutNote_ = noteOf(p.cutoffHz);
     // A bus whose rate the other one modulates runs free even when synced (a locked phase can't
@@ -107,7 +114,7 @@ void Synth::setPatch(const Patch& p) {
     noiseComp_ = kNoiseComp[i0] + (kNoiseComp[i0 + 1] - kNoiseComp[i0]) * (at - static_cast<float>(i0));
 }
 
-float Synth::kbScale(float kb) const { return exp2Fast(-clampf(kb, 0.0f, 1.0f) * static_cast<float>(note1_ - 60) / 12.0f); }
+float Synth::kbScale(float kb) const { return exp2Fast(-clampf(kb, 0.0f, 1.0f) * (static_cast<float>(note1_) - kKeyCentre) / 12.0f); }
 
 // The envelopes' coefficients: their times, keyboard tracking (from the key playing) and the
 // busses' EG Time.
@@ -152,6 +159,19 @@ void Synth::choose(int& n1, int& n2, int& vel) const {
     n1 = held_[k1].note;
     vel = held_[k1].vel;
     n2 = patch_.keyMode == KM_DUO && k2 >= 0 ? held_[k2].note : n1;
+    // Duo, oscillator 2 on the highest (or lowest) key, oscillator 1 on the other end; the newest
+    // key's velocity.
+    if (patch_.keyMode == KM_DUO && nHeld_ > 1 && (patch_.osc2Keys == O2_HIGH || patch_.osc2Keys == O2_LOW)) {
+        int lo = 0, hi = 0;
+        for (int i = 1; i < nHeld_; ++i) {
+            if (held_[i].note < held_[lo].note) lo = i;
+            if (held_[i].note > held_[hi].note) hi = i;
+        }
+        const bool high = patch_.osc2Keys == O2_HIGH;
+        n1 = held_[high ? lo : hi].note;
+        n2 = held_[high ? hi : lo].note;
+        vel = held_[nHeld_ - 1].vel;
+    }
 }
 
 void Synth::noteOn(int note, int velocity) {
@@ -178,8 +198,7 @@ void Synth::update(int pressed) {
     if (nHeld_ == 0) {
         if (gate_ && !pedal_) {   // the pedal keeps the last notes sounding until it lifts
             gate_ = false;
-            fenv_.release();
-            aenv_.release();
+            releaseEnvs();
         }
         return;
     }
@@ -206,6 +225,11 @@ void Synth::update(int pressed) {
 void Synth::trigger(int vel) {
     vel_ = static_cast<float>(std::clamp(vel, 1, 127)) / 127.0f;
     envCoefs();
+    for (int e = 0; e < 2; ++e) {   // EG Sync counts its units from here (or from the bar while MPC plays)
+        const int s = (e ? patch_.aenv : patch_.fenv).sync;
+        envBeats_[e] = 0.0;
+        envCycle_[e] = s > 0 ? floorFast((playing_ && beatsValid_ ? beats_ : 0.0) * kSyncPerBeat[std::min(s - 1, kNumSyncDivs - 1)]) : 0.0;
+    }
     fenv_.trigger(fc_, patch_.fenv.reset);
     aenv_.trigger(ac_, patch_.aenv.reset);
     for (int b = 0; b < 2; ++b)
@@ -248,7 +272,7 @@ void Synth::glideTo(Glide& g, float target, bool glide) {
 }
 
 void Synth::stepGlide(Glide& g, int n) const {
-    if (g.left <= 0) return;
+    if (g.left <= 0 || (patch_.glideGated && !gate_)) return;   // Gated: the glide waits for a key
     if (g.exp) {
         g.pitch += (g.target - g.pitch) * (1.0f - exp2Fast(g.lk * static_cast<float>(n)));
         if (std::fabs(g.target - g.pitch) < 1e-3f) {
@@ -267,8 +291,7 @@ void Synth::sustain(bool down) {
     pedal_ = down;
     if (!down && nHeld_ == 0 && gate_) {
         gate_ = false;
-        fenv_.release();
-        aenv_.release();
+        releaseEnvs();
     }
 }
 
@@ -276,9 +299,14 @@ void Synth::allNotesOff() {
     nHeld_ = 0;
     if (gate_) {
         gate_ = false;
-        fenv_.release();
-        aenv_.release();
+        releaseEnvs();
     }
+}
+
+// The keys let go: each envelope releases, unless it is latched (reset() still silences it).
+void Synth::releaseEnvs() {
+    if (!patch_.fenv.latch) fenv_.release();
+    if (!patch_.aenv.latch) aenv_.release();
 }
 
 void Synth::reset() {
@@ -336,8 +364,10 @@ Synth::Info Synth::info() const {
 
 // A bus's rate in Hz: free, Hi range or MPC's tempo, the other bus's Other Rate in it.
 float Synth::busHz(const Bus& b, const ModPatch& m) const {
-    if (m.hi) return m.rateHz * kHiRange * b.rateMul;
-    if (!m.sync) return m.rateHz * b.rateMul;
+    if (!m.sync || m.hi) {   // Key Track: the rate follows the gliding key around C3
+        const float kt = m.keyTrack != 0.0f ? exp2Fast(m.keyTrack * (glide_[0].pitch - kKeyCentre) * (1.0f / 12.0f)) : 1.0f;
+        return std::min(m.rateHz * (m.hi ? kHiRange : 1.0f) * b.rateMul * kt, 0.25f * sr_);
+    }
     return static_cast<float>(bpm_ * (1.0 / 60.0) * kSyncPerBeat[std::clamp(m.div, 0, kNumSyncDivs - 1)]) * b.rateMul;
 }
 
@@ -363,7 +393,7 @@ float Synth::sourceValue(const Bus& b, int src) const {
         case MS_AMP_EG: return aenv_.v * aVel_;
         case MS_VELOCITY: return vel_;
         case MS_AFTERTOUCH: return pressure_;
-        case MS_KEY: return (glide_[0].pitch - 60.0f) * (1.0f / kKeySpan);
+        case MS_KEY: return (glide_[0].pitch - kKeyCentre) * (1.0f / kKeySpan);
         case MS_CONSTANT: return 1.0f;
         default: return ph < 0.25f ? 4.0f * ph : (ph < 0.75f ? 2.0f - 4.0f * ph : 4.0f * ph - 4.0f);   // triangle
     }
@@ -409,8 +439,27 @@ float Synth::driftStep(Drift& d, int n) {
 // glides to over the next kControl samples.
 // Time passes for everything that moves at the control rate: the song position, glides, the
 // busses' sources (their values kept in busOut_), drift. n may be 0 (only the values are read).
+// EG Sync: a held (or latched) envelope restarts at every sync unit, of MPC's bar while it plays,
+// else counted from the note.
+void Synth::envSync(int n) {
+    for (int e = 0; e < 2; ++e) {
+        const EnvPatch& ep = e ? patch_.aenv : patch_.fenv;
+        if (ep.sync <= 0) continue;
+        envBeats_[e] += static_cast<double>(n) * beatsPerSample_;
+        Env& env = e ? aenv_ : fenv_;
+        if (env.stage == E_IDLE || (env.stage == E_RELEASE && !env.looping) || !(gate_ || ep.latch)) continue;
+        const double cycle = floorFast((playing_ && beatsValid_ ? beats_ : envBeats_[e]) *
+                                       kSyncPerBeat[std::min(ep.sync - 1, kNumSyncDivs - 1)]);
+        if (cycle != envCycle_[e]) {
+            envCycle_[e] = cycle;
+            env.trigger(e ? ac_ : fc_, ep.reset);
+        }
+    }
+}
+
 void Synth::advance(int n) {
     beats_ += static_cast<double>(n) * beatsPerSample_;
+    envSync(n);
     stepGlide(glide_[0], n);
     stepGlide(glide_[1], n);
     fVel_ = 1.0f - patch_.fenv.vel + patch_.fenv.vel * vel_;
@@ -524,9 +573,14 @@ void Synth::control() {
     const float driftCents[2] = {driftNow_[0] * p.drift * 6.0f + noteDrift_[0], driftNow_[1] * p.drift * 6.0f + noteDrift_[1]};
     const float driftCut = driftNow_[2] * p.drift * 0.6f;
     const float bend = bend_ * (bend_ > 0.0f ? p.bendUp : p.bendDown);
+    const float bend1 = p.bendDest == BD_BOTH || p.bendDest == BD_OSC1 ? bend : 0.0f;
+    const float bend2 = p.bendDest == BD_BOTH || p.bendDest == BD_OSC2 ? bend : 0.0f;
+    // A droning osc 2 follows no key: C3 at 8', its frequency knob reaching +-3 octaves.
+    const bool drone = p.osc2Keys == O2_DRONE;
+    const float key2 = drone ? kDroneNote + p.osc2Semis * (kDroneSpan / 7.0f) : glide_[1].pitch + p.osc2Semis;
     const float pitch[2] = {
-        glide_[0].pitch + 12.0f * static_cast<float>(p.osc[0].octave) + bend + pitchMod[0] + 0.01f * driftCents[0],
-        glide_[1].pitch + 12.0f * static_cast<float>(p.osc[1].octave) + p.osc2Semis + bend + pitchMod[1] + 0.01f * driftCents[1]};
+        glide_[0].pitch + 12.0f * static_cast<float>(p.osc[0].octave) + bend1 + pitchMod[0] + 0.01f * driftCents[0],
+        key2 + 12.0f * static_cast<float>(p.osc[1].octave) + bend2 + pitchMod[1] + 0.01f * driftCents[1]};
     const float drive = clampf(p.drive + driveMod, 0.0f, 1.0f);
     const float driveGain = 1.0f + kDriveSpan * drive * drive;
     const float sd = sinCycle(0.5f * drive);   // sin(pi drive)
@@ -538,7 +592,7 @@ void Synth::control() {
         clampf((noteHz(pitch[1]) + p.beatHz + kBeatRange * beatMod) * invOsr_, 1e-7f, 0.45f),   // Beat Freq: Hz
         clampf(p.osc[0].wave + waveMod[0], 0.0f, 1.0f),
         clampf(p.osc[1].wave + waveMod[1], 0.0f, 1.0f),
-        cutNote_ + clampf(p.keyTrack + 2.0f * kbMod, 0.0f, 2.0f) * (glide_[0].pitch - 60.0f) + cutMod + driftCut,
+        cutNote_ + clampf(p.keyTrack + 2.0f * kbMod, 0.0f, 2.0f) * (glide_[0].pitch - kKeyCentre) + cutMod + driftCut,
         envSemis(clampf(p.envAmount + egAmtMod, -1.0f, 1.0f)) * fVel_,
         resFeedback(clampf(p.res + resMod, 0.0f, 1.0f)),
         kInGain * driveGain,
@@ -643,7 +697,7 @@ void Synth::fastMods(int n, FastRun& r) {
     for (int b = 0; b < 2; ++b)
         if (fast_[b]) {
             const float hz = busHz(bus_[b], patch_.mod[b]);
-            inc[b] = hz * invSr_;
+            inc[b] = hz * invSr_;   // busHz keeps it under 0.25
             if (patch_.mod[b].src == MS_NOISE) {
                 k[b] = noisePole(hz, 1.0f, invSr_);
                 g[b] = noiseGain(k[b]);

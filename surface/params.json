@@ -775,7 +775,9 @@
    "options": [
     "Off",
     "Always",
-    "Legato"
+    "Legato",
+    "Gated",
+    "Legato Gated"
    ],
    "default": "Off"
   },
@@ -1399,6 +1401,152 @@
    "max": 1,
    "default": 0.5,
    "display": "string"
+  },
+  {
+   "key": "m1_kbt",
+   "name": "M1 Key Track",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "m2_kbt",
+   "name": "M2 Key Track",
+   "min": 0,
+   "max": 1,
+   "default": 0.0,
+   "display": "string"
+  },
+  {
+   "key": "fe_exp",
+   "name": "FEG Attack Curve",
+   "options": [
+    "Linear",
+    "Exp"
+   ],
+   "default": "Linear"
+  },
+  {
+   "key": "fe_latch",
+   "name": "FEG Latch",
+   "options": [
+    "Off",
+    "Latch"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "fe_sync",
+   "name": "FEG Sync",
+   "options": [
+    "Off",
+    "8 bars",
+    "4 bars",
+    "2 bars",
+    "1 bar",
+    "1/2",
+    "1/2T",
+    "1/4",
+    "1/4T",
+    "1/4.",
+    "1/8",
+    "1/8T",
+    "1/8.",
+    "1/16",
+    "1/16T",
+    "1/16.",
+    "1/32",
+    "1/32T"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "fe_sync__open",
+   "name": "FEG Sync List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "fe_sync",
+   "type": "enum"
+  },
+  {
+   "key": "ae_exp",
+   "name": "AEG Attack Curve",
+   "options": [
+    "Linear",
+    "Exp"
+   ],
+   "default": "Linear"
+  },
+  {
+   "key": "ae_latch",
+   "name": "AEG Latch",
+   "options": [
+    "Off",
+    "Latch"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "ae_sync",
+   "name": "AEG Sync",
+   "options": [
+    "Off",
+    "8 bars",
+    "4 bars",
+    "2 bars",
+    "1 bar",
+    "1/2",
+    "1/2T",
+    "1/4",
+    "1/4T",
+    "1/4.",
+    "1/8",
+    "1/8T",
+    "1/8.",
+    "1/16",
+    "1/16T",
+    "1/16.",
+    "1/32",
+    "1/32T"
+   ],
+   "default": "Off"
+  },
+  {
+   "key": "ae_sync__open",
+   "name": "AEG Sync List",
+   "options": [
+    "Closed",
+    "Open"
+   ],
+   "default": "Closed",
+   "popup_of": "ae_sync",
+   "type": "enum"
+  },
+  {
+   "key": "o2_kb",
+   "name": "Osc 2 Keys",
+   "options": [
+    "Priority",
+    "High",
+    "Low",
+    "Drone"
+   ],
+   "default": "Priority"
+  },
+  {
+   "key": "bend_dest",
+   "name": "Bend To",
+   "options": [
+    "Osc 1+2",
+    "Osc 1",
+    "Osc 2",
+    "Off"
+   ],
+   "default": "Osc 1+2"
   }
  ]
 }

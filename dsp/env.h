@@ -1,7 +1,8 @@
 #pragma once
 // The DAHDSR envelope: Delay, Attack, Hold, Decay, Sustain, Release, as the original's: a linear
-// attack (its default; EXP ATTACK is an option there), decay settling exponentially on the
-// sustain level, release falling to -80 dB. Loop, while the key is held: delay -> attack -> hold
+// attack (its default) or an exponential one (its EXP ATTACK: an RC charging toward 1.5 and
+// stopping at 1, steep at first), decay settling exponentially on the sustain level, release
+// falling to -80 dB. Loop, while the key is held: delay -> attack -> hold
 // -> decay -> release, and round again, the release stage included as on the original ("delay,
 // attack, hold, decay, and release stages will loop continuously"): with sustain at 0 it is
 // D-A-H-D; with sustain up, decay falls to it and release takes it the rest of the way.
@@ -16,13 +17,18 @@ namespace sf {
 struct EnvTimes {
     float delay = 0.0f, attack = 0.002f, hold = 0.0f, decay = 0.4f, sustain = 0.5f, release = 0.2f;   // seconds; sustain 0..1
     bool  loop = false;
+    bool  expAttack = false;
 };
+
+constexpr float kExpAttackTarget = 1.5f;   // where the exponential attack heads (it stops at 1)
 
 struct EnvCoef {
     int   delayN = 0, holdN = 0;            // samples
-    float att = 1.0f;                       // per-sample attack step (linear: 1 in `attack`)
+    float att = 1.0f;                       // per-sample attack step: linear, 1 in `attack`; exponential,
+                                            // the one-pole step that reaches 1 (from 0) in `attack`
     float dec = 1.0f, rel = 1.0f, sus = 0.5f;   // per-sample one-pole steps
     bool  loop = false;
+    bool  expAttack = false;
 };
 
 // Per-sample one-pole step for a time constant of tau seconds.
@@ -33,7 +39,9 @@ inline EnvCoef envCoef(const EnvTimes& e, float sr, float scale) {
     EnvCoef c;
     c.delayN = static_cast<int>(std::lround(clampf(e.delay * scale, 0.0f, 60.0f) * sr));
     c.holdN = static_cast<int>(std::lround(clampf(e.hold * scale, 0.0f, 60.0f) * sr));
-    c.att = 1.0f / (std::max(e.attack * scale, 1e-5f) * sr);   // 0 to 1 in `attack`
+    c.expAttack = e.expAttack;
+    // Linear: 0 to 1 in `attack`. Exponential: 1.5 (1 - e^(-t / tau)) reaches 1 at t = tau ln 3.
+    c.att = e.expAttack ? onePole(e.attack * scale / 1.098612289f, sr) : 1.0f / (std::max(e.attack * scale, 1e-5f) * sr);
     c.dec = onePole(e.decay * scale / 6.9078f, sr);    // ln(1000): 60 dB of the way at `decay`
     c.rel = onePole(e.release * scale / 6.9078f, sr);
     c.sus = clampf(e.sustain, 0.0f, 1.0f);
@@ -68,7 +76,7 @@ struct Env {
                 if (--count <= 0) stage = E_ATTACK;
                 break;
             case E_ATTACK:
-                v += c.att;
+                v += c.expAttack ? (kExpAttackTarget - v) * c.att : c.att;
                 if (v >= 1.0f) {
                     v = 1.0f;
                     stage = c.holdN > 0 ? E_HOLD : E_DECAY;

@@ -4,6 +4,24 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.4
+
+The rest of the original's manual:
+
+- **Key Track for the busses** (0–200%, the original's LFO KBTRACK): the rate follows the key. In Hi
+  range at 100% the FM follows the keys too and stays harmonic.
+- **Envelopes**: an **exponential attack** (the original's EXP ATTACK, an analog RC curve), **Latch**
+  (the envelope stays as if the key were held: drones, held filter sweeps) and **Sync** (restarts
+  every note value of MPC's tempo while held: gates, rhythmic plucks).
+- **Osc 2 Keys** (the original's KB CTRL): in Duo, oscillator 2 on the highest or the lowest key;
+  Mono or Duo, a **drone** that follows no key (its Freq knob then ±3 octaves).
+- **Gated glide** (Glide: *Gated*, *Legato Gated*): the glide moves only while a key is held.
+- **Bend To**: which oscillators the pitch bend moves (both, osc 1, osc 2, off).
+- **3 presets** that show them: Drone Lead, Harmonic FM, Trance Gate (74 in all).
+- Key tracking still pivots on MIDI 60 (MPC's C3); the original's is MIDI 48 (its C3). Moving it
+  would brighten every saved sound by its Key Track times an octave, for no other change.
+- CPU on the Force: unchanged (Init 2.7%, the heavy patch 3.5% of a block on average).
+
 ## 0.0.3
 
 Closer to the original's modulation, from its manual, and 14 more presets:

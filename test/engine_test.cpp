@@ -479,6 +479,101 @@ void testIdleAndStability() {
     CHECK(20.0 * std::log10(hi / lo) < 2.0);
 }
 
+// The original's envelope options: the exponential attack, the latch, sync.
+void testEnvelopeExtras() {
+    std::printf("== envelopes: exponential attack, latch, sync\n");
+    auto run = [](Synth& s, int samples) {
+        std::vector<float> L(static_cast<size_t>(samples)), R(L.size());
+        for (int b = 0; b < samples; b += 128) s.render(&L[static_cast<size_t>(b)], &R[static_cast<size_t>(b)], std::min(128, samples - b));
+    };
+    // Exponential attack (0.2 s): steep at first, 1.5 (1 - 3^-0.5) = 0.63 half-way where the linear one
+    // is at 0.5, and at the top on time.
+    auto attackAt = [&run](bool exp, int samples) {
+        Patch p = plain();
+        p.aenv.attack = 0.2f;
+        p.aenv.expAttack = exp;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(60, 127);
+        run(s, samples);
+        return s.info().ampEnv;
+    };
+    const float lin = attackAt(false, 4410), exp = attackAt(true, 4410), top = attackAt(true, 8830);
+    std::printf("  attack half-way: linear %.3f, exponential %.3f; exponential at 0.2 s %.3f\n", lin, exp, top);
+    CHECK(std::fabs(lin - 0.5f) < 0.01f && std::fabs(exp - 0.634f) < 0.015f && top > 0.999f);
+
+    // Latch: the amp EG stays at its sustain after the key is up, until the latch goes; MPC's stop
+    // (reset) still silences it. The filter EG latched alone leaves the amp EG to release.
+    Patch p = plain();
+    p.aenv.sustain = 0.7f;
+    p.aenv.release = 0.05f;
+    p.aenv.latch = true;
+    Synth s;
+    s.setPatch(p);
+    s.noteOn(60, 127);
+    run(s, 4410);
+    s.noteOff(60);
+    run(s, 44100);
+    CHECK(!s.info().gate && std::fabs(s.info().ampEnv - 0.7f) < 0.01f && !s.info().silent);
+    p.aenv.latch = false;
+    s.setPatch(p);
+    run(s, 22050);
+    CHECK(s.info().ampEnv == 0.0f && s.info().silent);
+    p.aenv.latch = true;
+    s.setPatch(p);
+    s.noteOn(60, 127);
+    run(s, 4410);
+    s.noteOff(60);
+    s.reset();
+    run(s, 4410);
+    CHECK(s.info().silent);
+    Patch f = plain();
+    f.fenv.decay = 0.05f;
+    f.fenv.sustain = 0.6f;
+    f.fenv.latch = true;
+    f.aenv.release = 0.05f;
+    Synth g;
+    g.setPatch(f);
+    g.noteOn(60, 127);
+    run(g, 4410);
+    g.noteOff(60);
+    run(g, 4410);
+    CHECK(std::fabs(g.info().filterEnv - 0.6f) < 0.01f && g.info().ampEnv < 0.01f);
+
+    // Sync at 1/4 (120 BPM: 0.5 s), the key held: a short filter EG restarts every 0.5 s from the
+    // note while MPC is stopped, on the beat while it plays (the note at beat 0.3: next at 1.0, 0.35 s).
+    Patch e = plain();
+    e.fenv.attack = 0.001f;
+    e.fenv.decay = 0.05f;
+    e.fenv.sustain = 0.0f;
+    e.fenv.sync = 1 + 6;   // 1/4
+    Synth free;
+    free.setPatch(e);
+    free.setTransport(120.0, 0.0, false, false);
+    free.noteOn(60, 127);
+    run(free, 19845);   // 0.45 s: decayed
+    const float before = free.info().filterEnv;
+    run(free, 2425);    // 0.505 s: restarted
+    const float after = free.info().filterEnv;
+    run(free, 17640);   // 0.905 s: decayed again
+    const float before2 = free.info().filterEnv;
+    run(free, 4410);    // 1.005 s: restarted again
+    std::printf("  sync 1/4, stopped: %.3f -> %.3f, %.3f -> %.3f\n", before, after, before2, free.info().filterEnv);
+    CHECK(before < 0.01f && after > 0.3f && before2 < 0.01f && free.info().filterEnv > 0.3f);
+    Synth locked;
+    locked.setPatch(e);
+    locked.setTransport(120.0, 0.3, true, true);
+    locked.noteOn(60, 127);
+    run(locked, 14994);   // 0.34 s
+    const float early = locked.info().filterEnv;
+    run(locked, 662);     // 0.355 s: beat 1.0 has passed
+    CHECK(early < 0.01f && locked.info().filterEnv > 0.3f);
+    // Let go, it stops restarting.
+    locked.noteOff(60);
+    run(locked, 44100);
+    CHECK(locked.info().filterEnv < 1e-3f);
+}
+
 } // namespace
 
 void engineTests() {
@@ -487,6 +582,7 @@ void engineTests() {
     testOscillators();
     testLadder();
     testEnvelopes();
+    testEnvelopeExtras();
     testIdleAndStability();
 }
 

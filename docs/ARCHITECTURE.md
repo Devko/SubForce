@@ -43,7 +43,7 @@ flowchart LR
 | `dsp/simd.h` | Four-float vectors: NEON on the Force, GCC's generic vectors on x86 (the tests run the same arithmetic); NEON reciprocals instead of divisions |
 | `dsp/halfband.h` | The 2x decimator (polyphase IIR halfband); `tools/halfband_design.py` designs it |
 | `dsp/env.h` | The DAHDSR envelope |
-| `dsp/mod.h` | The busses' sources, destinations, controls, rate modes and synced rates |
+| `dsp/mod.h` | The busses' sources, destinations, controls, rate modes and synced rates (also the envelopes' sync) |
 | `dsp/fastmath.h` | exp2, log2, tan, tanh(x)/x, softclip, floor, random numbers |
 | `dsp/stages.h` | Stage timers for the profiling build (`-DSF_STAGE_TIMING`) |
 | `plugin/plugin.cpp` | VST2 glue: MIDI with sample offsets, transport, chunk state, denormal flush, CPU meter |

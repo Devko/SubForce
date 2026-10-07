@@ -190,7 +190,8 @@ for b, (rate, ctl) in ((1, (5.0, "Mod Wheel")), (2, (0.5, "Always"))):
 enum("kmode", "Key Mode", ["Mono", "Duo"], "Mono")                  # KeyMode
 enum("prio", "Note Priority", ["Last", "Low", "High"], "Last")     # Priority
 enum("trig", "Trigger", ["Multi", "Single"], "Multi")              # Trigger
-enum("glide_mode", "Glide", ["Off", "Always", "Legato"], "Off")    # GlideMode
+# GlideMode, then the same gated (the original's GATED: glides move only while a key is held)
+enum("glide_mode", "Glide", ["Off", "Always", "Legato", "Gated", "Legato Gated"], "Off")
 enum("glide_type", "Glide Type", ["Rate", "Time", "Exp"], "Time")  # GlideType
 num("glide", "Glide Time", "log", 0.001, 10, 0.08, "time")
 enum("glide_dest", "Glide Dest", OSC_DESTS, "Osc 1+2")
@@ -225,6 +226,17 @@ for b in (1, 2):   # what scales the bus's depth, added to its Control (the orig
     num(p + "wheel", "M%d Wheel" % b, "lin", -1, 1, 0, "bipct")
     num(p + "vel", "M%d Velocity" % b, "lin", -1, 1, 0, "bipct")
     num(p + "at", "M%d Pressure" % b, "lin", -1, 1, 0, "bipct")
+
+# --- added in 0.0.4 ---
+for b in (1, 2):   # the rate follows the key (the original's LFO KBTRACK)
+    num("m%d_kbt" % b, "M%d Key Track" % b, "lin", 0, 2, 0, "pct")
+for e, name in (("fe", "FEG"), ("ae", "AEG")):   # dsp/env.h, dsp/synth.h EnvPatch; the same keys after the prefix
+    enum(e + "_exp", name + " Attack Curve", ["Linear", "Exp"], "Linear")
+    enum(e + "_latch", name + " Latch", ["Off", "Latch"], "Off")
+    enum(e + "_sync", name + " Sync", ["Off"] + SYNC_DIVS, "Off")
+    popup_flag(e + "_sync")
+enum("o2_kb", "Osc 2 Keys", ["Priority", "High", "Low", "Drone"], "Priority")   # dsp/synth.h Osc2Keys
+enum("bend_dest", "Bend To", ["Osc 1+2", "Osc 1", "Osc 2", "Off"], "Osc 1+2")    # dsp/synth.h BendDest
 
 
 def norm(p):
@@ -285,6 +297,7 @@ THEME = ("style=td3\nfont_label=%s\ntitle_size=%d\n" % (FONT_LABEL, TITLE_SIZE)
 TEXT_INK = PALETTE["ink_dim"]   # free bitmap text (column headers, hints)
 
 S8 = [100, 252, 404, 556, 708, 860, 1012, 1164]   # 8 knob slots across a card = one Q-Link bank
+S9 = [96 + 136 * k for k in range(9)]             # 9 slots (an envelope card)
 L4, R4 = S8[:4], [724, 876, 1028, 1180]           # 4 slots in the left / right half card
 R1, R2 = 158, 440                                 # card rows (h=270), or R1 with h=552
 
@@ -383,12 +396,16 @@ class Layout:
 
 
 def env_card(L, top, e, title):
-    """A DAHDSR envelope: six knobs, then Loop and Reset."""
+    """A DAHDSR envelope: six knobs; Loop over Reset, Latch over the attack curve; Sync."""
     L.card(24, top, 1232, 270, title)
-    for cx, k in zip(S8, ("dly", "a", "hold", "d", "s", "r")):
+    for cx, k in zip(S9, ("dly", "a", "hold", "d", "s", "r")):
         L.knob(cx, top + 126, "%s_%s" % (e, k))
-    L.vseg(S8[6], top + 160, e + "_loop", label="LOOP")
-    L.vseg(S8[7], top + 160, e + "_reset", label="RESET")
+    for cx, (k1, l1), (k2, l2) in ((S9[6], ("loop", "LOOP"), ("reset", "RESET")),
+                                   (S9[7], ("latch", "LATCH"), ("exp", "ATTACK"))):
+        L.vseg(cx, top + 112, "%s_%s" % (e, k1), label=l1)
+        L.vseg(cx, top + 212, "%s_%s" % (e, k2), label=l2)
+    L.text(S9[8], top + 86, "SYNC")
+    L.popup(S9[8], top + 126, 120, e + "_sync")
 
 
 def pages():
@@ -456,6 +473,7 @@ def pages():
         L.text(760, top + 150, "DESTINATION")
         L.popup(760, top + 190, 200, p + "dest")
         L.knob(940, top + 176, p + "amt")
+        L.knob(S8[7], top + 176, p + "kbt")
     L.qlinks("MOD 1+2", ["m%d_%s" % (b, k) for b in (1, 2)
                          for k in ("rate", "pitch", "filter", "amt", "src", "dest", "ctl", "sync")])
 
@@ -488,10 +506,12 @@ def pages():
     L.hseg(1000, R1 + 96, "trig", 120, label="TRIGGER")
     for cx, k in zip(S8, ("bend_up", "bend_dn")):
         L.knob(cx, R1 + 172, k)
+    L.hseg(560, R1 + 190, "bend_dest", 100, label="BEND TO")
+    L.hseg(1020, R1 + 190, "o2_kb", 100, label="OSC 2 KEYS")
     L.card(24, R2, 608, 270, "GLIDE")
-    L.vseg(100, R2 + 160, "glide_mode", label="GLIDE")
-    L.vseg(240, R2 + 160, "glide_type", label="TYPE")
-    L.vseg(380, R2 + 160, "glide_dest", label="OSC")
+    L.vseg(100, R2 + 160, "glide_mode", label="GLIDE")   # five options: its top lines up with the others'
+    L.vseg(240, R2 + 128, "glide_type", label="TYPE")
+    L.vseg(380, R2 + 128, "glide_dest", label="OSC")
     L.knob(530, R2 + 126, "glide")
     L.card(648, R2, 608, 270, "PATCH")
     L.stepper(888, R2 + 76, 440, "preset")
@@ -499,8 +519,8 @@ def pages():
     L.button(846, R2 + 204, "INIT", "pre_init")
     L.button(980, R2 + 204, "RANDOM", "pre_rand")
     L.knob(1186, R2 + 76, "rand_amt", "small")
-    L.qlinks("KEYS", ["kmode", "prio", "trig", "glide_mode", "glide_type", "glide", "glide_dest", "bend_up",
-                      "bend_dn", "preset", "rand_amt", "volume"])
+    L.qlinks("KEYS", ["kmode", "prio", "trig", "o2_kb", "glide_mode", "glide_type", "glide", "glide_dest",
+                      "bend_up", "bend_dn", "bend_dest", "preset", "rand_amt", "volume"])
 
     # DEPTH: what scales each bus (its Control, plus the wheel, velocity and pressure amounts).
     L.tab("DEPTH")

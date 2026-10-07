@@ -1,5 +1,6 @@
-// How keys become notes: priority, single and multi trigger, the sustain pedal, Duo, and glide
-// (Rate, Time, Exp; Always or Legato; which oscillators).
+// How keys become notes: priority, single and multi trigger, the sustain pedal, Duo, oscillator 2's
+// keys (High, Low, Drone), the bend's oscillators, and glide (Rate, Time, Exp; Always or Legato;
+// gated; which oscillators).
 #include "host.h"
 #include "../dsp/synth.h"
 
@@ -321,6 +322,92 @@ void testGlide() {
     CHECK(during > 115.0 && during < 190.0 && std::fabs(pitchHz(h.L, h.L.size() / 2) - 220.0) < 0.5);
 }
 
+// Oscillator 2's keys (the original's KB CTRL), the pitch bend's oscillators, gated glide.
+void testOsc2KeysBendGate() {
+    std::printf("== osc 2's keys, the bend's oscillators, gated glide\n");
+    // Duo High: osc 2 on the highest key, osc 1 on the lowest, whatever the order and priority;
+    // Low the other way round.
+    for (int mode : {sf::O2_HIGH, sf::O2_LOW}) {
+        Patch p;
+        p.keyMode = sf::KM_DUO;
+        p.priority = sf::PR_LAST;
+        p.osc2Keys = mode;
+        Rig r(p);
+        for (int n : {60, 48, 72, 55}) r.s.noteOn(n, 100);
+        r.run(64);
+        const bool high = mode == sf::O2_HIGH;
+        CHECK(r.s.info().note1 == (high ? 48 : 72) && r.s.info().note2 == (high ? 72 : 48));
+        r.s.noteOff(72);
+        r.run(64);
+        CHECK(r.s.info().note1 == (high ? 48 : 60) && r.s.info().note2 == (high ? 60 : 48));
+    }
+    // Mono: High changes nothing (both oscillators on the key by priority).
+    Patch m;
+    m.osc2Keys = sf::O2_HIGH;
+    Rig mono(m);
+    mono.s.noteOn(60, 100);
+    mono.s.noteOn(48, 100);
+    mono.run(64);
+    CHECK(mono.s.info().note1 == 48 && mono.s.info().note2 == 48);
+
+    // The pitch of one oscillator alone, `note` played, the bend up (2 st) or not.
+    auto pitchOf = [](Patch p, int osc, int note, bool bend) {
+        p.cutoffHz = 20000.0f;
+        p.drift = 0.0f;
+        p.envAmount = 0.0f;
+        p.mixOsc1 = osc == 1 ? 0.8f : 0.0f;
+        p.mixOsc2 = osc == 2 ? 0.8f : 0.0f;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(note, 100);
+        if (bend) s.pitchBend(1.0f);
+        std::vector<float> L(22050), R(L.size());
+        for (size_t b = 0; b < L.size(); b += 128) s.render(&L[b], &R[b], static_cast<int>(std::min<size_t>(128, L.size() - b)));
+        return pitchHz(L, 4410, L.size());
+    };
+    // Drone: osc 2 at C3 whatever the key; its frequency knob reaches +-3 octaves.
+    Patch d;
+    d.osc2Keys = sf::O2_DRONE;
+    CHECK(std::fabs(pitchOf(d, 2, 45, false) - 261.63) < 0.3 && std::fabs(pitchOf(d, 2, 81, false) - 261.63) < 0.3);
+    CHECK(std::fabs(pitchOf(d, 1, 45, false) - 110.0) < 0.2);   // osc 1 still plays the key
+    d.osc2Semis = 7.0f;   // +36 st: C6
+    CHECK(std::fabs(pitchOf(d, 2, 45, false) - 2093.0) < 3.0);
+    d.osc2Semis = -3.5f;  // -18 st
+    CHECK(std::fabs(pitchOf(d, 2, 45, false) - 92.5) < 0.2);
+
+    // Bend To: which oscillators the bend moves (2 st up: 220 -> 246.9 Hz).
+    const double up = 246.94, still = 220.0;
+    for (int dest : {sf::BD_BOTH, sf::BD_OSC1, sf::BD_OSC2, sf::BD_OFF}) {
+        Patch b;
+        b.bendDest = dest;
+        const double o1 = pitchOf(b, 1, 57, true), o2 = pitchOf(b, 2, 57, true);
+        const bool b1 = dest == sf::BD_BOTH || dest == sf::BD_OSC1, b2 = dest == sf::BD_BOTH || dest == sf::BD_OSC2;
+        CHECK(std::fabs(o1 - (b1 ? up : still)) < 0.3 && std::fabs(o2 - (b2 ? up : still)) < 0.3);
+    }
+
+    // Gated glide: a 1 s glide stops where it is when the key goes up; not gated, it goes on.
+    for (bool gated : {true, false}) {
+        Patch g;
+        g.glideMode = sf::GL_ALWAYS;
+        g.glideType = sf::GT_TIME;
+        g.glideTime = 1.0f;
+        g.glideGated = gated;
+        Rig r(g);
+        r.s.noteOn(48, 100);
+        r.run(441);
+        r.s.noteOff(48);
+        r.s.noteOn(60, 100);
+        r.run(11025);   // a quarter of the way
+        r.s.noteOff(60);
+        const float at = r.s.info().pitch1;
+        r.run(11025);
+        const float later = r.s.info().pitch1;
+        std::printf("  %s glide: %.2f st at the release, %.2f a quarter second later\n", gated ? "gated" : "free", at, later);
+        if (gated) CHECK(std::fabs(at - 51.0f) < 0.1f && std::fabs(later - at) < 1e-4f);
+        else CHECK(std::fabs(later - 54.0f) < 0.1f);
+    }
+}
+
 } // namespace
 
 void keyTests() {
@@ -328,6 +415,7 @@ void keyTests() {
     testRestrike();
     testDuo();
     testGlide();
+    testOsc2KeysBendGate();
 }
 
 } // namespace sft
