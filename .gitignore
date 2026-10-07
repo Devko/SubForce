@@ -3,3 +3,4 @@ dist/
 surface/build/
 __pycache__/
 local.mk
+showreel/out/
