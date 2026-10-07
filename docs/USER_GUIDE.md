@@ -132,7 +132,9 @@ default; decay and release fall exponentially (the times are to −60 dB).
   Snappier on short attacks, a swell that blooms early on long ones.
 - **Latch**: once a note has started it, the envelope stays as if the key were held — at its sustain,
   or looping — after the key is up (the original's LATCH ON). Latch the amp EG for a drone that
-  keeps sounding; switch Latch off to let it release. MPC's stop silences it.
+  keeps sounding; switch Latch off, stop MPC's transport or send all notes off (CC 123) to let it
+  release. A latched amp EG keeps the voice running (and its share of the CPU) even at a sustain of
+  0: turn the sustain up and the sound comes back, as on the original.
 - **Sync**: while the key is held (or the envelope latched) it restarts every note value of MPC's
   tempo, 8 bars to 1/32T — on the bar's grid while MPC plays, counted from the note while it is
   stopped. With the amp EG's sustain low: a trance gate (*Pad / Trance Gate*); on the filter EG:
@@ -156,13 +158,15 @@ default; decay and release fall exponentially (the times are to −60 dB).
   without a new attack. *Single* only when the gate was closed (legato phrases play on one
   envelope).
 - **Glide**: *Off*, *Always*, or *Legato* (only between overlapping keys); *Gated* and *Legato
-  Gated* are the same, the original's GATED: the glide moves only while a key is held, and stops
-  where it is when you let go (the next note glides on from there). **Type**: *Rate* (the time per
+  Gated* are those two gated, the original's GATED: the glide moves only while a key (or the
+  sustain pedal) holds the gate, and stops where it is when you let go. With *Gated* the next note
+  glides on from there; with *Legato Gated* a detached next note starts at its own pitch. **Type**: *Rate* (the time per
   octave: big leaps take longer), *Time* (every glide takes the same time), *Exp* (exponential, fast
   then slow, like an RC). **Osc**: which oscillators glide.
 - **Bend Up / Down**: the pitch bend range, 0–24 semitones each way. **Bend To**: which oscillators
-  the bend moves — both, one, or *Off* (the bend free for a mod bus, or to bend one oscillator
-  against the other).
+  the bend moves — both, one (to bend one against the other), or *Off*: the pitch wheel then does
+  only what a bus with **Pitch Bend** as its source makes of it (a wheel for the filter, the wave,
+  osc 2 alone by an interval).
 - The sustain pedal keeps the last note sounding until it lifts. While it holds the gate open, the
   next key plays legato, as on the original: Single doesn't restart the envelopes and Legato glide
   glides.
@@ -173,7 +177,7 @@ Two identical busses. Each takes one **source** and sends it to three places at 
 
 | | |
 |---|---|
-| **Source** | LFO shapes: Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Sine, Noise (random, the rate its speed). Envelopes: Filter EG, Amp EG. Players: Velocity, Aftertouch, Key (the key against C3: +1 two octaves up, −1 two down), Constant (always 1: with Control, the wheel, velocity or pressure itself) |
+| **Source** | LFO shapes: Triangle, Square, Saw (falling), Ramp (rising), S&H (a new random value each cycle), Smooth (gliding random), Sine, Noise (random, the rate its speed). Envelopes: Filter EG, Amp EG. Players: Velocity, Aftertouch, Key (the key against C3: +1 two octaves up, −1 two down), Constant (always 1: with Control, the wheel, velocity or pressure itself), Pitch Bend (the pitch wheel, −1..1) |
 | **Rate** / **Rate Mode** / **Sync Rate** | *Free* 0.05–100 Hz, *Sync* a note value of MPC's tempo (8 bars to 1/32T), or *Hi* 0.5–1000 Hz (the knob ×10; the value shows the real rate) |
 | **Key Track** | 0–200%: the rate follows the key, around C3 (100%: twice as fast an octave up); free and Hi rates |
 | **Trigger** | *Free*: runs on its own (a synced bus locks to the bar while MPC plays, unless the other bus is modulating its rate); *Retrig*: restarts at every new note |
@@ -294,12 +298,12 @@ Most of his sound is in the effects: put a long reverb (or two) and a delay on t
 | Message | Does |
 |---|---|
 | Note on / off | play (velocity per the EG velocity settings) |
-| Pitch bend | ± the bend ranges |
-| CC 1 (mod wheel) | a bus's depth, if its control is Mod Wheel |
-| Channel pressure | a bus's depth, if its control is Aftertouch |
+| Pitch bend | ± the bend ranges, on the oscillators Bend To names; a bus's source (Pitch Bend) |
+| CC 1 (mod wheel) | a bus's depth: its Control (Mod Wheel), its Wheel amount (DEPTH) |
+| Channel pressure | a bus's depth: its Control (Aftertouch), its Pressure amount (DEPTH); a bus's source (Aftertouch) |
 | Poly aftertouch | the same, from the sounding key's own pressure (what MPC's pads send) |
 | CC 64 | sustain pedal (re-striking a held key retriggers in Multi) |
 | Note on for a key already down | restrikes it (Multi retriggers); one note-off then releases it: a key is either down or up, as on a keyboard |
-| CC 120 / 121 / 123 | all sound off / reset all controllers (bend, wheel, pressure, pedal) / all notes off |
+| CC 120 / 121 / 123 | all sound off / reset all controllers (bend, wheel, pressure, pedal) / all notes off (latched envelopes too) |
 
 SubForce listens on every MIDI channel.

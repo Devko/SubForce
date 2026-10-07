@@ -13,9 +13,9 @@
 MPC renders 128-frame blocks: **2902 µs per block**, per plugin instance. A plugin passes at
 **p99 ≤ 15%** and **max ≤ 50%** of the block (warns up to 35% / 80%), the rule PolyForce uses.
 
-SubForce is one voice, so its cost depends little on the patch: Init (one saw) and everything at
-full differ by under 1% of the block; only noise and the feedback loop add work, and only while
-they are up.
+SubForce is one voice, so its cost depends little on the patch: Init (one saw) and the heaviest
+case (everything on, both busses in Hi range) differ by about 1.5% of the block; only noise, the
+feedback loop, Analog and Hi-range busses add work, and only while they are up.
 
 ## Measurements
 
@@ -28,6 +28,10 @@ percent of the 2902 µs block, the profile-guided build:
 | Init, one held note | 3.64% / 4.09% | 2.79% / 3.31% |
 | heavy patch, Duo (noise and feedback on) | 3.70% / 4.19% | 3.55% / 4.07% |
 | heavy, retrig + glide every 50 ms | 3.75% / 4.28% | 3.60% / 4.15% |
+
+0.0.5 (2026-10-07, Analog up in every case: the default 25%, the heavy patches 100%): idle 0.21%,
+Init 2.85% / 3.21%, heavy 3.71% / 4.10%, both busses in Hi range 4.33% / 4.68%, EG Time LFO and Hi FM
+4.06% / 4.45% (avg / p99).
 
 0.0.3 (2026-10-07, the same device and build): idle 0.17% / 0.24%, Init 2.65% / 3.04%, heavy
 3.49% / 4.06%, retrig + glide 3.55% / 4.00% — the existing cases unchanged — and two new ones: the

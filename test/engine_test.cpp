@@ -568,10 +568,89 @@ void testEnvelopeExtras() {
     const float early = locked.info().filterEnv;
     run(locked, 662);     // 0.355 s: beat 1.0 has passed
     CHECK(early < 0.01f && locked.info().filterEnv > 0.3f);
-    // Let go, it stops restarting.
+    // Let go, it stops restarting: from the release on it only falls.
     locked.noteOff(60);
-    run(locked, 44100);
-    CHECK(locked.info().filterEnv < 1e-3f);
+    float last = locked.info().filterEnv;
+    bool falls = true;
+    for (int b = 0; b < 345; ++b) {
+        run(locked, 128);
+        falls = falls && locked.info().filterEnv <= last + 1e-6f;
+        last = locked.info().filterEnv;
+    }
+    CHECK(falls && last < 1e-3f);
+
+    // The exponential attack from where the envelope is (Reset off): the RC curve's remaining part,
+    // 1.5 (1 - e^-t/tau) from 0.5 reaches the top at ln 2 / ln 3 = 63% of the attack time.
+    Patch x = plain();
+    x.aenv.attack = 0.2f;
+    x.aenv.expAttack = true;
+    x.aenv.sustain = 0.5f;
+    x.aenv.decay = 0.001f;
+    x.aenv.release = 10.0f;
+    Synth r;
+    r.setPatch(x);
+    r.noteOn(60, 127);
+    run(r, 22050);   // at the sustain, 0.5
+    r.noteOff(60);
+    run(r, 8);       // releasing (10 s: still 0.5)
+    r.noteOn(60, 127);
+    int reach = 0;
+    while (r.info().ampEnv < 0.999f && reach < 44100) {
+        run(r, 8);
+        reach += 8;
+    }
+    std::printf("  exponential attack from 0.5: at the top after %.0f ms (63%% of 200: 126)\n", reach / 44.1);
+    CHECK(std::fabs(reach / 44.1 - 126.0) < 4.0);
+
+    // A latched envelope with EG Sync keeps restarting after the key is up; MPC stopping (the
+    // transport) or all notes off (CC 123) lets a latched envelope go.
+    Patch ls = plain();
+    ls.fenv.attack = 0.001f;
+    ls.fenv.decay = 0.05f;
+    ls.fenv.sustain = 0.0f;
+    ls.fenv.latch = true;
+    ls.fenv.sync = 1 + 6;   // 1/4: 0.5 s at 120 BPM
+    Synth sl;
+    sl.setPatch(ls);
+    sl.setTransport(120.0, 0.0, false, false);
+    sl.noteOn(60, 127);
+    run(sl, 4410);
+    sl.noteOff(60);
+    run(sl, 17640);   // 0.5 s
+    run(sl, 220);     // 0.505 s: restarted with no key down
+    CHECK(sl.info().filterEnv > 0.3f && !sl.info().gate);
+    Patch la = plain();
+    la.aenv.sustain = 0.7f;
+    la.aenv.release = 0.02f;
+    la.aenv.latch = true;
+    for (int how = 0; how < 2; ++how) {
+        Synth s;
+        s.setPatch(la);
+        s.setTransport(120.0, 0.0, true, true);
+        s.noteOn(60, 127);
+        run(s, 4410);
+        s.noteOff(60);
+        run(s, 4410);
+        const bool held = std::fabs(s.info().ampEnv - 0.7f) < 0.01f;
+        if (how == 0) s.setTransport(120.0, 0.2, false, true);   // MPC stops
+        else s.allNotesOff();                                    // CC 123
+        run(s, 4410);
+        CHECK(held && s.info().ampEnv < 0.01f);
+    }
+
+    // EG Sync, a sequenced note a hair before a unit starts (beat 0.9999 at 120 BPM: 2 samples):
+    // it belongs to that unit, no restart a few samples into the note (Reset On would click).
+    Patch eb = plain();
+    eb.fenv.attack = 0.002f;
+    eb.fenv.sustain = 1.0f;
+    eb.fenv.reset = true;
+    eb.fenv.sync = 1 + 6;
+    Synth sb;
+    sb.setPatch(eb);
+    sb.setTransport(120.0, 0.9999, true, true);
+    sb.noteOn(60, 127);
+    run(sb, 24);
+    CHECK(sb.info().filterEnv > 0.2f);   // 24 of 88 samples into the attack (restarted: 16 of 88)
 }
 
 // Analog (the knob that was Drift): at 0 the ideal oscillators; up, a real unit's.
@@ -586,13 +665,13 @@ void testAnalog() {
         std::vector<float> x(32768 + 2048);
         bool wr = false;
         float wx = 0.0f;
-        double mean = 0.0;
         for (float& v : x) {
             const float a = o.tick(dt, sh, wr, wx), b = o.tick(dt, sh, wr, wx);
             v = d.process(a, b);
-            mean += v;
         }
         x.erase(x.begin(), x.begin() + 2048);
+        double mean = 0.0;
+        for (float v : x) mean += v;
         const double alias = worstAliasDb(x, noteHzD(note));
         std::printf("  bowed saw, note %d: worst alias %.1f dB\n", note, alias);
         CHECK(alias < -50.0 && std::fabs(mean / static_cast<double>(x.size())) < 0.005);
@@ -652,36 +731,86 @@ void testAnalog() {
     std::printf("  square's 2nd harmonic: %.1f dB ideal, up to %.1f dB over 8 units\n", even0, even);
     CHECK(even0 < -80.0 && even > -45.0 && even < -25.0);
 
-    // Every note a little different (shape, cutoff, resonance): the same key twice, its level over
-    // whole cycles (66 at 220 Hz in 0.3 s).
+    // Every note a little different: the same key twice, its wave's shape (the 2nd harmonic against
+    // the 1st, the filter open, each read at the note's own pitch: drift doesn't move it).
     auto twice = [](float analog) {
         Patch p = plain();
         p.drift = analog;
         p.osc[0].wave = 0.4f;
-        p.cutoffHz = 800.0f;
-        p.res = 0.3f;
         Synth s;
         s.setPatch(p);
         std::vector<float> L(22050), R(L.size());
-        double level[2] = {};
+        double h21[2] = {};
         for (int k = 0; k < 2; ++k) {
             s.noteOn(57, 100);
             s.render(L.data(), R.data(), 22050);
-            level[k] = rms(L, 22050 - 13230, 22050);
+            const std::vector<float> x(L.begin() + 8820, L.end());
+            const double f0 = pitchHz(x);
+            h21[k] = 20.0 * std::log10(toneAmp(x, 2.0 * f0) / toneAmp(x, f0));
             s.noteOff(57);
             s.render(L.data(), R.data(), 22050);
         }
-        return std::fabs(level[1] - level[0]) / level[0];
+        return std::fabs(h21[1] - h21[0]);
     };
     const double n0 = twice(0.0f), n1 = twice(1.0f);
-    std::printf("  the same key twice: %.5f%% apart at 0, %.3f%% at full\n", 100.0 * n0, 100.0 * n1);
-    CHECK(n0 < 1e-4 && n1 > 2e-3);
+    std::printf("  the same key twice: its 2nd harmonic %.4f dB apart at 0, %.3f dB at full\n", n0, n1);
+    CHECK(n0 < 0.005 && n1 > 0.05);
 
-    // A project keeps its unit (its state's unit=); a project without one, or a preset, leaves it.
-    Host h;
-    CHECK(h.chunk().find("\nunit=") != std::string::npos);
-    CHECK(h.load("subforce 1\nf_cut=500\nunit=12345\n") == 1 && h.chunk().find("\nunit=12345\n") != std::string::npos);
-    CHECK(h.load("subforce 1\nf_cut=600\n") == 1 && h.chunk().find("\nunit=12345\n") != std::string::npos);
+    // A project keeps its unit (its state's unit=); one saved before units is unit 1, whatever its
+    // values (a level being matched mustn't change the instrument).
+    auto unitOf = [](Host& host) {
+        const std::string c = host.chunk();
+        const size_t at = c.find("\nunit=");
+        return at == std::string::npos ? std::string() : c.substr(at + 6, c.find('\n', at + 1) - at - 6);
+    };
+    {
+        Host h;
+        CHECK(!unitOf(h).empty());
+        CHECK(h.load("subforce 1\nf_cut=500\nunit=12345\n") == 1 && unitOf(h) == "12345");
+        CHECK(h.load("subforce 1\nf_cut=600\n") == 1 && unitOf(h) == "1" && h.load("subforce 1\nf_cut=700\n") == 1 &&
+              unitOf(h) == "1");
+        // A preset never changes it.
+        h.load("subforce 1\nunit=12345\n");
+        h.press(sf::P_PRE_INIT);
+        CHECK(unitOf(h) == "12345" && std::fabs(h.get(sf::P_F_CUT) - sf::PARAM_INFO[sf::P_F_CUT].def) < 1e-5f);
+    }
+    // No two live instances the same unit: a state that would make one the unit another already is
+    // (a duplicated track) gives it the next free one; alone, it is that unit again.
+    {
+        Host a, b;
+        CHECK(a.load("subforce 1\nunit=777\n") == 1 && b.load("subforce 1\nunit=777\n") == 1 && unitOf(a) == "777" &&
+              !unitOf(b).empty() && unitOf(b) != "777");
+    }
+    Host c;
+    CHECK(c.load("subforce 1\nunit=777\n") == 1 && unitOf(c) == "777");
+
+    // The unit reaches the sound: a project's unit plays as that unit did, another unit doesn't.
+    auto playUnit = [](const char* state) {
+        Host h;
+        h.bare();
+        h.set(sf::P_DRIFT, 1.0f);
+        h.load(state);
+        h.on(45);
+        h.run(kBlocksPerSec / 2);
+        return h.L;
+    };
+    const auto u111 = playUnit("subforce 1\nunit=111\n"), again = playUnit("subforce 1\nunit=111\n"),
+               u222 = playUnit("subforce 1\nunit=222\n");
+    double same = 0.0, other = 0.0;
+    for (size_t i = 0; i < u111.size(); ++i) {
+        same = std::max(same, std::fabs(static_cast<double>(u111[i]) - again[i]));
+        other = std::max(other, std::fabs(static_cast<double>(u111[i]) - u222[i]));
+    }
+    CHECK(same == 0.0 && other > 1e-3);
+
+    // A bus's rate text depends on its rate mode (x10 in Hi): switching the mode tells MPC to
+    // re-read the texts.
+    Host t;
+    t.run(8);
+    const int before = t.log.updates;
+    t.set(sf::P_M1_SYNC, sf::RM_HI);
+    t.run(8);
+    CHECK(t.log.updates > before && t.display(sf::P_M1_RATE) == "50 Hz");
 }
 
 } // namespace

@@ -235,8 +235,10 @@ private:
     float sourceValue(const Bus& b, int src) const;
     void  newCycle(Bus& b);
     void  fastMods(int n, FastRun& r);
-    void  envCoefs();
+    void  envCoefs(bool fast = false);
     void  analogSetup();
+    float busDepth(const ModPatch& m) const;
+    void  noteTimeMods();
     float fastStep(Drift& d, int n);
     void  releaseEnvs();
     void  envSync(int n);
@@ -309,6 +311,7 @@ private:
     float egTimeMul_[2] = {1.0f, 1.0f};   // filter / amp EG times from the busses (EG Time)
     double envBeats_[2] = {};             // EG Sync: beats since the envelope's note (MPC stopped)...
     double envCycle_[2] = {};             // ...and the sync unit it restarted at last
+    bool   envSkip_[2] = {};              // a note a control step before a unit: that unit's start isn't a restart
     float glideMul_ = 1.0f;               // glide times from the busses (Glide Time)
     float driftNow_[3] = {};
     Drift drift_[3];          // osc 1, osc 2, cutoff

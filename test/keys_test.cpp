@@ -327,10 +327,11 @@ void testOsc2KeysBendGate() {
     std::printf("== osc 2's keys, the bend's oscillators, gated glide\n");
     // Duo High: osc 2 on the highest key, osc 1 on the lowest, whatever the order and priority;
     // Low the other way round.
+    for (int prio : {sf::PR_LAST, sf::PR_LOW, sf::PR_HIGH})
     for (int mode : {sf::O2_HIGH, sf::O2_LOW}) {
         Patch p;
         p.keyMode = sf::KM_DUO;
-        p.priority = sf::PR_LAST;
+        p.priority = prio;
         p.osc2Keys = mode;
         Rig r(p);
         for (int n : {60, 48, 72, 55}) r.s.noteOn(n, 100);
@@ -385,6 +386,57 @@ void testOsc2KeysBendGate() {
         CHECK(std::fabs(o1 - (b1 ? up : still)) < 0.3 && std::fabs(o2 - (b2 ? up : still)) < 0.3);
     }
 
+    // Duo with a droning osc 2 plays as Mono: a second key is no new note (no retrigger, one voice).
+    Patch dd;
+    dd.keyMode = sf::KM_DUO;
+    dd.priority = sf::PR_LOW;
+    dd.osc2Keys = sf::O2_DRONE;
+    dd.fenv.attack = 0.001f;
+    dd.fenv.decay = 0.05f;
+    dd.fenv.sustain = 0.0f;
+    Rig dr(dd);
+    dr.s.noteOn(48, 100);
+    dr.run(13230);   // 0.3 s: the filter EG has decayed
+    dr.s.noteOn(52, 100);
+    dr.run(220);
+    CHECK(dr.s.info().filterEnv < 0.01f && dr.s.activeVoices() == 1 && dr.s.info().note1 == 48);
+
+    // Bend To Off with Pitch Bend as a bus's source: the bend moves only what the bus says.
+    Patch pb;
+    pb.bendDest = sf::BD_OFF;
+    pb.mod[0].src = sf::MS_BEND;
+    pb.mod[0].control = sf::MC_ALWAYS;
+    pb.mod[0].pitch = std::sqrt(7.0f / 24.0f);   // 7 st
+    pb.mod[0].pitchDest = sf::OD_OSC2;
+    CHECK(std::fabs(pitchOf(pb, 1, 57, true) - 220.0) < 0.3 && std::fabs(pitchOf(pb, 2, 57, true) - 329.63) < 0.5);
+
+    // Velocity on Glide Time is this note's, not the last one's: a hard note, then a soft one
+    // overlapping it (x2 at full velocity, x1 at almost none): the soft note's glide takes 0.1 s.
+    Patch gv;
+    gv.glideMode = sf::GL_ALWAYS;
+    gv.glideType = sf::GT_TIME;
+    gv.glideTime = 0.1f;
+    gv.mod[1].src = sf::MS_VELOCITY;
+    gv.mod[1].control = sf::MC_ALWAYS;
+    gv.mod[1].dest = sf::MD_GLIDE;
+    gv.mod[1].amount = 1.0f / 3.0f;
+    Rig vr(gv);
+    vr.s.noteOn(45, 127);
+    vr.run(4410);
+    vr.s.noteOn(57, 1);
+    vr.run(4410 + 64);
+    CHECK(std::fabs(vr.s.info().pitch1 - 57.0f) < 0.05f);
+    // ...and Key on it stays within x8 at the keyboard's top (Key reaches 2.8 there).
+    Patch gk = gv;
+    gk.mod[1].src = sf::MS_KEY;
+    gk.mod[1].amount = 1.0f;
+    Rig kr(gk);
+    kr.s.noteOn(60, 100);
+    kr.run(441);
+    kr.s.noteOn(127, 100);   // the key source at 127: (127 - 60) / 24 = 2.8 -> clamped to x8: 0.8 s
+    kr.run(17640);            // 0.4 s: half-way
+    CHECK(std::fabs(kr.s.info().pitch1 - 93.5f) < 1.5f);
+
     // Gated glide: a 1 s glide stops where it is when the key goes up; not gated, it goes on.
     for (bool gated : {true, false}) {
         Patch g;
@@ -405,6 +457,24 @@ void testOsc2KeysBendGate() {
         std::printf("  %s glide: %.2f st at the release, %.2f a quarter second later\n", gated ? "gated" : "free", at, later);
         if (gated) CHECK(std::fabs(at - 51.0f) < 0.1f && std::fabs(later - at) < 1e-4f);
         else CHECK(std::fabs(later - 54.0f) < 0.1f);
+        if (!gated) continue;
+        // The next note glides on from where it stopped (1 s for any interval: 51 -> 48, a quarter).
+        r.s.noteOn(48, 100);
+        r.run(11025);
+        CHECK(std::fabs(r.s.info().pitch1 - 50.25f) < 0.1f);
+        // The pedal holds the gate open: with the key up and the pedal down the glide goes on.
+        r.s.noteOff(48);
+        r.s.noteOn(60, 100);
+        r.run(11025);
+        const float held = r.s.info().pitch1;
+        r.s.sustain(true);
+        r.s.noteOff(60);
+        r.run(11025);
+        CHECK(r.s.info().pitch1 > held + 2.0f);
+        r.s.sustain(false);   // and lifting it stops it
+        const float stop = r.s.info().pitch1;
+        r.run(11025);
+        CHECK(std::fabs(r.s.info().pitch1 - stop) < 1e-4f);
     }
 }
 

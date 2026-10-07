@@ -104,11 +104,11 @@ int main() {
         set(sf::P_O2_KB, k % 4);
         set(sf::P_BEND_DEST, (k / 2) % 4);
         set(sf::P_GLIDE_MODE, k % 5);
-        for (int e = 0; e < 2; ++e) {   // the envelopes' 0.0.4 options
-            const int d = e * (sf::P_AE_EXP - sf::P_FE_EXP);
-            set(sf::P_FE_EXP + d, (k + e) % 2);
-            set(sf::P_FE_LATCH + d, k % 7 == 3 + e ? 1 : 0);
-            set(sf::P_FE_SYNC + d, k % 3 == e ? 1 + (k % sf::kNumSyncDivs) : 0);
+        for (int env = 0; env < 2; ++env) {   // the envelopes' 0.0.4 options
+            const int d = env * (sf::P_AE_EXP - sf::P_FE_EXP);
+            set(sf::P_FE_EXP + d, (k + env) % 2);
+            set(sf::P_FE_LATCH + d, k % 7 == 3 + env ? 1 : 0);
+            set(sf::P_FE_SYNC + d, k % 3 == env ? 1 + (k % sf::kNumSyncDivs) : 0);
         }
         for (int b = 0; b < 2; ++b) {
             const int d = b * (sf::P_M2_SRC - sf::P_M1_SRC), a = b * (sf::P_M2_WHEEL - sf::P_M1_WHEEL);

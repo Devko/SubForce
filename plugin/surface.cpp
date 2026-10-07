@@ -124,6 +124,9 @@ void Surface::set(int i, float n) {
     apply(i, n);
     shown();
     if (k != Kind::Synth) refresh();   // a sound parameter's text is computed when MPC asks
+    // ...but a text that depends on another parameter (a bus's rate shows x10 in Hi range) has to
+    // be re-read: MPC only does when told.
+    if (i == P_M1_SYNC || i == P_M2_SYNC) textGen_.fetch_add(1, std::memory_order_release);
 }
 
 void Surface::beginBatch() {
@@ -529,7 +532,7 @@ void Surface::setPresetKey(const std::string& key) {
 
 // --- audio thread -------------------------------------------------------------------------
 
-bool Surface::snapshot(float* out) const {
+bool Surface::snapshot(float* out, uint32_t* unit) const {
     const uint32_t before = batchSeq_.load(std::memory_order_acquire);
     if (before & 1u) return false;   // a preset is half written
     // Sound parameters only; not what the surface keeps for itself (browser tiles, the stepper,
@@ -537,9 +540,11 @@ bool Surface::snapshot(float* out) const {
     float tmp[P_COUNT];
     for (int i = 0; i < P_COUNT; ++i)
         tmp[i] = PARAM_INFO[i].kind == Kind::Synth ? want_[i].load(std::memory_order_relaxed) : 0.0f;
+    const uint32_t u = unit_.load(std::memory_order_relaxed);   // a project's unit comes with its values
     std::atomic_thread_fence(std::memory_order_acquire);
     if (batchSeq_.load(std::memory_order_relaxed) != before) return false;   // one started meanwhile
     std::copy(tmp, tmp + P_COUNT, out);
+    if (unit) *unit = u;
     return true;
 }
 

@@ -159,7 +159,7 @@ for e, name, (a, d, s, r, vel) in (("fe", "FEG", (0.002, 0.4, 0.3, 0.3, 0.3)),
 # --- the two mod busses (dsp/mod.h) ---
 # Saved state keeps an option's index: new options go at the end.
 MOD_SOURCES = ["Triangle", "Square", "Saw", "Ramp", "S&H", "Smooth", "Filter EG",
-               "Sine", "Noise", "Amp EG", "Velocity", "Aftertouch", "Key", "Constant"]   # ModSource
+               "Sine", "Noise", "Amp EG", "Velocity", "Aftertouch", "Key", "Constant", "Pitch Bend"]   # ModSource
 MOD_DESTS = ["Off", "Wave 1+2", "Wave 1", "Wave 2", "Resonance", "Multidrive", "Sub Level", "Noise Level",
              "Feedback", "Volume", "Other Rate", "EG Amount", "Key Track", "Osc 1 Level", "Osc 2 Level",
              "Beat Freq", "EG Time", "FEG Time", "AEG Time", "Glide Time"]          # ModDest
@@ -528,8 +528,9 @@ def pages():
     for b, top in ((1, R1), (2, R2)):
         p = "m%d_" % b
         L.card(24, top, 1232, 270, "MOD %d DEPTH" % b)
-        L.text(144, top + 86, "CONTROL")
-        L.popup(144, top + 126, 190, p + "ctl")
+        # Its own selector, not MOD's list: a list's open flag is one per parameter, and one left
+        # open on MOD would show open here too.
+        L.vseg(144, top + 160, p + "ctl", 150, label="CONTROL")
         for cx, k in zip(S8[2:5], ("wheel", "vel", "at")):
             L.knob(cx, top + 126, p + k)
         L.text(1012, top + 112, "THE DEPTH: CONTROL")

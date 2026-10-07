@@ -63,6 +63,7 @@ bool loadState(Surface& s, const std::string& textIn, bool asPreset) {
             if (PARAM_INFO[i].kind == Kind::Synth) s.setValue(i, PARAM_INFO[i].def);
     // A preset is complete (what it doesn't name is the default); a project changes only what it lists.
     std::string preset;
+    bool haveUnit = false;
     size_t at = text.find('\n');
     while (at != std::string::npos && at + 1 < text.size()) {
         const size_t end = text.find('\n', at + 1);
@@ -79,7 +80,10 @@ bool loadState(Surface& s, const std::string& textIn, bool asPreset) {
         if (key == "unit") {   // a project's: the same unit as before (a preset never sets it)
             uint32_t u = 0;
             const auto r = std::from_chars(val.data(), val.data() + val.size(), u);
-            if (!asPreset && r.ec == std::errc() && u != 0) s.setUnit(u);
+            if (!asPreset && r.ec == std::errc() && u != 0) {
+                s.setUnit(u);
+                haveUnit = true;
+            }
             continue;
         }
         for (int i = 0; i < P_COUNT; ++i)
@@ -90,6 +94,10 @@ bool loadState(Surface& s, const std::string& textIn, bool asPreset) {
             }
     }
     if (!asPreset) s.setPresetKey(preset);   // a project without one came from no preset
+    // A project saved before units (0.0.4 and older): unit 1, the same on every load (a second such
+    // instance gets the next free one, in load order). Not one from its text: a state whose values
+    // change (a level being matched) would change instrument with them.
+    if (!asPreset && !haveUnit) s.setUnit(1u);
     s.refresh();
     return true;
 }

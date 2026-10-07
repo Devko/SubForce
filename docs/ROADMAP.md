@@ -3,6 +3,7 @@
 Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 
 - [What's next](#whats-next)
+- [Phase 2](#phase-2)
 - [Phase 1](#phase-1)
 - [Phase 0](#phase-0)
 - [Planned](#planned)
@@ -26,6 +27,28 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   and the presets from it.
 - ⬜ **v0.1**: parameter list frozen (append-only from then on).
 
+## Phase 2
+
+✅ (2026-10-07)
+
+- ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
+- ✅ Closer to the original's modulation (0.0.3): Beat Freq; Hi range (audio-rate busses, up to
+  1 kHz, every sample on pitch, cutoff, wave and volume); Sine, Noise, Amp EG, Velocity, Aftertouch,
+  Key and Constant sources; EG Amount, Key Track, the oscillator levels, Beat Freq, EG / FEG / AEG
+  Time and Glide Time destinations; wheel, velocity and pressure depth amounts (a DEPTH tab); 3
+  presets that show them (71 in all)
+- ✅ The rest of the original's manual (0.0.4): LFO key tracking (0–200%), Duo's KB CTRL (oscillator
+  2 on the high or low key, or a drone), gated glide, an exponential attack option, envelope latch
+  and tempo sync, the bend per oscillator; 3 presets that show them (74 in all)
+- ✅ Analog (0.0.5, was Drift): jitter, a faster drift, imperfect shapes, per-note and per-unit
+  variation; 0 = the ideal synth (0.0.4's sound: bit for bit on x86, within float rounding,
+  −120 dB, on the device build)
+- ✅ Review of 0.0.3–0.0.5 (engine, plugin, tests and docs, in parallel): a note's velocity on
+  Glide / EG Time one note late, the song position a few samples ahead after each block, EG Sync
+  restarting just after a sequenced note, a latched drone surviving MPC's stop, Duo with a drone
+  retriggering, the rate text not refreshing in Hi range, a duplicated track sharing its unit, a
+  missing pitch-bend source; and the tests tightened where they could pass with a feature broken
+
 ## Phase 1
 
 ✅ (2026-10-05)
@@ -41,20 +64,9 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ The original's behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
-- ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS), 0.0.3
-  (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets),
-  0.0.5 (Analog)
-- ✅ 11 more presets in the direction of KVNDRA's melodic house / ambient sound (68 in all)
-- ✅ Closer to the original's modulation: Beat Freq; Hi range (audio-rate busses, up to 1 kHz, every
-  sample on pitch, cutoff, wave and volume); Sine, Noise, Amp EG, Velocity, Aftertouch, Key and
-  Constant sources; EG Amount, Key Track, the oscillator levels, Beat Freq, EG / FEG / AEG Time and
-  Glide Time destinations; wheel, velocity and pressure depth amounts (a DEPTH tab); 3 presets
-  that show them (71 in all)
-- ✅ Analog (was Drift): jitter, a faster drift, imperfect shapes, per-note and per-unit variation;
-  0 = the ideal synth, bit for bit
-- ✅ The rest of the original's manual: LFO key tracking (0–200%), Duo's KB CTRL (oscillator 2 on
-  the high or low key, or a drone), gated glide, an exponential attack option, envelope latch and
-  tempo sync, the bend per oscillator; 3 presets that show them (74 in all)
+- ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS); Phase 2's
+  0.0.3 (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets), 0.0.5
+  (Analog), 0.0.6 (the review's fixes)
 
 ## Phase 0
 
@@ -76,7 +88,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   and browser, favorites, user presets, randomize, state text, CPU meter
 - ✅ Six touchscreen pages and Q-Link sets, an amber skin
 - ✅ 27 factory presets in 5 categories, level-matched at −18 LUFS (57 in 7 since Phase 1)
-- ✅ Test suite (360 checks then, 469 now; ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
+- ✅ Test suite (360 checks then, 640 now; ASan/UBSan, and under `qemu-arm`), bench, profile-guided device build,
   release package, demo renders
 - ✅ Review (DSP, plugin, build / tests / docs, in parallel): about 40 confirmed findings fixed, each
   with a check — among them pulse edges a moving width swept past, a sounding key struck again,

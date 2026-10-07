@@ -33,17 +33,27 @@ struct EnvCoef {
 
 // Per-sample one-pole step for a time constant of tau seconds.
 inline float onePole(float tau, float sr) { return 1.0f - std::exp(-1.0f / ((tau > 1e-5f ? tau : 1e-5f) * sr)); }
+// The same without libm (exp2Fast, its series for small x): for coefficients that move every
+// control step (EG Time on a bus), a hair from onePole's.
+inline float onePoleFast(float tau, float sr) {
+    const float x = 1.0f / ((tau > 1e-5f ? tau : 1e-5f) * sr);
+    return x < 1e-3f ? x - 0.5f * x * x : 1.0f - exp2Fast(-1.442695041f * x);
+}
 
-// scale multiplies every time (keyboard tracking).
-inline EnvCoef envCoef(const EnvTimes& e, float sr, float scale) {
+// scale multiplies every time (keyboard tracking, EG Time). fast: no libm (see onePoleFast).
+inline EnvCoef envCoef(const EnvTimes& e, float sr, float scale, bool fast = false) {
+    auto pole = [fast, sr](float tau) { return fast ? onePoleFast(tau, sr) : onePole(tau, sr); };
+    auto samples = [fast, sr](float t) {
+        return fast ? static_cast<int>(t * sr + 0.5f) : static_cast<int>(std::lround(t * sr));
+    };
     EnvCoef c;
-    c.delayN = static_cast<int>(std::lround(clampf(e.delay * scale, 0.0f, 60.0f) * sr));
-    c.holdN = static_cast<int>(std::lround(clampf(e.hold * scale, 0.0f, 60.0f) * sr));
+    c.delayN = samples(clampf(e.delay * scale, 0.0f, 60.0f));
+    c.holdN = samples(clampf(e.hold * scale, 0.0f, 60.0f));
     c.expAttack = e.expAttack;
     // Linear: 0 to 1 in `attack`. Exponential: 1.5 (1 - e^(-t / tau)) reaches 1 at t = tau ln 3.
-    c.att = e.expAttack ? onePole(e.attack * scale / 1.098612289f, sr) : 1.0f / (std::max(e.attack * scale, 1e-5f) * sr);
-    c.dec = onePole(e.decay * scale / 6.9078f, sr);    // ln(1000): 60 dB of the way at `decay`
-    c.rel = onePole(e.release * scale / 6.9078f, sr);
+    c.att = e.expAttack ? pole(e.attack * scale / 1.098612289f) : 1.0f / (std::max(e.attack * scale, 1e-5f) * sr);
+    c.dec = pole(e.decay * scale / 6.9078f);    // ln(1000): 60 dB of the way at `decay`
+    c.rel = pole(e.release * scale / 6.9078f);
     c.sus = clampf(e.sustain, 0.0f, 1.0f);
     c.loop = e.loop;
     return c;

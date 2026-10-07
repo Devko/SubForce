@@ -47,7 +47,7 @@ original* in these docs), built on the same plugin groundwork as its sibling
 - **74 factory presets** in 7 categories, level-matched, many of them for
   [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
   big leads); user presets, favorites, a browser, Init and Randomize
-- **Light on the CPU**: one voice, about 2.8% of a block on the Force (3.6% with everything on),
+- **Light on the CPU**: one voice, about 2.9% of a block on the Force (4.3% with everything on),
   with NEON where the work is parallel
 
 Effects are deliberately left out: use MPC's insert effects on the track.
@@ -124,6 +124,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | 0.0.3 — the original's modulation: Beat Freq, Hi range, more sources and destinations, depth amounts; 71 presets | ✅ |
 | 0.0.4 — the rest of the original's manual: LFO key tracking, exponential attack, latch, EG sync, osc 2's keys and drone, gated glide, Bend To; 74 presets | ✅ |
 | 0.0.5 — Analog: jitter, imperfect shapes, per-note and per-unit variation | ✅ |
+| 0.0.6 — a review's fixes (EG Sync, glide and EG times, latch and MPC's stop, units, Pitch Bend source) | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

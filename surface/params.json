@@ -380,7 +380,8 @@
     "Velocity",
     "Aftertouch",
     "Key",
-    "Constant"
+    "Constant",
+    "Pitch Bend"
    ],
    "default": "Triangle"
   },
@@ -569,7 +570,8 @@
     "Velocity",
     "Aftertouch",
     "Key",
-    "Constant"
+    "Constant",
+    "Pitch Bend"
    ],
    "default": "Triangle"
   },

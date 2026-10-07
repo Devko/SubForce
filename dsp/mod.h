@@ -7,9 +7,10 @@ namespace sf {
 
 // Saw falls, Ramp rises. S&H: a new random value every cycle; Smooth: glides between them;
 // Noise: random, its bandwidth the rate. The LFO shapes run -1..1, the rest 0..1 except Key
-// (the gliding key against C3, kKeySpan semitones a unit, either way).
+// (the gliding key against C3, kKeySpan semitones a unit, either way) and Pitch Bend (-1..1).
 enum ModSource : int { MS_TRIANGLE, MS_SQUARE, MS_SAW, MS_RAMP, MS_SAMPLE_HOLD, MS_SMOOTH, MS_FILTER_EG,
-                       MS_SINE, MS_NOISE, MS_AMP_EG, MS_VELOCITY, MS_AFTERTOUCH, MS_KEY, MS_CONSTANT, MS_COUNT };
+                       MS_SINE, MS_NOISE, MS_AMP_EG, MS_VELOCITY, MS_AFTERTOUCH, MS_KEY, MS_CONSTANT, MS_BEND,
+                       MS_COUNT };
 // The sources the rate moves.
 constexpr bool isLfo(int s) { return s <= MS_SMOOTH || s == MS_SINE || s == MS_NOISE; }
 

@@ -4,6 +4,36 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.6
+
+Fixes from a review of 0.0.3–0.0.5 (engine, plugin, tests and docs):
+
+- A bus with **Velocity** (or another note-time source) on **Glide Time** or **EG Time** used the
+  previous note's value; now the note's own (Key: the key played, not the one it glides from).
+- **EG Sync**: a sequenced note a hair before a sync unit no longer restarts a few samples in (a
+  click with Reset on); MPC starting or stopping re-bases the count instead of restarting.
+- MPC's position ran a few samples ahead after every block whose start wasn't on the 8-sample control
+  grid (bar-locked busses and EG Sync); now exact.
+- A **latched** envelope now lets go when MPC stops and on all notes off (CC 123), not only on all
+  sound off.
+- **Duo with a droning osc 2** plays as Mono: a second key no longer retriggers.
+- **Pitch Bend** is a bus source: with Bend To *Off* the wheel does what a bus makes of it (the guide
+  promised that; there was no such source).
+- The bus **rate text** updates at once when its rate mode changes (Hi shows ×10).
+- **Units**: a duplicated track no longer shares its original's unit (no two live instances are the
+  same unit); a project saved before units is unit 1, the same on every load; the unit reaches the
+  engine together with the values it came with.
+- The programmable destinations stay within their documented ranges with two busses or the Key
+  source on them; per-note Analog offsets follow the knob (0 is ideal at once, not from the next
+  note); EG Time moving every step no longer calls libm; a zero rate in a hand-built patch can't make
+  NaNs; reset() between control steps no longer counts samples twice.
+- DEPTH has its own Control selector (MOD's list left open showed open there too).
+- The device trace marks state saves and loads (`getChunk`, `setChunk`), to see whether MPC restores
+  parameters after a project's state.
+- Analog at 0 is 0.0.4's sound bit for bit on the x86 build and within float rounding (−120 dB) on
+  the device's fast-math build (0.0.5's notes said "sample for sample" for both).
+- Tests: 640 (from 596), tightened where a check could pass with its feature broken.
+
 ## 0.0.5
 
 - **Analog** (the knob that was Drift): besides the drift, now everything that makes an analog unit

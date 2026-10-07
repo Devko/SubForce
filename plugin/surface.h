@@ -62,9 +62,9 @@ public:
 
     // --- audio thread ------------------------------------------------------------
     void        notify(AutomateFn automate, UpdateFn update, void* ctx);
-    // Every parameter's current 0..1 value. False (and `out` untouched) while a batch is
-    // being written: keep using the previous snapshot.
-    bool        snapshot(float* out) const;
+    // Every parameter's current 0..1 value, and the unit. False (and `out` untouched) while a
+    // batch is being written: keep using the previous snapshot.
+    bool        snapshot(float* out, uint32_t* unit = nullptr) const;
     // Moves on every value write: unchanged since a snapshot, the snapshot is still current.
     uint32_t    writes() const { return changes_.load(std::memory_order_acquire); }
 

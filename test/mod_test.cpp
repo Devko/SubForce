@@ -3,6 +3,7 @@
 // programmable destination; osc 2's beat frequency; the plugin side of it.
 #include "host.h"
 #include "../dsp/synth.h"
+#include "../plugin/patch_map.h"
 
 #include <cmath>
 #include <cstdio>
@@ -151,6 +152,30 @@ void testSources() {
     }
     std::printf("  S&H over 8 cycles: %.2f .. %.2f st, held within %.3f st\n", lo, hi, held);
     CHECK(hi - lo > 0.5 && held < 0.02 && lo >= -1.02 && hi <= 1.02);
+    // Analog draws its own random numbers: an S&H bus steps through the same values at Analog 0 and
+    // at full (only the cents of drift between them).
+    auto steps = [](float analog, double* v) {
+        Patch p = base();
+        p.drift = analog;
+        p.mod[0].src = sf::MS_SAMPLE_HOLD;
+        p.mod[0].rateHz = 4.0f;
+        p.mod[0].pitch = 0.5f;   // +-6 st
+        p.mod[0].retrig = true;
+        Synth s;
+        s.setPatch(p);
+        s.noteOn(57, 100);
+        const auto x = render(s, 2 * 44100);
+        for (int c = 0; c < 8; ++c) v[c] = semis(x, 0.25 * c + 0.08, 0.25 * c + 0.17);
+    };
+    double a0[8], a1[8], worst = 0.0, range = 0.0;
+    steps(0.0f, a0);
+    steps(1.0f, a1);
+    for (int c = 0; c < 8; ++c) {
+        worst = std::max(worst, std::fabs(a1[c] - a0[c]));
+        range = std::max(range, std::fabs(a0[c] - a0[0]));
+    }
+    CHECK(worst < 0.3 && range > 1.0);
+
     cycles(sf::MS_SMOOTH, early, mid, late);
     lo = 9.0, hi = -9.0;
     bool monotonic = true;
@@ -392,6 +417,42 @@ void testMoreSources() {
     std::printf("  noise 0.2 Hz: spread %.2f st, correlation %.2f; 20 Hz: %.2f st, %.2f\n", spreadSlow, corrSlow,
                 spreadFast, corrFast);
     CHECK(spreadSlow > 0.3 && spreadFast > 0.3 && corrSlow > 0.7 && corrFast < 0.4);
+    // A hand-built Patch with a rate of 0 (the plugin's ranges never give one) stays finite.
+    {
+        Patch z = base();
+        z.mod[0].src = sf::MS_NOISE;
+        z.mod[0].rateHz = 0.0f;
+        z.mod[0].pitch = 0.5f;
+        z.mod[1].src = sf::MS_NOISE;
+        z.mod[1].hi = true;
+        z.mod[1].rateHz = 0.0f;
+        z.mod[1].filter = 0.5f;
+        Synth s;
+        s.setPatch(z);
+        s.noteOn(57, 100);
+        const auto y = render(s, 22050);
+        bool finite = true;
+        for (float v : y) finite = finite && std::isfinite(v);
+        CHECK(finite && rms(y, 4410, 22050) > 0.01);
+    }
+    // ...and its level: rms 0.45 of the bus's reach (1 st here), measured over 20 ms windows.
+    {
+        Patch q = base();
+        q.mod[0].src = sf::MS_NOISE;
+        q.mod[0].rateHz = 2.0f;
+        q.mod[0].pitch = kOneSemi;
+        Synth n;
+        n.setPatch(q);
+        n.noteOn(57, 100);
+        const auto y = render(n, 10 * 44100);
+        double sq = 0.0;
+        for (int w = 0; w < 450; ++w) {
+            const double st = semis(y, 1.0 + 0.02 * w, 1.02 + 0.02 * w);
+            sq += st * st / 450.0;
+        }
+        std::printf("  noise level: rms %.3f st (0.45 asked)\n", std::sqrt(sq));
+        CHECK(std::sqrt(sq) > 0.35 && std::sqrt(sq) < 0.52);
+    }
 
     // The amp EG: a slow attack bends the pitch up an octave.
     Patch a = base();
@@ -435,11 +496,16 @@ void testDepthAmounts() {
     p.mod[0].wheel = 0.0f;
     p.mod[0].at = 0.5f;
     CHECK(std::fabs(busSemis(p, 57, 100, 0.0f, 1.0f) - 0.5) < 0.03);
-    // The depth stays within -1..1: Always and velocity +100% is still full, no more.
+    // The depth stays within -1..1: Always and velocity +100% is still full, no more; Always, the
+    // wheel and pressure at -100% each (1 - 1 - 1 = -1, and -2 more is still -1).
     p.mod[0].control = sf::MC_ALWAYS;
     p.mod[0].at = 0.0f;
     p.mod[0].vel = 1.0f;
     CHECK(std::fabs(busSemis(p, 57, 127) - 1.0) < 0.03);
+    p.mod[0].vel = -1.0f;
+    p.mod[0].wheel = -1.0f;
+    p.mod[0].at = -1.0f;
+    CHECK(std::fabs(busSemis(p, 57, 127, 1.0f, 1.0f) + 1.0) < 0.03);
 }
 
 // When the pitch a slow EG bends up an octave (filter EG: bus 2) is half-way (-6 st), with
@@ -491,6 +557,8 @@ void testMoreDestinations() {
     CHECK(std::fabs(halfWay(sf::MD_FEG_TIME, sf::MS_FILTER_EG, 1.0f / 3.0f) - 0.5) < 0.04);
     CHECK(std::fabs(halfWay(sf::MD_AEG_TIME, sf::MS_FILTER_EG, 1.0f / 3.0f) - 0.25) < 0.03);
     CHECK(std::fabs(halfWay(sf::MD_AEG_TIME, sf::MS_AMP_EG, 1.0f / 3.0f) - 0.5) < 0.04);
+    CHECK(std::fabs(halfWay(sf::MD_EG_TIME, sf::MS_AMP_EG, 1.0f / 3.0f) - 0.5) < 0.04);
+    CHECK(std::fabs(halfWay(sf::MD_FEG_TIME, sf::MS_AMP_EG, 1.0f / 3.0f) - 0.25) < 0.03);
     // Glide Time +1/3: a 0.1 s glide takes 0.2 s.
     Patch g = base();
     g.glideMode = sf::GL_ALWAYS;
@@ -570,7 +638,8 @@ void testHiRange() {
     std::printf("  AM at 1 kHz: sideband %.1f dB, control-rate image %.1f dB\n", am, image);
     CHECK(std::fabs(am + 12.0) < 1.0 && image < -70.0);
 
-    // Wave and cutoff at audio rate change the sound, and everything stays finite.
+    // Wave and cutoff at audio rate change the sound (against the same Hi bus with nothing to do),
+    // and everything stays finite.
     Patch w = base();
     w.mod[0].src = sf::MS_SAMPLE_HOLD;
     w.mod[0].hi = true;
@@ -579,13 +648,23 @@ void testHiRange() {
     w.mod[0].amount = 0.5f;
     w.mod[0].filter = 0.5f;
     w.cutoffHz = 1500.0f;
-    Synth s;
-    s.setPatch(w);
-    s.noteOn(45, 100);
-    const auto y = render(s, 44100);
+    auto renderHi = [](const Patch& q) {
+        Synth s;
+        s.setPatch(q);
+        s.noteOn(45, 100);
+        return render(s, 44100);
+    };
+    Patch idle = w;
+    idle.mod[0].amount = 0.0f;
+    idle.mod[0].filter = 0.0f;
+    const auto y = renderHi(w), y0 = renderHi(idle);
     bool finite = true;
-    for (float v : y) finite = finite && std::isfinite(v) && std::fabs(v) < 2.0f;
-    CHECK(finite && rms(y, 4410, 44100) > 0.02);
+    double d = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        finite = finite && std::isfinite(y[i]) && std::fabs(y[i]) < 2.0f;
+        if (i >= 4410) d += (static_cast<double>(y[i]) - y0[i]) * (static_cast<double>(y[i]) - y0[i]) / 39690.0;
+    }
+    CHECK(finite && rms(y, 4410, 44100) > 0.02 && std::sqrt(d) > 0.3 * rms(y0, 4410, 44100));
 
     // Block sizes never change the sound, the silence between two notes included: the busses, the
     // Hi-range ones and the free-running oscillators keep time on the control grid there.
@@ -687,7 +766,41 @@ void testLfoKeyTrack() {
 }
 
 void testPluginSide() {
-    std::printf("== mod busses: the plugin side (rate text, saved state)\n");
+    std::printf("== mod busses: the plugin side (rate text, saved state, the mapping)\n");
+    // The options reach the engine as meant (the plugin's 0..1 values -> the Patch).
+    float norm[sf::P_COUNT];
+    for (int i = 0; i < sf::P_COUNT; ++i) norm[i] = sf::PARAM_INFO[i].def;
+    auto with = [&norm](int id, float v) {
+        norm[id] = sf::paramNorm(id, v);
+        return sf::patchFromParams(norm);
+    };
+    Patch q = with(sf::P_GLIDE_MODE, 2);
+    CHECK(q.glideMode == sf::GL_LEGATO && !q.glideGated);
+    q = with(sf::P_GLIDE_MODE, 3);
+    CHECK(q.glideMode == sf::GL_ALWAYS && q.glideGated);
+    q = with(sf::P_GLIDE_MODE, 4);
+    CHECK(q.glideMode == sf::GL_LEGATO && q.glideGated);
+    q = with(sf::P_M2_SYNC, sf::RM_HI);
+    CHECK(q.mod[1].hi && !q.mod[1].sync);
+    q = with(sf::P_M2_SYNC, sf::RM_SYNC);
+    CHECK(q.mod[1].sync && !q.mod[1].hi);
+    q = with(sf::P_AE_SYNC, 13);
+    CHECK(q.aenv.sync == 13 && q.fenv.sync == 0);
+    q = with(sf::P_FE_EXP, 1);
+    CHECK(q.fenv.expAttack && !q.aenv.expAttack);
+    q = with(sf::P_AE_LATCH, 1);
+    CHECK(q.aenv.latch && !q.fenv.latch);
+    q = with(sf::P_O2_KB, sf::O2_DRONE);
+    CHECK(q.osc2Keys == sf::O2_DRONE);
+    q = with(sf::P_BEND_DEST, sf::BD_OFF);
+    CHECK(q.bendDest == sf::BD_OFF);
+    q = with(sf::P_M1_KBT, 1.5f);
+    CHECK(std::fabs(q.mod[0].keyTrack - 1.5f) < 1e-5f && q.mod[1].keyTrack == 0.0f);
+    q = with(sf::P_M2_AT, -0.5f);
+    CHECK(std::fabs(q.mod[1].at + 0.5f) < 1e-5f && q.mod[0].at == 0.0f);
+    q = with(sf::P_O2_BEAT, 2.0f);
+    CHECK(std::fabs(q.beatHz - 2.0f) < 1e-4f);
+
     Host h;
     h.set(sf::P_M1_RATE, 5.0f);
     CHECK(h.display(sf::P_M1_RATE) == "5.0 Hz");

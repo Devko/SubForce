@@ -26,7 +26,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #if defined(__SSE__) || defined(__x86_64__)
 #include <xmmintrin.h>
@@ -202,9 +204,9 @@ void runBlock(Plugin* p, float* L, float* R, int n, const Transport& tr) {
     const uint32_t writes = p->surface.writes();   // before the snapshot: a later write shows next block
     if (!p->havePatch || writes != p->seenWrites) {
         float fresh[P_COUNT];
-        if (p->surface.snapshot(fresh)) {   // mid-preset: false, look again next block
+        uint32_t unit = 0;
+        if (p->surface.snapshot(fresh, &unit)) {   // mid-preset: false, look again next block
             p->seenWrites = writes;
-            const uint32_t unit = p->surface.unit();
             if (!p->havePatch || unit != p->unit || std::memcmp(fresh, p->snapshot, sizeof fresh) != 0) {
                 std::memcpy(p->snapshot, fresh, sizeof fresh);
                 p->unit = unit;
@@ -332,11 +334,44 @@ void onMidi(Plugin* p, const VstEvents* evs) {
     }
 }
 
+// Every live instance, for Analog's units: no two the same instrument.
+std::mutex g_liveMtx;
+std::vector<Plugin*> g_live;
+
+void enlist(Plugin* p) {
+    std::lock_guard<std::mutex> lk(g_liveMtx);
+    g_live.push_back(p);
+}
+
+void unlist(Plugin* p) {
+    std::lock_guard<std::mutex> lk(g_liveMtx);
+    g_live.erase(std::remove(g_live.begin(), g_live.end(), p), g_live.end());
+}
+
+// A state that makes this instance the unit another live one already is (a duplicated track, a
+// program loaded twice) gives it a unit of its own, the next free one from it: every instance its
+// own instrument. A project's instances come back as the units they were.
+void distinctUnit(Plugin* p) {
+    std::lock_guard<std::mutex> lk(g_liveMtx);
+    uint32_t u = p->surface.unit();
+    for (bool clash = true; clash;) {
+        clash = false;
+        for (const Plugin* o : g_live)
+            if (o != p && o->surface.unit() == u) clash = true;
+        if (clash) u = u * 0x9E3779B9u + 0x7F4A7C15u;
+        if (!u) u = 1u;
+    }
+    if (u != p->surface.unit()) p->surface.setUnit(u);
+}
+
 intptr_t dispatch(Plugin* p, int32_t op, int32_t idx, intptr_t val, void* ptr) {
     const bool validIdx = idx >= 0 && idx < P_COUNT;
     switch (op) {
         case vst::effOpen: return 1;
-        case vst::effClose: delete p; return 1;
+        case vst::effClose:
+            unlist(p);
+            delete p;
+            return 1;
         case vst::effGetProgram: return 0;
         case vst::effGetProgramName: copyStr(ptr, kPlugName, 24); return 0;
         case vst::effGetPlugCategory: return vst::kPlugCategSynth;
@@ -369,12 +404,22 @@ intptr_t dispatch(Plugin* p, int32_t op, int32_t idx, intptr_t val, void* ptr) {
             if (!ptr) return 0;
             p->chunk = saveState(p->surface, false);
             *static_cast<void**>(ptr) = const_cast<char*>(p->chunk.c_str());
+            if (tracing())
+                trace("%p getChunk %s %u bytes", static_cast<void*>(&p->fx), idx ? "program" : "bank",
+                      static_cast<unsigned>(p->chunk.size()));
             return static_cast<intptr_t>(p->chunk.size() + 1);
         case vst::effSetChunk: {
             if (!ptr || val <= 0 || val > (1 << 20)) return 0;   // a state is ~4 KB; more is not ours
             std::string s(static_cast<const char*>(ptr), static_cast<size_t>(val));
             while (!s.empty() && s.back() == '\0') s.pop_back();
-            return loadState(p->surface, s, false) ? 1 : 0;
+            const bool ok = loadState(p->surface, s, false);
+            if (ok) distinctUnit(p);
+            // A project's state arriving: what MPC sends right after it shows whether it also restores
+            // parameters by index (docs/ARCHITECTURE.md, parameters and saved state).
+            if (tracing())
+                trace("%p setChunk %s %u bytes %s", static_cast<void*>(&p->fx), idx ? "program" : "bank",
+                      static_cast<unsigned>(s.size()), ok ? "loaded" : "refused");
+            return ok ? 1 : 0;
         }
         default: return 0;
     }
@@ -412,6 +457,7 @@ AEffect* createPlugin(audioMasterCallback master) {
     p->synth.seed(seed);
     p->surface.seed(seed * 0x2545F491u + 1u);
     p->surface.setUnit((seed ^ 0x5BD1E995u) * 0x27D4EB2Du);   // a new instance, a new unit (a project restores its own)
+    enlist(p);
 
     AEffect* e = &p->fx;
     std::memset(e, 0, sizeof(*e));

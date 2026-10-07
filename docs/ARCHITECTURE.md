@@ -147,8 +147,10 @@ PolyForce's rules, device-proven on the Force:
   MPC projects store values by index. Sound parameters (kind `synth`) are saved and automatable;
   the surface's own values (the stepper, tiles, Rand Amount) are not.
 - **Saved state** (projects and `.sfp` preset files) is the text format `subforce 1`: `key=value`
-  lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key. Ranges can
-  change without remapping saved projects.
+  lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key and the unit
+  (Analog's tolerances: a project keeps its instances' units; one saved before units is unit 1; no
+  two live instances are the same unit). Ranges can change without remapping saved
+  projects.
 - **Lists**: the option lists in `surface.py` must match the engine's enums; `static_assert`s in
   `plugin/patch_map.cpp` check the counts and that the amp EG and mod bus 2 mirror the filter EG and
   bus 1 key for key.
