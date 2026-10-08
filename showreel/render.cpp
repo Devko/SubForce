@@ -1,13 +1,17 @@
 // SubForce's demo track: a melodic-techno build in F minor played through the built SubForce, layer by
-// layer (bass sequence, pluck arpeggio, gliding lead, pad), each entering clean and then through its own
-// EffectForce (an insert on that part), level-matched, with the knobs moving as a player would turn them;
-// EffectForce's Glue Comp on the master. No drums: the synth on its own.
+// layer (bass sequence, pluck, gliding lead, pad), each entering clean and then through its own
+// EffectForce (an insert on that part), level-matched; then all together, a breakdown with a riser, a
+// drop on an impact (both SubForce too) and an ending. A mix bus on the master (EQ, glue), mastered at
+// -10 LUFS. No drums: the synth on its own. Written from what melodic-techno production tutorials
+// teach, in our own parts: a bass on the chord roots off the beat with 1-5-octave jumps and velocity
+// accents, a sparse arp the delay completes, cutoffs that never stand still, several moves stacked at
+// the drop, generous delays (thrown at phrase ends), high-passed returns, a pump for a sidechain.
 // Each plugin is dlopen()ed and played as MPC plays it (128-frame blocks, MIDI with sample offsets,
 // VstTimeInfo with the transport running); the arrangement is song() at the bottom. Two passes: the
 // first measures each preset's clean and effected halves, the second plays the effected half at the
 // clean half's loudness (an effect should sound different, not just louder). Writes:
 //
-//   <out>/mix.wav       the track, mastered (-14 LUFS, peaks under -1 dBFS), 16-bit stereo 44.1 kHz
+//   <out>/mix.wav       the track, mastered (-10 LUFS, peaks under -1 dBFS), 16-bit stereo 44.1 kHz
 //   <out>/state.jsonl   every watched instance's parameters, value and display text, per video frame
 //                       (30 fps), as changes: {"f": frame, "i": instance, "v": {"index": [value, text]}}
 //   <out>/cues.jsonl    what the video shows when: sections, pages, captions, taps (time in seconds)
@@ -271,7 +275,7 @@ struct Ramp {
     int idx;
     double b0, b1;
     float v0, v1;
-    bool started = false;
+    bool done = false;
 };
 
 struct Session {
@@ -315,6 +319,19 @@ struct Session {
         cue(0.0, "{\"type\": \"inst\", \"i\": \"" + name + "\", \"plug\": \"" + plug + "\"}");
         insts.push_back(std::move(in));
         return insts.back().get();
+    }
+    // An instance from a state text (a chain written in the song, not a factory preset).
+    Inst* addState(const std::string& name, const std::string& libName, const std::string& text, double gainDb) {
+        Inst* in = add(name, libName, "", gainDb);
+        in->e->dispatcher(in->e, vst::effSetChunk, 0, static_cast<intptr_t>(text.size()), const_cast<char*>(text.c_str()), 0.0f);
+        return in;
+    }
+    Inst* addInsertState(Inst* host, const std::string& name, const std::string& text) {
+        Inst* fxIn = addState(name, "ef", text, 0.0);
+        fxIn->isInsert = true;
+        fxIn->watched = true;
+        host->insert = fxIn;
+        return fxIn;
     }
     // EffectForce with `preset` as an insert on `host`: watched, not mixed on its own.
     Inst* addInsert(Inst* host, const std::string& name, const std::string& preset) {
@@ -450,6 +467,7 @@ struct Session {
     // Plays the timeline to `endBeat`; returns the master, stereo.
     void run(double endBeat, std::ofstream& state, std::vector<float>& outL, std::vector<float>& outR) {
         std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.beat < b.beat; });
+        std::stable_sort(ramps.begin(), ramps.end(), [](const Ramp& a, const Ramp& b) { return a.b0 < b.b0; });
         // Before the first beat: the transport stopped, silence played until PolyForce's tables are in.
         g_time.sampleRate = kSr;
         g_time.tempo = kBpm;
@@ -484,10 +502,10 @@ struct Session {
                 ++next;
             }
             for (Ramp& r : ramps) {
-                if (b0 < r.b0 || (r.started && b0 > r.b1 + 1.0)) continue;
+                if (r.done || b0 < r.b0) continue;
                 const double t = std::clamp((b0 - r.b0) / std::max(r.b1 - r.b0, 1e-9), 0.0, 1.0);
                 r.in->e->setParameter(r.in->e, r.idx, r.v0 + static_cast<float>(t) * (r.v1 - r.v0));
-                r.started = true;
+                r.done = b0 >= r.b1;
             }
             while (static_cast<double>(frame) * kSr / kFps <= static_cast<double>(s)) logState(state, frame++);
             g_time.samplePos = static_cast<double>(s);
@@ -632,6 +650,7 @@ void writeWav16(const std::string& path, const std::vector<float>& L, const std:
 
 // --- the track -------------------------------------------------------------------------------------
 double bar(double b) { return b * 4.0; }
+constexpr double kEndBar = 51.0;   // the end of the outro card
 
 // A layer's place: its clean half and its effected half (bars), for the level match.
 struct Seg {
@@ -639,64 +658,132 @@ struct Seg {
     double c0, c1, f0, f1;
 };
 
-// F minor, a bar each: Fm Db Ab Eb (i VI III VII).
+// F minor, a bar each: Fm Db Ab Eb (i VI III VII, the progression the melodic-techno tutorials teach as
+// Am F C G).
 const int kBassRoot[4] = {41, 37, 44, 39};   // F2 Db2 Ab2 Eb2
 const int kChordRoot[4] = {53, 49, 56, 51};  // F3 Db3 Ab3 Eb3
 const int kThird[4] = {3, 4, 4, 4};          // minor, then major
 const int kPad[4][2] = {{56, 60}, {53, 56}, {56, 63}, {55, 58}};   // Ab3 C4, F3 Ab3, Ab3 Eb4, G3 Bb3
 
+// The bass, a bar: off-beat sixteenths on the chord's root, the downbeats left to an imagined kick;
+// 1-5-octave jumps, the accents an octave up and hit harder (FEG Velocity: they open the filter), a
+// muted note on step 7, a slide from step 14. Offsets from the root; velocity 0 is a rest.
+const int kBassOff[16] = {0, 0, 12, 0, 0, 0, 7, 0, 0, 0, 12, 0, 0, 7, 12, 7};
+const int kBassVel[16] = {0, 96, 124, 86, 0, 96, 114, 58, 0, 96, 124, 86, 0, 100, 118, 104};
+// The climax's fill, the last beat of every fourth bar: up 1-5-8-9 into the next bar's root.
+const int kFillOff[4] = {0, 7, 12, 14}, kFillVel[4] = {104, 110, 118, 126};
+
 // solo: -1 plays everything; 0..3 only that layer (the level match measures layers on their own).
 void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainDb, int solo) {
-    Inst* master = s.add("glue", "ef", "EffectForce/presets/Factory/01_Utility/02_Glue_Comp.efp", 0.0);
+    Inst* master = s.addState("bus", "ef",
+                              "effectforce 1\neq_on=On\neq_lc=28\neq_hf=9000\neq_hg=1.5\n"
+                              "cmp_on=On\ncmp_thr=-14\ncmp_ratio=2\ncmp_att=0.03\ncmp_rel=0.25\n", 0.0);
     master->watched = true;
     s.fx = master;
-    struct Layer { const char* name; const char* sf; const char* ef; double gainDb; };
+    if (solo >= 0) {   // measured before the bus: its compressor would halve the level match above its threshold
+        s.opt(master, 0, "eq_on", "Off");
+        s.opt(master, 0, "cmp_on", "Off");
+    }
+    // Every chain but the bass's cuts below 120-180 Hz; delays are generous, reverbs (but the pad's)
+    // moderate; the pump (a gate closed on each beat's first sixteenth) stands in for a sidechain.
+    struct Layer { const char* name; const char* sf; const char* fx; double gainDb; };
     const Layer layers[] = {
-        {"bass", "02_Bass/16_Grit_Roller", "06_Lo-Fi/01_Tape_Echo", 0.0},
-        {"arp", "04_Keys/01_Pluck", "02_Synth/05_Pluck_Echo", -3.0},
-        {"lead", "03_Lead/08_Afterglow_Lead", "02_Synth/01_Lead_Polish", -2.0},
-        {"pad", "07_Pad/01_Slow_Bloom_Duo", "03_Pads/05_Shimmer_Pad", -8.0},
+        {"bass", "02_Bass/16_Grit_Roller",
+         "effectforce 1\ncmp_on=On\ncmp_thr=-16\ncmp_ratio=3\ncmp_att=0.01\ncmp_rel=0.12\n"
+         "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8.\ndly_fb=0.25\ndly_hc=3000\ndly_mix=0.12\n"
+         "rev_on=On\nrev_mode=Plate\nrev_decay=1.2\nrev_mix=0.1\n", 0.0},
+        {"arp", "04_Keys/01_Pluck",
+         "effectforce 1\neq_on=On\neq_lc=150\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.35\n"
+         "pls_on=On\npls_mode=Gate\npls_div=1/16\npls_pattern=Pump\npls_depth=0.5\npls_length=1\npls_smooth=0.03\n"
+         "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8\ndly_fb=0.45\ndly_hc=5000\ndly_mix=0.38\n"
+         "rev_on=On\nrev_mode=Hall\nrev_size=0.75\nrev_decay=3.5\nrev_mod=0.4\nrev_mix=0.22\n", -3.0},
+        {"lead", "03_Lead/08_Afterglow_Lead",
+         "effectforce 1\neq_on=On\neq_lc=180\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.3\n"
+         "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/4.\ndly_fb=0.45\ndly_hc=4500\ndly_wow=0.15\ndly_mix=0.3\n"
+         "rev_on=On\nrev_mode=Hall\nrev_size=0.8\nrev_decay=4\nrev_mod=0.4\nrev_mix=0.25\n", -2.0},
+        {"pad", "07_Pad/01_Slow_Bloom_Duo",
+         "effectforce 1\neq_on=On\neq_lc=120\nchr_on=On\nchr_mode=Ensemble\nchr_mix=0.5\n"
+         "pls_on=On\npls_mode=Gate\npls_div=1/16\npls_pattern=Pump\npls_depth=0.6\npls_length=1\npls_smooth=0.03\n"
+         "rev_on=On\nrev_mode=Hall\nrev_size=0.85\nrev_decay=7\nrev_mod=0.5\nrev_shim=0.35\nrev_mix=0.5\nout_gain=5\n", -5.0},
     };
     std::vector<Inst*> L;
     for (int k = 0; k < 4; ++k) {
         Inst* in = s.add(layers[k].name, "sf", std::string("SubForce/presets/Factory/") + layers[k].sf + ".sfp", layers[k].gainDb);
         in->watched = true;
-        s.addInsert(in, std::string("fx_") + layers[k].name, std::string("EffectForce/presets/Factory/") + layers[k].ef + ".efp");
+        s.addInsertState(in, std::string("fx_") + layers[k].name, layers[k].fx);
         in->fxGain = std::pow(10.0, (k < static_cast<int>(fxGainDb.size()) ? fxGainDb[k] : 0.0) / 20.0);
         L.push_back(in);
     }
     Inst *bass = L[0], *arp = L[1], *lead = L[2], *pad = L[3];
+    // The build's effects, SubForce too: a riser into the drop, an impact on it.
+    Inst* riser = s.add("riser", "sf", "SubForce/presets/Factory/05_FX/05_Riser_Engine.sfp", -7.0);
+    riser->watched = true;
+    s.addInsertState(riser, "fx_riser", "effectforce 1\neq_on=On\neq_lc=200\ndly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8.\n"
+                                        "dly_fb=0.5\ndly_mix=0.3\nrev_on=On\nrev_mode=Hall\nrev_decay=6\nrev_mix=0.45\n");
+    Inst* boom = s.add("boom", "sf", "SubForce/presets/Factory/05_FX/07_Impact_Boom.sfp", -3.0);
+    s.addInsertState(boom, "fx_boom", "effectforce 1\nrev_on=On\nrev_mode=Hall\nrev_size=0.9\nrev_decay=5\nrev_mix=0.3\n");
     auto plays = [&](Inst* in) { return solo < 0 || in == L[static_cast<size_t>(solo)]; };
     auto N = [&](Inst* in, double beat, double len, int key, int vel) {
         if (plays(in)) s.note(in, beat, len, key, vel);
     };
-    // A knob turned from a to b (its displayed value: Hz, %, ms...) over bars b0..b1, as a Q-Link would.
-    auto turn = [&](Inst* in, double b0, double b1, const std::string& key, double from, double to) {
-        s.ramp(in, bar(b0), bar(b1), key, s.valueFor(in, key, from), s.valueFor(in, key, to));
-    };
-
-    // The bass sequence: rolling sixteenths with accents, octaves and two slides a bar.
-    s.opt(bass, 0, "glide_mode", "Legato");
-    s.set(bass, 0, "glide", s.valueFor(bass, "glide", 35));
-    auto bassBars = [&](double b0, double b1) {
-        static const int off[16] = {0, 0, 12, 0, 10, 0, 12, 3, 0, 7, 0, 12, 0, 10, 7, 3};
-        static const int vel[16] = {125, 70, 100, 75, 112, 70, 105, 80, 120, 75, 95, 70, 115, 80, 100, 90};
-        for (double b = b0; b < b1; ++b) {
-            const int r = kBassRoot[static_cast<int>(b) % 4];
-            for (int k = 0; k < 16; ++k)
-                N(bass, bar(b) + k * 0.25, (k == 6 || k == 14) ? 0.3 : 0.19, r + off[k], vel[k]);
+    // A knob turned from a to b (its displayed value: Hz, %, ms...) over bars b0..b1, as a Q-Link would,
+    // the hand never still: it wobbles `wob` of the knob's travel around the line, a cycle every `period`
+    // bars (the tutorials: automate the cutoff all the time, subtly). Eighth-beat ramps; the wobble fades
+    // in and out so the ends land on `from` and `to`.
+    auto move = [&](Inst* in, double b0, double b1, const std::string& key, double from, double to, double wob, double period) {
+        const float n0 = s.valueFor(in, key, from), n1 = s.valueFor(in, key, to);
+        const double x0 = bar(b0), x1 = bar(b1);
+        auto at = [&](double x) {
+            const double t = (x - x0) / (x1 - x0);
+            const double w = wob * std::min({1.0, t * 8.0, (1.0 - t) * 8.0}) * std::sin(2.0 * M_PI * (x - x0) / bar(period));
+            return static_cast<float>(std::clamp(n0 + (n1 - n0) * t + w, 0.0, 1.0));
+        };
+        for (double x = x0; x < x1 - 1e-9; x += 0.125) {
+            const double y = std::min(x + 0.125, x1);
+            s.ramp(in, x, y, key, at(x), at(y));
         }
     };
-    // The pluck: sixteenths up and down the chord over two octaves.
+
+    // The lead thickened, two oscillators sounding like four: osc 2 in the pulse range, its width swept
+    // by bus 2's slow triangle (PWM), osc 1 between saw and square, a little detune, Beat Freq, Analog up.
+    s.set(lead, 0, "o1_wave", 0.45f);
+    s.set(lead, 0, "o2_wave", 0.72f);
+    s.set(lead, 0, "o2_freq", s.valueFor(lead, "o2_freq", -0.1));
+    s.set(lead, 0, "o2_beat", s.valueFor(lead, "o2_beat", 0.9));
+    s.set(lead, 0, "drift", 0.5f);
+    s.opt(lead, 0, "m2_src", "Triangle");
+    s.set(lead, 0, "m2_rate", s.valueFor(lead, "m2_rate", 0.9));
+    s.opt(lead, 0, "m2_dest", "Wave 2");
+    s.set(lead, 0, "m2_amt", s.valueFor(lead, "m2_amt", 15));
+    s.opt(lead, 0, "m2_ctl", "Always");
+    s.opt(lead, 0, "glide_mode", "Legato");
+    // The pluck a little wider and warmer: Beat Freq, Analog.
+    s.set(arp, 0, "o2_beat", s.valueFor(arp, "o2_beat", 0.7));
+    s.set(arp, 0, "drift", 0.35f);
+    s.opt(bass, 0, "glide_mode", "Legato");
+    s.set(bass, 0, "glide", s.valueFor(bass, "glide", 35));
+    s.wet(pad, 0.0, 1.0f, 0.01);
+    s.wet(riser, 0.0, 1.0f, 0.01);
+    s.wet(boom, 0.0, 1.0f, 0.01);
+
+    auto bassBars = [&](double b0, double b1, bool fills) {
+        for (double b = b0; b < b1; ++b) {
+            const int c = static_cast<int>(b) % 4, r = kBassRoot[c];
+            for (int k = 0; k < 16; ++k) {
+                const bool fill = fills && c == 3 && k >= 12;
+                const int off = fill ? kFillOff[k - 12] : kBassOff[k], vel = fill ? kFillVel[k - 12] : kBassVel[k];
+                if (vel) N(bass, bar(b) + k * 0.25, k == 7 ? 0.08 : (k == 14 && !fill) ? 0.3 : 0.19, r + off, vel);
+            }
+        }
+    };
+    // The pluck: a tresillo (3+3+2 sixteenths, twice), sparse on purpose: the tutorials' simple arp
+    // that the delay finishes; the 1/8 ping-pong lands its echoes in the gaps.
     auto arpBars = [&](double b0, double b1) {
-        static const int idx[16] = {0, 1, 2, 3, 4, 5, 4, 3, 1, 2, 3, 4, 5, 6, 5, 4};
+        static const int step[6] = {0, 3, 6, 8, 11, 14}, vel[6] = {112, 84, 100, 92, 84, 104};
         for (double b = b0; b < b1; ++b) {
             const int c = static_cast<int>(b) % 4, root = kChordRoot[c];
-            const int tones[3] = {0, kThird[c], 7};
-            for (int k = 0; k < 16; ++k) {
-                const int i = idx[k];
-                N(arp, bar(b) + k * 0.25, 0.2, root + tones[i % 3] + 12 * (i / 3), k % 4 == 0 ? 112 : (k % 2 ? 72 : 90));
-            }
+            const int tones[6] = {0, 7, 12 + kThird[c], 12, 7, 19};
+            for (int k = 0; k < 6; ++k) N(arp, bar(b) + step[k] * 0.25, 0.2, root + tones[k], vel[k]);
         }
     };
     // The lead: long notes, overlapping (legato glide), a scoop into each phrase, vibrato on the long ones.
@@ -712,6 +799,15 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
             s.cc(lead, bar(b0) + v.first, 1, 95);
             s.cc(lead, bar(b0) + v.second, 1, 0);
         }
+    };
+    // A delay throw at a phrase's end: the lead's echo turned up for its last beats, then back.
+    auto throwAt = [&](double b) {
+        if (!plays(lead)) return;
+        Inst* fx = lead->insert;
+        s.ramp(fx, bar(b) - 1.0, bar(b), "dly_fb", s.valueFor(fx, "dly_fb", 45), s.valueFor(fx, "dly_fb", 72));
+        s.ramp(fx, bar(b) - 1.0, bar(b), "dly_mix", s.valueFor(fx, "dly_mix", 30), s.valueFor(fx, "dly_mix", 50));
+        s.ramp(fx, bar(b) + 4.0, bar(b) + 6.0, "dly_fb", s.valueFor(fx, "dly_fb", 72), s.valueFor(fx, "dly_fb", 45));
+        s.ramp(fx, bar(b) + 4.0, bar(b) + 6.0, "dly_mix", s.valueFor(fx, "dly_mix", 50), s.valueFor(fx, "dly_mix", 30));
     };
     const std::vector<Note> melodyA = {{0, 2, 72},   {2, 1, 68},  {3, 1, 67},   {4, 3, 65},  {7, 1, 68},  {8, 2, 75},
                                        {10, 1, 72},  {11, 1, 70}, {12, 4, 67},  {16, 1.5, 72}, {17.5, 0.5, 73},
@@ -729,50 +825,51 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
             N(pad, bar(b), 3.95, kPad[c][1], 90);
         }
     };
-    s.wet(pad, 0.0, 1.0f, 0.01);
 
-    // ---- intro: the title over a pad chord -----------------------------------------------------------
+    // ---- intro: the title over a pad chord, its filter opening ------------------------------------------
     s.section(0, "intro");
     padBars(0, 2);
+    move(pad, 0, 2, "f_cut", 500, 1400, 0.0, 2);
 
-    // ---- the bass sequence: the filter opens over the build -------------------------------------------
+    // ---- the bass: a filter build that never stands still ------------------------------------------------
     s.section(bar(2), "Bass sequence");
     s.cue(bar(2), "{\"type\": \"mode\", \"mode\": \"clean\"}");
     s.page(bar(2), bass, "FILTER");
-    s.caption(bar(2), "Bass sequence: Grit Roller", "Rolling sixteenths with slides; the filter opening, the resonance rising");
-    bassBars(2, 40);
-    turn(bass, 2, 10, "f_cut", 130, 650);
-    turn(bass, 2, 10, "f_res", 20, 42);
+    s.caption(bar(2), "Bass: Grit Roller", "Off-beat sixteenths on the roots, 1-5-octave jumps; the accents hit harder and open the filter");
+    bassBars(2, 34, false);
+    move(bass, 2, 10, "f_cut", 140, 700, 0.04, 2);
+    move(bass, 2, 10, "f_res", 20, 40, 0.0, 2);
     s.wet(bass, bar(6) - 0.02, 1.0f, 0.02);
     s.cue(bar(6), "{\"type\": \"mode\", \"mode\": \"fx\"}");
-    s.page(bar(6), bass->insert, "DELAY");
-    s.caption(bar(6), "+ EffectForce: Tape Echo", "Tape drive and a tape delay with wow");
+    s.page(bar(6), bass->insert, "COMP");
+    s.caption(bar(6), "+ EffectForce", "Compression, a short ping-pong and a plate: the bass stays tight");
     segs.push_back({"bass", bar(2), bar(6), bar(6), bar(10)});
 
-    // ---- the pluck arpeggio -----------------------------------------------------------------------
+    // ---- the pluck -----------------------------------------------------------------------------------------
     s.section(bar(10), "Pluck arpeggio");
     s.cue(bar(10), "{\"type\": \"mode\", \"mode\": \"clean\"}");
     s.page(bar(10), arp, "FILTER");
-    s.caption(bar(10), "Pluck arpeggio: Pluck", "Sixteenths up the chord; the cutoff and the filter EG opening up");
-    arpBars(10, 38);
-    turn(arp, 10, 18, "f_cut", 300, 1100);
-    turn(arp, 10, 18, "fe_d", 140, 320);
+    s.caption(bar(10), "Pluck: a tresillo", "3 + 3 + 2 sixteenths, sparse on purpose: the delay will fill it");
+    arpBars(10, 36);
+    move(arp, 10, 18, "f_cut", 320, 1100, 0.03, 2);
+    move(arp, 10, 18, "fe_d", 140, 320, 0.0, 2);
     s.gainAt(bass, bar(10), -4.0);   // the bass steps back while the arp comes in clean
     s.gainAt(bass, bar(14), 0.0);
-    turn(bass, 10, 14, "f_cut", 650, 480);
-    turn(bass, 14, 18, "f_cut", 480, 900);
+    move(bass, 10, 14, "f_cut", 700, 480, 0.04, 2);
+    move(bass, 14, 18, "f_cut", 480, 900, 0.04, 2);
     s.wet(arp, bar(14) - 0.02, 1.0f, 0.02);
     s.cue(bar(14), "{\"type\": \"mode\", \"mode\": \"fx\"}");
     s.page(bar(14), arp->insert, "DELAY");
-    s.caption(bar(14), "+ EffectForce: Pluck Echo", "A synced echo for plucks: the arp spreads out in stereo");
+    s.caption(bar(14), "+ EffectForce", "A 1/8 ping-pong lands in the gaps; chorus, a pump and a hall");
     segs.push_back({"arp", bar(10), bar(14), bar(14), bar(18)});
 
-    // ---- the lead ------------------------------------------------------------------------------------
+    // ---- the lead ------------------------------------------------------------------------------------------
     s.section(bar(18), "Lead");
     s.cue(bar(18), "{\"type\": \"mode\", \"mode\": \"clean\"}");
     s.page(bar(18), lead, "KEYS");
-    s.caption(bar(18), "Lead: Afterglow Lead", "Legato glide between long notes, a bend into each phrase, vibrato from the mod wheel");
+    s.caption(bar(18), "Lead: Afterglow Lead, thickened", "Osc 2's pulse width swept by an LFO, detune and Beat Freq: two oscillators, four voices' worth");
     leadLine(18, melodyA, {0.0, 16.0}, {{4.5, 7.0}, {12.5, 16.0}, {20.5, 22.5}, {28.5, 31.5}});
+    move(lead, 18, 26, "f_cut", 1300, 1600, 0.04, 4);
     s.page(bar(20), lead, "MOD");
     for (Inst* in : {bass, arp}) {
         s.gainAt(in, bar(18), (in == bass ? 0.0 : -3.0) - 4.0);
@@ -780,43 +877,105 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     }
     s.wet(lead, bar(22) - 0.02, 1.0f, 0.02);
     s.cue(bar(22), "{\"type\": \"mode\", \"mode\": \"fx\"}");
-    s.page(bar(22), lead->insert, "REVERB");
-    s.caption(bar(22), "+ EffectForce: Lead Polish", "EQ, a compressor, a delay and a reverb");
-    turn(bass, 22, 26, "f_cut", 900, 1200);
+    s.page(bar(22), lead->insert, "DELAY");
+    s.caption(bar(22), "+ EffectForce", "A dotted-quarter tape delay, chorus and a hall; the echo thrown up at the phrase's end");
+    move(bass, 18, 26, "f_cut", 900, 1200, 0.04, 2);
+    move(arp, 18, 26, "f_cut", 1100, 900, 0.03, 4);
+    throwAt(26);
     segs.push_back({"lead", bar(18), bar(22), bar(22), bar(26)});
 
-    // ---- all together: the climax --------------------------------------------------------------------
+    // ---- all together ---------------------------------------------------------------------------------
     s.section(bar(26), "All together");
     s.cue(bar(26), "{\"type\": \"mode\", \"mode\": \"together\"}");
     s.page(bar(26), bass, "FILTER");
-    s.caption(bar(26), "All together", "The bass opens all the way: cutoff, resonance, Multidrive; the pad comes in");
-    padBars(26, 40);
-    turn(bass, 26, 30, "f_cut", 1200, 2600);
-    turn(bass, 26, 30, "f_res", 42, 58);
-    turn(bass, 26, 30, "f_drive", 75, 100);
+    s.caption(bar(26), "All together", "Nothing stands still: every part's cutoff keeps moving");
+    padBars(26, 48);
+    move(bass, 26, 34, "f_cut", 1200, 1800, 0.05, 2);
+    move(bass, 26, 34, "f_drive", 75, 90, 0.0, 2);
+    move(pad, 26, 34, "f_cut", 1400, 2200, 0.05, 4);
+    move(arp, 26, 30, "f_cut", 900, 1300, 0.04, 2);
+    move(lead, 26, 34, "f_cut", 1600, 2000, 0.04, 4);
     leadLine(26, melodyB, {0.0, 16.0}, {{4.5, 7.0}, {12.5, 14.0}, {16.5, 19.0}, {28.5, 32.0}});
     s.page(bar(30), arp, "AMP");
     s.caption(bar(30), "The pluck rings longer", "Its amp and filter decays turned up");
-    turn(arp, 30, 34, "ae_d", 1200, 2600);
-    turn(arp, 30, 34, "fe_d", 320, 600);
-    s.page(bar(34), master, "COMP");
-    s.caption(bar(34), "EffectForce on the master: Glue Comp", "Four SubForce parts, each through its own EffectForce");
-    turn(bass, 34, 38, "f_cut", 2600, 1500);
+    move(arp, 30, 34, "ae_d", 1200, 2600, 0.0, 2);
+    move(arp, 30, 34, "fe_d", 320, 600, 0.0, 2);
+    throwAt(34);
 
-    // ---- breakdown: everything closes, the lead's last note rings out ---------------------------------
-    s.section(bar(38), "Breakdown");
+    // ---- breakdown: the bass out, the arp closing, the pad's hall swelling, osc 2 sliding up a fifth --
+    s.section(bar(34), "Breakdown");
+    s.cue(bar(34), "{\"type\": \"mode\", \"mode\": \"together\"}");
+    s.page(bar(34), lead, "OSC");
+    s.caption(bar(34), "Breakdown", "The bass drops out; on the lead's long note osc 2 slides up a fifth");
+    move(arp, 34, 36, "f_cut", 1300, 260, 0.0, 2);
+    move(pad, 34, 38, "f_cut", 2200, 3000, 0.06, 2);
+    s.gainAt(pad, bar(34), -11.0);   // stripped down: the drop has to hit harder than this
+    s.gainAt(lead, bar(34), -8.0);
+    s.gainAt(arp, bar(34), -7.0);
+    if (plays(pad)) {
+        Inst* fx = pad->insert;
+        s.ramp(fx, bar(34), bar(36), "pls_depth", s.valueFor(fx, "pls_depth", 60), s.valueFor(fx, "pls_depth", 0));
+        s.ramp(fx, bar(34), bar(37), "rev_mix", s.valueFor(fx, "rev_mix", 50), s.valueFor(fx, "rev_mix", 72));
+        s.ramp(fx, bar(37.75), bar(38), "rev_mix", s.valueFor(fx, "rev_mix", 72), s.valueFor(fx, "rev_mix", 50));
+        s.ramp(fx, bar(37.75), bar(38), "pls_depth", s.valueFor(fx, "pls_depth", 0), s.valueFor(fx, "pls_depth", 60));
+    }
+    // the lead: F held, then gliding (slower and slower) to Ab and C into the drop
+    const std::vector<Note> rise = {{0, 8, 65}, {8, 6, 68}, {14, 2, 72}};
+    leadLine(34, rise, {0.0}, {{2.0, 7.5}});
+    move(lead, 34, 38, "f_cut", 2000, 2800, 0.05, 2);
+    move(lead, 35, 37, "o2_freq", -0.1, 7.0, 0.0, 2);
+    move(lead, 37, 38, "o2_freq", 7.0, -0.1, 0.0, 1);
+    move(lead, 34, 37.5, "glide", 60, 420, 0.0, 2);
+    s.page(bar(36), riser, "FILTER");
+    s.caption(bar(36), "Riser: Riser Engine", "Noise and a saw-swept filter, from SubForce too, cutoff opening");
+    N(riser, bar(36), bar(2) - 0.1, 53, 110);
+    move(riser, 36, 38, "f_cut", 400, 7000, 0.0, 2);
+
+    // ---- the drop: every move at once ---------------------------------------------------------------
+    s.section(bar(38), "The drop");
     s.cue(bar(38), "{\"type\": \"mode\", \"mode\": \"together\"}");
     s.page(bar(38), bass, "FILTER");
-    s.caption(bar(38), "Breakdown", "The bass filter closing all the way down");
-    turn(bass, 38, 40, "f_cut", 1500, 90);
-    N(lead, bar(38), bar(2) - 0.2, 65, 100);
-    if (plays(lead)) {
-        s.cc(lead, bar(38) + 1.0, 1, 100);
-        s.cc(lead, bar(40), 1, 0);
-    }
+    s.caption(bar(38), "The drop: Impact Boom", "Then every bass move stacked: cutoff, resonance, Multidrive, EG amount, glide");
+    N(boom, bar(38), 3.0, 41, 127);
+    bassBars(38, 46, true);
+    move(bass, 38, 42, "f_cut", 800, 2600, 0.05, 1);
+    s.gainAt(bass, bar(38), 1.5);
+    s.gainAt(arp, bar(38), -2.0);
+    s.gainAt(pad, bar(38), -5.0);
+    s.gainAt(lead, bar(38), -2.0);
+    move(bass, 42, 46, "f_cut", 2600, 1100, 0.05, 1);
+    move(bass, 38, 42, "f_res", 24, 55, 0.03, 2);
+    move(bass, 42, 46, "f_res", 55, 35, 0.0, 2);
+    move(bass, 38, 42, "f_drive", 75, 100, 0.0, 2);
+    move(bass, 38, 42, "f_env", 2.8, 4.5, 0.0, 2);   // octaves
+    move(bass, 38, 44, "glide", 35, 90, 0.0, 2);
+    arpBars(38, 46);
+    move(arp, 38, 46, "f_cut", 600, 1500, 0.05, 2);
+    move(lead, 38, 46, "f_cut", 1600, 2400, 0.05, 2);
+    move(lead, 38, 38.25, "glide", 420, 60, 0.0, 1);
+    s.opt(lead, bar(38) - 0.05, "o2_oct", "4'");
+    leadLine(38, melodyB, {0.0, 16.0}, {{4.5, 7.0}, {12.5, 14.0}, {16.5, 19.0}, {28.5, 32.0}});
+    move(pad, 38, 46, "f_cut", 1800, 2600, 0.05, 4);
+    s.page(bar(42), master, "COMP");
+    s.caption(bar(42), "EffectForce on the master", "EQ and glue over six SubForce parts, each through its own EffectForce");
 
-    // ---- outro ----------------------------------------------------------------------------------------
-    s.section(bar(41), "outro");
+    // ---- the end: the filters close, the halls ring out -------------------------------------------------
+    s.section(bar(46), "Ending");
+    s.cue(bar(46), "{\"type\": \"mode\", \"mode\": \"together\"}");
+    s.page(bar(46), pad, "FILTER");
+    s.caption(bar(46), "Ending", "The filters close, the halls ring out");
+    move(pad, 46, 48, "f_cut", 2600, 300, 0.0, 2);
+    move(arp, 46, 48, "f_cut", 1500, 200, 0.0, 2);
+    move(pad, 46, 48.5, "volume", -1.2, -18, 0.0, 2);
+    move(lead, 46, 48.5, "volume", -9.2, -26, 0.0, 2);
+    move(arp, 46, 48, "volume", 4.8, -10, 0.0, 2);
+    N(lead, bar(46), bar(2) - 0.2, 65, 100);
+    if (plays(lead)) {
+        s.cc(lead, bar(46) + 1.0, 1, 100);
+        s.cc(lead, bar(48), 1, 0);
+    }
+    arpBars(46, 48);
+    s.section(bar(48), "outro");
 }
 
 double lufsOf(const std::vector<float>& L, const std::vector<float>& R, double b0, double b1) {
@@ -866,7 +1025,7 @@ int main(int argc, char** argv) {
         song(m, segs, {}, solo);
         std::ofstream none("/dev/null");
         std::vector<float> L, R;
-        m.run(bar(44), none, L, R);
+        m.run(bar(kEndBar), none, L, R);
         const Seg& g = segs[static_cast<size_t>(solo)];
         const double c = lufsOf(L, R, g.c0, g.c1), f = lufsOf(L, R, g.f0, g.f1);
         fxGainDb[static_cast<size_t>(solo)] = std::clamp(c - f, -9.0, 6.0);
@@ -877,7 +1036,7 @@ int main(int argc, char** argv) {
 
     std::ofstream state(out + "/state.jsonl");
     std::vector<float> L, R;
-    const double endBeat = bar(44);
+    const double endBeat = bar(kEndBar);
     s.run(endBeat, state, L, R);
 
     std::ofstream cues(out + "/cues.jsonl");
@@ -896,7 +1055,7 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < L.size(); ++i) pk = std::max(pk, static_cast<double>(std::max(std::fabs(L[i]), std::fabs(R[i]))));
     const double lufs = integratedLufs(L, R);
     std::printf("raw mix: %.1f LUFS, peak %.1f dBFS\n", lufs, 20.0 * std::log10(std::max(pk, 1e-9)));
-    const double g = std::pow(10.0, (-14.0 - lufs) / 20.0);
+    const double g = std::pow(10.0, (-10.0 - lufs) / 20.0);
     for (size_t i = 0; i < L.size(); ++i) L[i] = static_cast<float>(L[i] * g), R[i] = static_cast<float>(R[i] * g);
     limit(L, R, std::pow(10.0, -1.0 / 20.0));
     std::printf("mastered: %.1f LUFS\n", integratedLufs(L, R));
