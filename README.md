@@ -125,6 +125,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | 0.0.4 — the rest of the original's manual: LFO key tracking, exponential attack, latch, EG sync, osc 2's keys and drone, gated glide, Bend To; 74 presets | ✅ |
 | 0.0.5 — Analog: jitter, imperfect shapes, per-note and per-unit variation | ✅ |
 | 0.0.6 — a review's fixes (EG Sync, glide and EG times, latch and MPC's stop, units, Pitch Bend source) | ✅ |
+| 0.0.7 — Multidrive calibrated against recordings of the original: grittier at full | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

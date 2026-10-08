@@ -11,18 +11,33 @@ namespace sf {
 uint64_t g_stageNs[STG_COUNT] = {};
 #endif
 
+#ifdef SF_TUNE
+// The calibration build (tools/demos as build/demos_tune): these constants can be set by name between
+// renders (tuneSet), so an optimiser can fit them to recordings. The plugin keeps them constexpr.
+#define SF_TUNABLE(name, value) float name = value
+#else
+#define SF_TUNABLE(name, value) constexpr float name = value
+#endif
+
 namespace {
 
-constexpr float kInGain = 0.5f;          // mixer -> ladder at Multidrive 0 (one oscillator at full: mild warmth)
-constexpr float kDriveSpan = 7.0f;       // Multidrive 1: 8x that
+// Multidrive's two stages. 0.0.7 calibrated them against a recording of the original's factory
+// presets (sounds at full Multidrive, the decoded knob positions played on the recording's notes): the
+// original is grittier there; a fit asked for the clipper's gain at full x1.6 and the drive into the
+// ladder x1.24, of which about half was taken (the clipper 1.5 -> 2.0, the ladder 8x -> 9x), the
+// evidence being two sounds.
+SF_TUNABLE(kInGain, 0.5f);               // mixer -> ladder at Multidrive 0 (one oscillator at full: mild warmth)
+SF_TUNABLE(kDriveSpan, 8.0f);            // Multidrive 1: 9x that (8x until 0.0.7)
+SF_TUNABLE(kPostBase, 0.5f);             // Multidrive's second stage: its clipper's input gain at drive 0..
+SF_TUNABLE(kPostSpan, 1.5f);             // ...rising by this at full, 4x (3x until 0.0.7); its output takes the inverse back
 // The feedback loop (the mixer's output back into it), tuned on renders of a saw through it: from
 // a slight thickening (+1 dB at half the knob) and more drive into the filter, through grit, to the
 // chaos of a loop over unity gain in the last tenth (+5 dB, the upper harmonics +15 dB).
-constexpr float kFeedbackGain = 1.4f;    // the loop's gain at full: unity at 85% of the knob
-constexpr float kFeedbackClip = 0.7f;    // where the loop's own stage (the EXT IN level amp) saturates
+SF_TUNABLE(kFeedbackGain, 1.4f);         // the loop's gain at full: unity at 85% of the knob
+SF_TUNABLE(kFeedbackClip, 0.7f);         // where the loop's own stage (the EXT IN level amp) saturates
 constexpr float kFeedbackHp = 150.0f;    // Hz: AC coupled: no bass builds up around the loop
 constexpr float kFeedbackLp = 7000.0f;   // Hz: the loop's bandwidth, an analog stage's
-constexpr float kDriveBias = 0.3f;       // Multidrive's asymmetry at its middle (tube-like); subtle low, none at the ends
+SF_TUNABLE(kDriveBias, 0.3f);            // Multidrive's asymmetry at its middle (tube-like); subtle low, none at the ends
 constexpr float kOutGain = 1.51f;        // engine output at 0 dB volume (1.2 until 0.0.1: +2 dB, level with MPC's own instruments)
 constexpr float kMaxCutoff = 0.40f;      // of the 2x rate (35 kHz): the ladder's coefficient stays sane
 constexpr float kMinCutoff = 8.0f;       // Hz
@@ -79,6 +94,18 @@ constexpr float kNoiseComp[17] = {2.000000f, 1.728349f, 1.428936f, 1.182656f, 0.
                                   0.800082f, 0.879364f, 0.987116f};
 
 } // namespace
+
+#ifdef SF_TUNE
+bool tuneSet(const std::string& name, float v) {
+    struct { const char* name; float* at; } const all[] = {
+        {"kInGain", &kInGain}, {"kDriveSpan", &kDriveSpan}, {"kPostBase", &kPostBase}, {"kPostSpan", &kPostSpan},
+        {"kFeedbackGain", &kFeedbackGain}, {"kFeedbackClip", &kFeedbackClip}, {"kDriveBias", &kDriveBias},
+        {"kResMax", &kResMax}, {"kResCurve", &kResCurve}, {"kResEdge", &kResEdge}};
+    for (const auto& t : all)
+        if (name == t.name) return *t.at = v, true;
+    return false;
+}
+#endif
 
 Synth::Synth(float sampleRate)
     : sr_(sampleRate), osr_(sampleRate * kOversample), invOsr_(1.0f / (sampleRate * kOversample)),
@@ -736,8 +763,8 @@ void Synth::control() {
         envSemis(clampf(p.envAmount + egAmtMod, -1.0f, 1.0f)) * fVel_,
         resFeedback(clampf(p.res + resMod + noteRes, 0.0f, 1.0f)),
         kInGain * driveGain,
-        0.5f + drive,                  // Multidrive's second stage: into the clipper...
-        2.0f / (1.0f + 2.0f * drive),  // ...and out of it
+        kPostBase + kPostSpan * drive,           // Multidrive's second stage: into the clipper...
+        1.0f / (kPostBase + kPostSpan * drive),  // ...and out of it
         taper(p.mixOsc1 + lvlMod[0]),
         taper(p.mixSub + lvlMod[1]),
         taper(p.mixOsc2 + lvlMod[2]),

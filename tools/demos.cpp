@@ -4,6 +4,16 @@
 //   demos <outdir>                 every factory preset playing a phrase for its category, as
 //                                  <outdir>/NN_<Category>_<Name>.wav, and all of them back to back
 //                                  as <outdir>/tour.wav; prints each one's loudness
+//   demos --files <outdir> <category> <file.sfp>...
+//                                  preset files from anywhere playing <category>'s phrase, as
+//                                  <outdir>/<file stem>.wav; prints each one's loudness
+//   demos --notes <file.sfp> <notes.txt> <out.wav>
+//                                  a preset playing a note list: one note per line, "start length
+//                                  key velocity" (seconds, MIDI key), e.g. transcribed from a recording
+//   demos --serve                  the same, one job per stdin line ("preset<TAB>notes<TAB>out.wav"),
+//                                  answering "ok": for an optimiser's many renders; built with
+//                                  -DSF_TUNE (build/demos_tune) also "set <constant> <value>", the
+//                                  engine's SF_TUNABLE constants (dsp/synth.cpp), to fit them
 //   demos --match <dir> <LUFS>     sets volume= in every preset file under <dir> (presets/Factory)
 //                                  so its phrase plays at <LUFS> integrated (ITU-R BS.1770 / EBU
 //                                  R128: K-weighting, 400 ms blocks, -70 LUFS and -10 LU gates), or
@@ -17,6 +27,9 @@
 #include "../plugin/vst2.h"
 #include "factory_presets.h"
 #include "param_ids.h"
+#ifdef SF_TUNE
+#include "../dsp/synth.h"
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -26,6 +39,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -108,12 +122,13 @@ std::vector<Ev> phrase(const std::string& category, double& beats) {
     return ev;
 }
 
-std::vector<float> render(const std::string& state, const std::string& category) {
+std::vector<float> render(const std::string& state, const std::string& category, const std::vector<Ev>* given = nullptr,
+                          double givenBeats = 0.0) {
     AEffect* e = VSTPluginMain(master);
     e->dispatcher(e, vst::effOpen, 0, 0, nullptr, 0.0f);
     e->dispatcher(e, vst::effSetChunk, 0, static_cast<intptr_t>(state.size()), const_cast<char*>(state.data()), 0.0f);
-    double beats = 0.0;
-    const std::vector<Ev> ev = phrase(category, beats);
+    double beats = givenBeats;
+    const std::vector<Ev> ev = given ? *given : phrase(category, beats);
     const double spb = kSr * 60.0 / 120.0;   // samples per beat
     const size_t total = static_cast<size_t>((beats + 1.5) * spb);   // + the release
     std::vector<float> out((total / kBlock + 1) * kBlock);
@@ -332,8 +347,70 @@ int main(int argc, char** argv) {
         }
         return 0;
     }
+    // A note list ("start length key velocity" per line, seconds) through a preset; at 120 BPM a beat
+    // is half a second.
+    auto playNotes = [](const std::string& presetPath, const std::string& notesPath, const std::string& out) {
+        std::ifstream pin(presetPath), nin(notesPath);
+        std::stringstream ss;
+        ss << pin.rdbuf();
+        std::vector<Ev> ev;
+        double t, len, end = 0.0;
+        int key, vel;
+        while (nin >> t >> len >> key >> vel) {
+            note(ev, key, t * 2.0, len * 2.0, vel);
+            end = std::max(end, (t + len) * 2.0);
+        }
+        std::stable_sort(ev.begin(), ev.end(), [](const Ev& a, const Ev& b) { return a.beat < b.beat; });
+        const std::vector<float> x = render(ss.str(), "", &ev, end);
+        writeWav(out, x);
+        return x;
+    };
+    if (argc == 5 && !std::strcmp(argv[1], "--notes")) {
+        const std::vector<float> x = playNotes(argv[2], argv[3], argv[4]);
+        std::printf("%s: %6.1f LUFS\n", argv[4], lufs(x));
+        return 0;
+    }
+    if (argc == 2 && !std::strcmp(argv[1], "--serve")) {   // "preset<TAB>notes<TAB>out.wav" per line -> "ok"
+        std::string line;
+        while (std::getline(std::cin, line)) {
+#ifdef SF_TUNE
+            if (line.compare(0, 4, "set ") == 0) {   // "set kInGain 0.6": an engine constant (build/demos_tune)
+                std::istringstream in(line.substr(4));
+                std::string name;
+                float v = 0.0f;
+                in >> name >> v;
+                std::printf(sf::tuneSet(name, v) ? "ok\n" : "bad\n");
+                std::fflush(stdout);
+                continue;
+            }
+#endif
+            const size_t a = line.find('\t'), b = line.find('\t', a + 1);
+            if (a == std::string::npos || b == std::string::npos) {
+                std::printf("bad\n");
+            } else {
+                playNotes(line.substr(0, a), line.substr(a + 1, b - a - 1), line.substr(b + 1));
+                std::printf("ok\n");
+            }
+            std::fflush(stdout);
+        }
+        return 0;
+    }
+    if (argc >= 5 && !std::strcmp(argv[1], "--files")) {
+        const std::string dir = argv[2], category = argv[3];
+        std::filesystem::create_directories(dir);
+        for (int k = 4; k < argc; ++k) {
+            std::ifstream in(argv[k]);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            const std::vector<float> x = render(ss.str(), category);
+            const std::string stem = std::filesystem::path(argv[k]).stem().string();
+            writeWav(dir + "/" + stem + ".wav", x);
+            std::printf("%-40s %6.1f LUFS  peak %6.1f dBFS\n", stem.c_str(), lufs(x), 20.0 * std::log10(std::max(peakOf(x), 1e-9f)));
+        }
+        return 0;
+    }
     if (argc != 2) {
-        std::fprintf(stderr, "usage: %s <outdir> | --match <preset dir> <LUFS>\n", argv[0]);
+        std::fprintf(stderr, "usage: %s <outdir> | --files <outdir> <category> <file.sfp>... | --match <preset dir> <LUFS>\n", argv[0]);
         return 2;
     }
     const std::string dir = argv[1];

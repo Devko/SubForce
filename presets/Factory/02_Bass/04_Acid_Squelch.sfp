@@ -1,5 +1,5 @@
 subforce 1
-volume=-0.4
+volume=-0.3
 f_slope=2
 f_cut=260
 f_res=0.66

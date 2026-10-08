@@ -63,6 +63,7 @@ changes; it checks the layout and every factory preset before writing anything.
 | `test-arm-pgo` | The suite linked against the profile-guided objects the shipped `.so` is made of |
 | `demos` | Render every factory preset (a phrase per category, below) and a filter sweep to `build/demos-out/*.wav` (stereo, L = R, as the plugin plays), and all of them back to back as `tour.wav` |
 | `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −16) on its demo phrase, never peaking over −1 dBFS |
+| `build/demos_tune` | The demo tool with the engine's tuning constants settable (`-DSF_TUNE`): for fitting them to recordings (below) |
 | `bench` | x86 bench: only proves the bench and the profiling build work |
 | `arm-plugin` | `build/arm/subforce.so`; profile-guided when `qemu-arm` is installed |
 | `arm-bench` | `build/arm/sfbench`, the CPU bench for the device |
@@ -80,6 +81,19 @@ and slides; Lead, a legato melody with the mod wheel; Keys, an 8th-note arpeggio
 chords; FX and any other category, held notes. A new category folder plays the FX phrase unless
 `tools/demos.cpp` gets one for it.
 
+`build/demos` also renders other material, for comparing SubForce with recordings:
+
+```sh
+build/demos --files <outdir> <category> <file.sfp>...   # preset files from anywhere, on a category's phrase
+build/demos --notes <file.sfp> <notes.txt> <out.wav>    # a preset on a note list: "start length key velocity" per line (seconds)
+build/demos --serve                                     # the same as jobs on stdin, "preset<TAB>notes<TAB>out.wav" -> "ok"
+```
+
+`build/demos_tune --serve` also takes `set <constant> <value>`: the engine's `SF_TUNABLE` constants
+(Multidrive's stages, the feedback loop, the resonance curve; `dsp/synth.cpp`, `dsp/synth.h`), so an
+optimiser can fit them to recordings. The plugin keeps them `constexpr`; 0.0.7's Multidrive came
+from such a fit.
+
 ## Make variables
 
 | Variable | Meaning |
@@ -90,7 +104,7 @@ chords; FX and any other category, held notes. A new category folder plays the F
 | `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
 | `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
 | `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
-| `PLUGIN_VERSION` | Release version (default `0.0.6`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
+| `PLUGIN_VERSION` | Release version (default `0.0.7`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
 

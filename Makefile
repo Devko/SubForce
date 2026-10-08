@@ -130,6 +130,10 @@ preset-levels: $(BUILD)/demos
 	python3 $(SURF)/surface.py
 $(BUILD)/demos: tools/demos.cpp $(SRC) $(HDR) $(GEN) | $(BUILD)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pthread $(INC) $(SRC) $< -o $@
+# The same with the engine's SF_TUNABLE constants settable (demos --serve: "set <name> <value>"),
+# for fitting them to recordings.
+$(BUILD)/demos_tune: tools/demos.cpp $(SRC) $(HDR) $(GEN) | $(BUILD)
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -pthread -DSF_TUNE $(INC) $(SRC) $< -o $@
 
 # --- device -----------------------------------------------------------------------------------
 # The .so MPC loads: only VSTPluginMain exported (a version script hides the C++ template
@@ -223,7 +227,7 @@ bench-device: $(ARM_SO) $(ARM_SO_STAGES) $(ARM_BENCH)
 
 # Release zip: plugin + skin + sd88me's installer (stops MPC, backs up and edits
 # MPC.settings, restarts MPC).
-PLUGIN_VERSION ?= 0.0.6
+PLUGIN_VERSION ?= 0.0.7
 plugin-package: $(ARM_SO) $(SKIN)
 	@# Everything shipped runs under BusyBox on the device: a CR in a script breaks it there.
 	@# grep: 1 = no CR found (good); 0 = found one; 2 = it couldn't read the scripts.

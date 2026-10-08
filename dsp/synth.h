@@ -26,6 +26,9 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#ifdef SF_TUNE
+#include <string>
+#endif
 
 namespace sf {
 
@@ -47,8 +50,14 @@ enum SubOctave : int { SO_ONE, SO_TWO };
 
 constexpr int kOctaveMin = -2;   // 32' .. 2' (8' = 0)
 constexpr int kOctaveMax = 2;
-constexpr float kResMax = 4.6f;  // ladder feedback at full resonance (self-oscillation from ~4)
-constexpr float kResEdge = 0.7f; // the knob where it reaches 4: "settings above 7 cause the filter
+#ifdef SF_TUNE   // the calibration build: settable by name (tuneSet)
+#define SF_TUNABLE_H(name, value) inline float name = value
+#else
+#define SF_TUNABLE_H(name, value) constexpr float name = value
+#endif
+SF_TUNABLE_H(kResMax, 4.6f);     // ladder feedback at full resonance (self-oscillation from ~4)
+SF_TUNABLE_H(kResCurve, 1.0f);   // the knob's curve up to kResEdge: 1 straight, above 1 gentler low down
+SF_TUNABLE_H(kResEdge, 0.7f);    // the knob where it reaches 4: "settings above 7 cause the filter
                                  // to self-oscillate" (the original's manual)
 constexpr float kBeatRange = 3.5f;   // Hz: osc 2's beat frequency, either way (the original's BEAT FREQ)
 constexpr float kDroneNote = 60.0f;  // a droning osc 2 at 8' with its frequency at 0 (MPC's C3)
@@ -57,7 +66,8 @@ constexpr float kKeyCentre = 60.0f;  // where key tracking pivots: filter, EG ti
 
 // Resonance knob 0..1 -> ladder feedback: 0..4 up to kResEdge, on to kResMax at full.
 inline float resFeedback(float k) {
-    return k < kResEdge ? 4.0f * k / kResEdge : 4.0f + (kResMax - 4.0f) * (k - kResEdge) / (1.0f - kResEdge);
+    if (k >= kResEdge) return 4.0f + (kResMax - 4.0f) * (k - kResEdge) / (1.0f - kResEdge);
+    return 4.0f * (kResCurve == 1.0f ? k / kResEdge : std::pow(k / kResEdge, kResCurve));
 }
 
 struct OscPatch {
@@ -329,5 +339,10 @@ private:
     double beats_ = 0.0, bpm_ = 120.0, beatsPerSample_ = 120.0 / 60.0 / 44100.0;
     bool  playing_ = false, beatsValid_ = false;
 };
+
+#ifdef SF_TUNE
+// The calibration build only: sets one of synth.cpp's SF_TUNABLE constants by name; false if unknown.
+bool tuneSet(const std::string& name, float v);
+#endif
 
 } // namespace sf

@@ -4,6 +4,19 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.7
+
+**Multidrive** calibrated against recordings of the original's factory presets: decoded knob
+positions played on the recordings' notes, and the engine's constants fitted to them. At full the
+original is grittier than SubForce was: the second stage (after the ladder) now clips harder (its
+gain at full 2.0, was 1.5) and the drive into the ladder goes to 9×, was 8×. About half of what the
+fit asked for, as only two sounds settled it. Below about a third of the knob the change is slight.
+The factory presets are re-levelled (−16 LUFS, most within ±0.3 dB).
+
+For comparisons like it, `tools/demos` renders preset files from anywhere (`--files`), a preset on a
+note list (`--notes`) and jobs on stdin (`--serve`); `build/demos_tune` makes the engine's tuning
+constants settable for fits (see [Building](docs/BUILDING.md#make-targets)).
+
 ## 0.0.6
 
 Fixes from a review of 0.0.3–0.0.5 (engine, plugin, tests and docs):

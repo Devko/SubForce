@@ -107,7 +107,8 @@ A 4-pole transistor ladder, modelled with its nonlinearities.
   Resonance also thins the bass, as on the original: about 13 dB just under the edge.
 - **Multidrive**: drives the ladder and a second stage after it, as the original's OTA and FET stages
   between the filter and the VCA: asymmetric, tube-like warmth (even harmonics) in the middle of
-  its range, toward hard clipping at full. Louder too, but by a few dB, not a jump.
+  its range, toward hard clipping at full, where it is as gritty as recordings of the original
+  (0.0.7). Louder too, but by a few dB, not a jump.
 - **Slope**: 6, 12, 18 or 24 dB per octave (the outputs of the ladder's four stages).
 - **EG Amount**: the filter EG's sweep, up to ±10 octaves (the value shows octaves).
 - **Key Track**: 0–200%; 100% makes the cutoff follow the keyboard exactly, around C3 as MPC numbers
