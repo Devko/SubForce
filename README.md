@@ -44,9 +44,9 @@ original* in these docs), built on the same plugin groundwork as its sibling
   or not), the bend on either oscillator
 - **Band-limited and oversampled**: polyBLEP oscillators and the whole voice at 2× (88.2 kHz) with a
   halfband decimator; worst aliasing −53 dB up to C7, hard sync −65 dB
-- **74 factory presets** in 7 categories, level-matched, many of them for
+- **108 factory presets** in 7 categories, level-matched, most of them for
   [melodic techno](docs/USER_GUIDE.md#melodic-techno) (rolling basslines, resonant sequences,
-  big leads); user presets, favorites, a browser, Init and Randomize
+  big leads, and [a melodic set](docs/USER_GUIDE.md#the-melodic-set) of plucks, stabs, arps and pads); user presets, favorites, a browser, Init and Randomize
 - **Light on the CPU**: one voice, about 2.9% of a block on the Force (4.3% with everything on),
   with NEON where the work is parallel
 
@@ -126,6 +126,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | 0.0.5 — Analog: jitter, imperfect shapes, per-note and per-unit variation | ✅ |
 | 0.0.6 — a review's fixes (EG Sync, glide and EG times, latch and MPC's stop, units, Pitch Bend source) | ✅ |
 | 0.0.7 — Multidrive calibrated against recordings of the original: grittier at full | ✅ |
+| 0.0.8 — the melodic set: 34 presets (108 in all) | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

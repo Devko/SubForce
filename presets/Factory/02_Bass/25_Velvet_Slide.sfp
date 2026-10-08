@@ -1,0 +1,25 @@
+subforce 1
+volume=0.5
+drift=0.3
+o1_wave=0.34
+mix_o1=0.85
+mix_sub=0.4
+mix_fb=0.3
+f_cut=80
+f_res=0.12
+f_drive=0.2
+f_kb=0.15
+f_env=0.6
+fe_a=0.001
+fe_d=1
+fe_s=0
+fe_r=0.45
+fe_vel=0.55
+ae_a=0.001
+ae_d=1
+ae_s=0
+ae_r=0.45
+ae_vel=0.35
+glide_mode=2
+glide_type=1
+glide=0.045

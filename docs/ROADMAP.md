@@ -66,7 +66,7 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
 - ✅ Releases: 0.0.1 (a prerelease), 0.0.2 (the first regular one, 2 dB louder: −16 LUFS); Phase 2's
   0.0.3 (the original's modulation, 71 presets), 0.0.4 (the rest of its manual, 74 presets), 0.0.5
-  (Analog), 0.0.6 (the review's fixes), 0.0.7 (Multidrive calibrated against recordings of the original)
+  (Analog), 0.0.6 (the review's fixes), 0.0.7 (Multidrive calibrated against recordings of the original), 0.0.8 (the melodic set: 34 presets, 108 in all)
 
 ## Phase 0
 

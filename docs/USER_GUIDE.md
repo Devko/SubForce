@@ -216,7 +216,7 @@ Bass*).
 
 ## Presets
 
-74 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
+108 factory presets in seven categories (Templates, Bass, Lead, Keys, FX, Sequence, Pad), all
 level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick them on the BROWSE tab or
 step through them on KEYS.
 
@@ -293,6 +293,65 @@ quite repeat. These presets go that way (his own presets are his; nothing is cop
 | **Pad / Cinematic Swell** | Duo: two keys swell in over 2 s | Hold two-note intervals into a big reverb |
 
 Most of his sound is in the effects: put a long reverb (or two) and a delay on the track in MPC.
+
+### The melodic set
+
+34 sounds (0.0.8) drawn up from an analysis of several hundred melodic-techno presets made for a
+software analog: what their designers do per role (where the filter rests, how far the envelope
+sweeps, how short the envelopes are, where the grit comes from, which effects), measured, and
+turned into SubForce's own sounds. Nothing is copied, and the names are SubForce's.
+
+What sets them apart from the classic patches: the filter rests dark (100–300 Hz) and the filter EG
+sweeps four to five and a half octaves; key tracking low; resonance low, the edge from noise, the
+feedback loop and audio-rate filter FM instead; short envelopes (plucks of half a second, leads that
+are plucks with a tail); layers in octaves (and an octave and a fifth) rather than only detuned;
+velocity on the amp and the filter EG; movement locked to MPC's tempo.
+
+| Preset | What it is | Play it |
+|---|---|---|
+| **Bass / Night Drive** | Saw with a saw an octave up, the sub, a little pink noise and feedback; a dark +5 oct filter snap | 16ths from the sequencer, A0–F2; ride FEG Decay through the build |
+| **Bass / Pressure Drop** | Square and sub with audio-rate filter FM that follows the keys: a growl under a low cutoff | Off-beat 16ths; Cutoff up for the drop |
+| **Bass / Velvet Slide** | One saw and the sub, pluck envelopes, a 45 ms legato glide | Overlap notes to slide; velocity opens it |
+| **Bass / Octave Fifth Drive** | Saw, a saw an octave and a fifth up, the sub, feedback: a wide bass from one finger | Roots, legato; ride Osc 2 Level |
+| **Bass / Gated Pulse** | A narrow pulse, the amp dipping after each hit, a 1/8 filter wobble locked to MPC | Long notes or quarter notes; it moves in time |
+| **Bass / Midnight Mover** | Saw-square and square, a 1-bar filter sweep; the wheel opens it 2.5 octaves | Held roots under the track; push the wheel into the drop |
+| **Bass / Grit Engine** | Hard-synced osc 2 a fifth up, pink noise, feedback and Multidrive: the dirty one | Short 16ths; Multidrive to taste |
+| **Bass / Deep Foundation** | A sub two octaves down, a soft saw and a quiet octave on top; little filter movement | Long roots under another bass or a kick |
+| **Lead / Hook Pluck** | Saw and an octave above, a fast +5.5 oct pluck, a breath of noise; vibrato on the wheel | Short hook phrases into a dotted 1/8 delay |
+| **Lead / Glide Horizon** | Two saws an octave apart, 17 cents wide, single trigger with legato glide | C4–C6, legato; wheel for vibrato |
+| **Lead / Breath Line** | Triangle-saw with pink noise: an airy, velocity-shaped lead | Slow melodies, soft velocities |
+| **Lead / FM Edge** | A saw with filter FM at the note's own frequency: a hollow, slightly metallic edge | Single notes; harder velocity brightens it |
+| **Lead / Sync Tear** | Osc 2 hard-synced, its pitch swept by the filter EG: the classic tear, kept dark | Short notes; FEG Decay sets the tear |
+| **Lead / Thin Top Line** | Both oscillators at 4', 12 dB slope, no sub: a thin line that sits above the bass | High melodies, legato glide |
+| **Lead / Drift Unison** | Two saws 18 cents apart, Analog up: a wide, drifting lead | Long notes into chorus and reverb |
+| **Lead / Afterhours** | Square and saw, a slow PWM shimmer, a long plucky decay | Mid-register phrases, wheel vibrato |
+| **Keys / Core Pluck** | Two saws 18 cents apart, 12 dB, a 0.5 s pluck: the genre's basic pluck | MPC's arpeggiator at 1/16 into delay and reverb |
+| **Keys / Glass Tick** | Saw, a square an octave up, a white-noise tick on the attack | Arps and short chords of single notes |
+| **Keys / Evolving Pluck** | Saw-square pluck; a 1-bar filter sweep and a slow wave shimmer: no two notes alike | A repeating arp, left running |
+| **Keys / Octave Sparkle** | Saw, an octave above and the sub below: a bright, wide pluck | Arps an octave up |
+| **Keys / Bitten Stab** | Saw and square, 12 dB, Multidrive: a short, bitten stab | Off-beat stabs |
+| **Keys / Minor Stab** | Osc 2 a minor third up and the sub: a minor chord from one key | Off-beat stabs; every key a minor chord |
+| **Keys / String Machine** | Square, saw and sub with slow PWM: an old string-machine stab | Chords of single notes, longer stabs |
+| **Sequence / Night Arp** | Saw with an octave above, a very short +5.3 oct filter blip | The arpeggiator at 1/16, C3–C5 |
+| **Sequence / Sync Sequence** | Hard sync a fourth up and filter FM: a bright, biting sequence | 16ths, accents for bite |
+| **Sequence / Midnight Roller** | Square and sub, feedback, filter FM, a short snap: a rolling mid sequence | 16ths around C2–C3 |
+| **Sequence / Sixteenth Gate** | The filter EG restarts every 1/16 while a key is held: a sequence from one note | Hold one note; it follows MPC's tempo |
+| **Sequence / Hypno Steps** | Random filter steps every 1/16: a sequence that never quite repeats | Hold a note, or a slow line |
+| **Pad / Octave Bloom** | Duo: two saws bloom over 1.3 s and decay over 9 s | Hold two-note intervals |
+| **Pad / Night Breath** | Saw and an octave above, a 2-bar filter breath | Hold one note into a long reverb |
+| **Pad / Drone Atmosphere** | Latched; osc 2 drones on C3, pink noise and heavy feedback, a slow filter drift | Play once: it holds; play another key to move osc 1 |
+| **Pad / Swell Haze** | Duo: the tone opens slowly while the note is already there | Hold intervals; long releases |
+| **Pad / Wide Saw Texture** | Two saws 20 cents apart, Analog up, a slow wave shimmer: the closest to a supersaw | Hold notes into chorus and reverb |
+| **FX / Night Riser** | Saw and white noise; the filter climbs over 4 s, a 1/16 tremolo | Hold through the 4 bars before a drop |
+
+The effects are half of these sounds (SubForce has none of its own). On EffectForce, or MPC's own:
+
+| For | Chain |
+|---|---|
+| Bass | A compressor; at most a short 1/8 delay and a small plate, both low (wet about 10%) |
+| Leads | Low cut ~150 Hz; a 1/8 or dotted 1/8 delay, feedback ~40%, repeats darkened (high cut ~4 kHz), wet ~20%; then a plate or hall, long, no pre-delay, wet 15–25% |
+| Plucks, arps, sequences | Low cut ~150 Hz; the delay first (1/8 or dotted 1/8, feedback ~35%, wet 20–25%), then a long hall at only 10–20% |
+| Pads, drones | Low cut ~120 Hz; a slow chorus or ensemble (wet ~70%), then a long reverb (wet ~35%, no pre-delay); an auto-pan over a bar |
 
 ## MIDI
 

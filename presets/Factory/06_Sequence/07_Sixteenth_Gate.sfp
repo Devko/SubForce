@@ -1,0 +1,22 @@
+subforce 1
+volume=4.1
+drift=0.3
+o1_wave=0.4
+mix_o1=0.8
+o2_wave=0.6667
+mix_o2=0.4
+o2_freq=0.1
+f_cut=220
+f_res=0.18
+f_kb=0.2
+f_env=0.5247
+fe_a=0.001
+fe_d=0.12
+fe_s=0
+fe_r=0.1
+fe_sync=13
+ae_a=0.001
+ae_d=1
+ae_s=0.8
+ae_r=0.2
+ae_vel=0.2

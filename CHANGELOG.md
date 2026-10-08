@@ -4,6 +4,16 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.8
+
+**The melodic set**: 34 new factory presets (108 in all), drawn up from an analysis of several hundred
+melodic-techno presets for a software analog: per role, where the filter rests, how far and how fast
+the envelopes go, where the grit comes from (noise, the feedback loop, audio-rate filter FM rather
+than resonance), octave layers, velocity, tempo-locked movement. Eight basses, eight leads, seven
+plucks and stabs (Keys), five sequences, five pads and drones, one riser; all level-matched. The
+[user guide](docs/USER_GUIDE.md#the-melodic-set) lists them with how to play them and the effect
+chains they are made for. Nothing is copied; the names are SubForce's own.
+
 ## 0.0.7
 
 **Multidrive** calibrated against recordings of the original's factory presets: decoded knob

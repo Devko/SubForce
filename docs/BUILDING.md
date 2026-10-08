@@ -104,7 +104,7 @@ from such a fit.
 | `PGO` | `auto` (default): profile-guided when ARM programs can run here (`qemu-arm`, or natively); `1`: always; `0`: plain build |
 | `ARM_PREFIX` | The device toolchain's prefix (default `arm-linux-gnueabihf-`); empty for a native ARM build |
 | `ARM_RUN` | How ARM programs run here (default `qemu-arm -L /usr/arm-linux-gnueabihf`); empty on ARM |
-| `PLUGIN_VERSION` | Release version (default `0.0.7`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
+| `PLUGIN_VERSION` | Release version (default `0.0.8`): the zip's name, its `INSTALL.md` and the catalog manifest; CI sets it from the `vX.Y.Z` tag |
 | `BENCH_ARGS` | `sfbench` arguments for `bench-device` (default `-s 3`) |
 | `PRESET_LUFS` | The loudness `preset-levels` matches the factory presets to |
 
