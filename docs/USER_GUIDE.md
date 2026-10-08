@@ -344,14 +344,18 @@ velocity on the amp and the filter EG; movement locked to MPC's tempo.
 | **Pad / Wide Saw Texture** | Two saws 20 cents apart, Analog up, a slow wave shimmer: the closest to a supersaw | Hold notes into chorus and reverb |
 | **FX / Night Riser** | Saw and white noise; the filter climbs over 4 s, a 1/16 tremolo | Hold through the 4 bars before a drop |
 
-The effects are half of these sounds (SubForce has none of its own). On EffectForce, or MPC's own:
+The effects are half of these sounds (SubForce has none of its own, on purpose: one effect rack per
+track is lighter on the Force than effects in every synth). [EffectForce](https://github.com/Devko/EffectForce)
+0.0.3 has a **Melodic** category made for them; MPC's own effects work too:
 
-| For | Chain |
-|---|---|
-| Bass | A compressor; at most a short 1/8 delay and a small plate, both low (wet about 10%) |
-| Leads | Low cut ~150 Hz; a 1/8 or dotted 1/8 delay, feedback ~40%, repeats darkened (high cut ~4 kHz), wet ~20%; then a plate or hall, long, no pre-delay, wet 15–25% |
-| Plucks, arps, sequences | Low cut ~150 Hz; the delay first (1/8 or dotted 1/8, feedback ~35%, wet 20–25%), then a long hall at only 10–20% |
-| Pads, drones | Low cut ~120 Hz; a slow chorus or ensemble (wet ~70%), then a long reverb (wet ~35%, no pre-delay); an auto-pan over a bar |
+| For | EffectForce | The chain |
+|---|---|---|
+| Bass | *Melodic Bass* | A compressor; a short 1/8 delay and a small plate, both low (wet about 10%) |
+| Leads | *Lead Delay Plate*, *Lead Throw* | Low cut ~150 Hz; a dotted 1/8 delay, feedback ~40%, repeats darkened (high cut ~4 kHz), wet ~20%; then a plate or hall, long, no pre-delay, wet 15–25% (*Lead Throw*: the echoes ducked under the playing, rising in the gaps) |
+| Plucks, stabs | *Pluck Space*, *Stab Echo* | Low cut ~150 Hz; the delay first (dotted 1/8, or a 1/4 echo for stabs, feedback ~35–40%, wet 20–25%), then a hall or plate at only 10–20% |
+| Arps, sequences | *Arp Dotted*, *Sequence Pump* | As plucks, more delay; *Sequence Pump* ducks every beat like a sidechain |
+| Pads, drones | *Pad Wash*, *Drone Space* | Low cut ~120 Hz; a slow chorus or ensemble (wet ~70%), then a long reverb (wet ~35%, no pre-delay); an auto-pan over a bar |
+| The riser | *Riser Wash* | A long ping-pong into a 10 s space |
 
 ## MIDI
 
