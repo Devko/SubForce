@@ -14,6 +14,14 @@ plucks and stabs (Keys), five sequences, five pads and drones, one riser; all le
 [user guide](docs/USER_GUIDE.md#the-melodic-set) lists them with how to play them and the effect
 chains they are made for. Nothing is copied; the names are SubForce's own.
 
+**Q-Links on track edit → automation:** MPC rebuilds its parameter screen whenever a plugin asks it to
+redraw its texts, and a Q-Link turned meanwhile can lose its value (found by a port author on the
+plugin catalog's wrapper, 2026-10-21). SubForce never asked when a sound parameter changed; the
+texts that do change (the status line's CPU and voice figures, a bus's rate after its rate mode, the
+browser's lines) now ask at most once per 50 ms, instead of up to every 12 ms. And the build stops if a
+parameter ever changes its index (`surface/params.lock`): projects, automation and Q-Link maps store
+them by index.
+
 ## 0.0.7
 
 **Multidrive** calibrated against recordings of the original's factory presets: decoded knob

@@ -49,7 +49,9 @@ make plugin-package            # dist/SubForce-<version>-mpc-armv7.zip
 
 `surface/surface.py` is the single source of the parameter list and the touchscreen pages. Every
 build regenerates `params.json`, `layout.conf`, `vst.json` and the C++ headers from it when it
-changes; it checks the layout and every factory preset before writing anything.
+changes; it checks the layout, every factory preset and the parameters' order before writing anything
+(`surface/params.lock`: a parameter that moves to another index stops it, `GEN_VST_RELOCK=1` accepts
+the break).
 
 ## Make targets
 

@@ -27,7 +27,8 @@ flowchart LR
 - **`surface/surface.py`** is the single source of the parameter list and the touchscreen pages.
   It writes `params.json`, `layout.conf`, `vst.json`, `build/param_ids.h` (ids, value curves,
   limits), `build/factory_presets.h` (the factory presets, embedded) and `build/skin_style.json`
-  (for `skin_polish.py`), after checking the layout and every preset (keys, ranges, names).
+  (for `skin_polish.py`), after checking the layout and every preset (keys, ranges, names), and
+  the parameters' order against `params.lock`.
 - **`dsp/`** is the engine: no VST, no files, no threads. It renders a `Patch` for the keys it is
   given.
 - **`plugin/`** is everything between the engine and MPC: VST2 entry points, MIDI, parameters,
@@ -124,8 +125,13 @@ PolyForce's rules, device-proven on the Force:
 - MPC only notices value changes the plugin makes (lit browser tiles, the stepper, snapped steps)
   when they are pushed with `audioMasterAutomate`, and only re-reads texts after
   `audioMasterUpdateDisplay`. The plugin pushes from `processReplacing` only: at most 48 values per
-  block (round-robin), a display update for changed texts at most every 4 blocks, plus the CPU
-  meter's at most twice a second.
+  block (round-robin), and a display update for changed texts (the CPU meter's, at most twice a
+  second, among them) at most once per 50 ms (`Surface::kTextGap`).
+- MPC rebuilds its parameter screen on every `audioMasterUpdateDisplay`, and a Q-Link turned on track
+  edit → automation meanwhile loses its value (sd88me/mpc-vst-plugins, NOTES.md 2026-10-21). So a
+  sound parameter's change asks for none (its text is made when MPC asks); only texts that change on
+  their own or follow another parameter (the status line, a bus's rate after its rate mode, the
+  browser) ask, through that one gate. A change inside the gap is told at its end, never dropped.
 - A value MPC sends is recorded as what MPC shows only after the plugin has acted on it, so a
   preset load in between never has the old value pushed back.
 - A Force sends every Q-Link detent, data-wheel click or drag event as the value it last read back
@@ -144,7 +150,9 @@ PolyForce's rules, device-proven on the Force:
 ## Parameters and saved state
 
 - **Parameters** may still change during 0.x (the previews); from v0.1 they are **append-only**:
-  MPC projects store values by index. Sound parameters (kind `synth`) are saved and automatable;
+  MPC projects store values by index. `surface/params.lock` (sd88me's format) keeps a change
+  deliberate: a parameter that moves stops `surface.py`; `GEN_VST_RELOCK=1` accepts the break. Every
+  release so far (v0.0.1–v0.0.7) only appended. Sound parameters (kind `synth`) are saved and automatable;
   the surface's own values (the stepper, tiles, Rand Amount) are not.
 - **Saved state** (projects and `.sfp` preset files) is the text format `subforce 1`: `key=value`
   lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key and the unit

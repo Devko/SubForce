@@ -27,6 +27,20 @@ Status: ✅ done · 🔜 next · ⬜ planned · 💤 deferred
   and the presets from it.
 - ⬜ **v0.1**: parameter list frozen (append-only from then on).
 
+### Q-Links on track edit → automation (2026-10-23), for 0.0.8
+
+sd88me/mpc-vst-plugins found (2026-10-21, [#486](https://github.com/sd88me/mpc-vst-plugins/pull/486)–[#489](https://github.com/sd88me/mpc-vst-plugins/pull/489))
+that every `audioMasterUpdateDisplay` makes MPC rebuild its parameter screen, and that a Q-Link turned on
+track edit → automation loses its value to it. Their wrapper asked for one on every host write. We don't
+link their wrapper, and never asked on a sound parameter's write; what we took over is below.
+
+| Item | State |
+|---|---|
+| At most one UpdateDisplay per 50 ms (was every 4 blocks, ~12 ms); the status line's CPU and voice figures through the same gate (they called MPC directly) | ✅ |
+| `surface/params.lock`: a parameter that changes its index stops `surface.py` (their format, `GEN_VST_RELOCK=1`); v0.0.1–v0.0.7 were all prefixes of today's list | ✅ |
+| Test: 32 Q-Link detents on sound parameters (cutoff, M1 destination) ask for no redraw; M1 SYNC flipped every block for 4096 frames asks at most twice, and its end is told | ✅ |
+| On the Force: Q-Links on track edit → automation (a knob, a choice), and the status line, a bus's rate text and the browser still follow | 🔜 |
+
 ## Phase 2
 
 ✅ (2026-10-07)

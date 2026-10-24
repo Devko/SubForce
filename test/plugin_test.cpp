@@ -306,6 +306,44 @@ void testMidiMapping() {
     CHECK(std::fabs(pitchHz(h.L) - 220.0) < 0.5);
 }
 
+// MPC rebuilds its parameter screen on every UpdateDisplay, and a Q-Link turned on track edit ->
+// automation loses its value to the rebuild (sd88me/mpc-vst-plugins NOTES 2026-10-21). So a sound
+// parameter's write asks for none; a text that changed asks at most once per 50 ms, and a change
+// inside the gap is told at its end, not dropped. The first meter report is ~172 blocks away.
+void testRedraws() {
+    std::printf("== redraws: none for a sound parameter, at most one per 50 ms\n");
+    Host h;
+    h.run(sf::Surface::kTextGap / kBlock + 1);   // the first texts told, the gap over
+    const int settled = h.log.updates;
+    const float cut = h.get(sf::P_F_CUT), dest = h.get(sf::P_M1_DEST);
+    {
+        Turn turn;
+        for (int k = 0; k < 16; ++k) {   // two Q-Links turned, a detent per block: a knob and a choice
+            h.detent(sf::P_F_CUT, +1);
+            h.detent(sf::P_M1_DEST, +1);
+            h.run(1);
+        }
+    }
+    CHECK(h.get(sf::P_F_CUT) > cut && h.get(sf::P_M1_DEST) > dest);
+    CHECK(h.log.automated[sf::P_M1_DEST] == h.get(sf::P_M1_DEST));   // the snapped step pushed back, without a redraw
+    CHECK(h.log.updates == settled);
+    // A bus's rate text follows its rate mode: flipping M1 SYNC every block for 4096 frames asks at
+    // most twice...
+    const int before = h.log.updates;
+    {
+        Turn turn;
+        for (int k = 0; k < 4096 / kBlock; ++k) {
+            h.detent(sf::P_M1_SYNC, k % 2 ? -1 : +1);
+            h.run(1);
+        }
+    }
+    CHECK(h.log.updates - before >= 1 && h.log.updates - before <= 2);
+    // ...and where it stopped is told once the gap is over.
+    const int flipped = h.log.updates;
+    h.run(sf::Surface::kTextGap / kBlock + 1);
+    CHECK(h.log.updates == flipped + 1);
+}
+
 void testStress() {
     std::printf("== stress: floods, extremes, random values\n");
     Host h;
@@ -366,6 +404,7 @@ int main() {
     testPlay();
     testProcessLegacy();
     testMidiMapping();
+    testRedraws();
     keyTests();
     modTests();
     presetTests();

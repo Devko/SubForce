@@ -3,6 +3,7 @@
 // the envelopes' timing, idling, and stability at the extremes.
 #include "host.h"
 #include "../dsp/synth.h"
+#include "../plugin/surface.h"
 
 #include <cmath>
 #include <cstdio>
@@ -804,12 +805,12 @@ void testAnalog() {
     CHECK(same == 0.0 && other > 1e-3);
 
     // A bus's rate text depends on its rate mode (x10 in Hi): switching the mode tells MPC to
-    // re-read the texts.
+    // re-read the texts (at most once per 50 ms: plugin_test.cpp).
     Host t;
     t.run(8);
     const int before = t.log.updates;
     t.set(sf::P_M1_SYNC, sf::RM_HI);
-    t.run(8);
+    t.run(sf::Surface::kTextGap / kBlock + 1);
     CHECK(t.log.updates > before && t.display(sf::P_M1_RATE) == "50 Hz");
 }
 
