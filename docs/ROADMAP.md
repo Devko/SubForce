@@ -39,7 +39,7 @@ link their wrapper, and never asked on a sound parameter's write; what we took o
 | At most one UpdateDisplay per 50 ms (was every 4 blocks, ~12 ms); the status line's CPU and voice figures through the same gate (they called MPC directly) | ✅ |
 | `surface/params.lock`: a parameter that changes its index stops `surface.py` (their format, `GEN_VST_RELOCK=1`); v0.0.1–v0.0.7 were all prefixes of today's list | ✅ |
 | Test: 32 Q-Link detents on sound parameters (cutoff, M1 destination) ask for no redraw; M1 SYNC flipped every block for 4096 frames asks at most twice, and its end is told | ✅ |
-| On the Force: Q-Links on track edit → automation (a knob, a choice), and the status line, a bus's rate text and the browser still follow | 🔜 |
+| On the Force: Q-Links on track edit → automation (a knob, a choice), and the status line, a bus's rate text and the browser still follow | ✅ 2026-10-24: Q-Links work there; the status line and the dependent texts still update |
 
 ## Phase 2
 
