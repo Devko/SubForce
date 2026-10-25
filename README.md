@@ -127,6 +127,7 @@ checker): see [Building](docs/BUILDING.md#release-builds).
 | 0.0.6 — a review's fixes (EG Sync, glide and EG times, latch and MPC's stop, units, Pitch Bend source) | ✅ |
 | 0.0.7 — Multidrive calibrated against recordings of the original: grittier at full | ✅ |
 | 0.0.8 — the melodic set: 34 presets (108 in all) | ✅ |
+| 0.0.9 — resonance and feedback calibrated against corrected comparisons with the original | ✅ |
 | On the device: play every page | 🔜 |
 | v0.1 — parameter list frozen (append-only from then on) | ⬜ |
 

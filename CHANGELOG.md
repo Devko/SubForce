@@ -4,6 +4,27 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## 0.0.9
+
+**Resonance and feedback calibrated** against recordings of the original's factory presets, on
+corrected comparisons. The decoded presets had the filter's key tracking pivoting on MIDI 60, where
+the original's pivots on 48 ("centered around C3 (MIDI note 48)", its manual), so every recreation with
+key tracking played up to an octave darker. And the notes of the self-oscillating sounds are now
+measured from their pitch instead of taken from a pitch tracker. Fitted again on that:
+
+- **Resonance at full** feeds the ladder 4.3, was 4.6: the original's self-oscillating kick comes 20%
+  closer. Only the top of the knob changes; self-oscillation still starts at 70%.
+- **The Feedback knob** is steeper (k³ where the other levels are k²), its gain at full unchanged:
+  gentler through the middle (the original's feedback bass at 81% comes 8% closer), over unity from
+  89% (was 85%), and as chaotic at full as before.
+- **Multidrive** stays as 0.0.7 calibrated it: the corrected fit moved it by under 2%.
+
+The 19 factory presets with feedback sound as they did: their Feedback is moved to the new curve (the
+old value to the power 2/3 gives the same loop), and the two that sweep it with a bus keep the open
+end of their sweep. Only *Lead / Whistle*, the one preset past 70% resonance, is re-levelled
+(−16 LUFS). Your own sounds with feedback in the middle of the knob play tamer; the same move brings
+them back (50% → 63%, 70% → 79%).
+
 ## 0.0.8
 
 **The melodic set**: 34 new factory presets (108 in all), drawn up from an analysis of several hundred

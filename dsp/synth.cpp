@@ -25,15 +25,21 @@ namespace {
 // presets (sounds at full Multidrive, the decoded knob positions played on the recording's notes): the
 // original is grittier there; a fit asked for the clipper's gain at full x1.6 and the drive into the
 // ladder x1.24, of which about half was taken (the clipper 1.5 -> 2.0, the ladder 8x -> 9x), the
-// evidence being two sounds.
+// evidence being two sounds. 0.0.9 fitted again on corrected comparisons (key tracking pivots on
+// MIDI 48 on the original; the self-oscillating sounds' notes measured, not transcribed): Multidrive
+// stays as it is (within 2%); what moved were the resonance at full (synth.h kResMax) and the
+// feedback loop's gain at 81% of the knob, each by itself all of the gain on its sound (the kick 20%,
+// a feedback bass 8%).
 SF_TUNABLE(kInGain, 0.5f);               // mixer -> ladder at Multidrive 0 (one oscillator at full: mild warmth)
 SF_TUNABLE(kDriveSpan, 8.0f);            // Multidrive 1: 9x that (8x until 0.0.7)
 SF_TUNABLE(kPostBase, 0.5f);             // Multidrive's second stage: its clipper's input gain at drive 0..
 SF_TUNABLE(kPostSpan, 1.5f);             // ...rising by this at full, 4x (3x until 0.0.7); its output takes the inverse back
 // The feedback loop (the mixer's output back into it), tuned on renders of a saw through it: from
-// a slight thickening (+1 dB at half the knob) and more drive into the filter, through grit, to the
-// chaos of a loop over unity gain in the last tenth (+5 dB, the upper harmonics +15 dB).
-SF_TUNABLE(kFeedbackGain, 1.4f);         // the loop's gain at full: unity at 85% of the knob
+// a slight thickening and more drive into the filter, through grit, to the chaos of a loop over
+// unity gain in the last tenth (+6 dB, the 9th harmonic +9 dB). Its knob is steeper than the other
+// levels (fbTaper): the original's feedback bass at 81% has the loop gain 0.74, not 0.92 (0.0.9; the
+// mixer's audio taper until 0.0.8, unity at 85%); at full it is as chaotic as before.
+SF_TUNABLE(kFeedbackGain, 1.4f);         // the loop's gain at full: unity at 89% of the knob
 SF_TUNABLE(kFeedbackClip, 0.7f);         // where the loop's own stage (the EXT IN level amp) saturates
 constexpr float kFeedbackHp = 150.0f;    // Hz: AC coupled: no bass builds up around the loop
 constexpr float kFeedbackLp = 7000.0f;   // Hz: the loop's bandwidth, an analog stage's
@@ -64,6 +70,13 @@ constexpr float kAnaNoteWave = 0.012f, kAnaNoteCut = 0.3f, kAnaNoteRes = 0.012f;
 inline float taper(float k) {
     k = clampf(k, 0.0f, 1.0f);
     return k * k;
+}
+
+// The feedback knob: steeper (k^3), so the loop stays gentle through the middle and still runs over
+// unity near the top (kFeedbackGain).
+inline float fbTaper(float k) {
+    k = clampf(k, 0.0f, 1.0f);
+    return k * k * k;
 }
 
 inline float noteOf(float hz) { return 69.0f + 12.0f * std::log2(std::max(hz, 1.0f) / 440.0f); }
@@ -769,7 +782,7 @@ void Synth::control() {
         taper(p.mixSub + lvlMod[1]),
         taper(p.mixOsc2 + lvlMod[2]),
         taper(p.mixNoise + lvlMod[3]),
-        taper(p.mixFeedback + lvlMod[4]) * kFeedbackGain,
+        fbTaper(p.mixFeedback + lvlMod[4]) * kFeedbackGain,
         kOutGain * aVel * volMul * exp2Fast(-0.35f * log2Fast(driveGain)),   // / driveGain^0.35
         exp2Fast(clampf(p.volumeDb, -60.0f, 12.0f) * (1.0f / 6.0206f)) * (p.volumeDb <= -59.5f ? 0.0f : 1.0f),
     };

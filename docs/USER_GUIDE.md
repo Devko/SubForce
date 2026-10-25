@@ -89,12 +89,12 @@ All oscillators are band-limited (polyBLEP) and run at twice the sample rate.
 
 ### Mixer
 
-Osc 1, Sub, Osc 2, Noise and **Feedback** levels. The knobs have an audio taper. Several sources
-up high drive the filter harder — on purpose. **Feedback** takes the mixer's own output back into
-the mixer, as the original's FEEDBACK knob does with nothing in EXT IN: up to about 85% it thickens
-and pushes the filter harder, past that the loop runs over unity and gets gritty, and the last
-tenth is the chaos of an overdriven loop (about +6 dB louder at full: turn the volume down). With
-resonance it howls. **Noise Colour** goes from white (0) through pink (the middle, the original's
+Osc 1, Sub, Osc 2, Noise and **Feedback** levels. The knobs have an audio taper (Feedback a steeper
+one). Several sources up high drive the filter harder — on purpose. **Feedback** takes the mixer's
+own output back into the mixer, as the original's FEEDBACK knob does with nothing in EXT IN: up to
+about 90% it thickens and pushes the filter harder, past that the loop runs over unity and gets
+gritty, and the top is the chaos of an overdriven loop (about +6 dB louder at full: turn the volume
+down). With resonance it howls. **Noise Colour** goes from white (0) through pink (the middle, the original's
 noise, the default) to dark (1), at the same loudness.
 
 ### Filter

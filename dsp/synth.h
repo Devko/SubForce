@@ -55,7 +55,8 @@ constexpr int kOctaveMax = 2;
 #else
 #define SF_TUNABLE_H(name, value) constexpr float name = value
 #endif
-SF_TUNABLE_H(kResMax, 4.6f);     // ladder feedback at full resonance (self-oscillation from ~4)
+SF_TUNABLE_H(kResMax, 4.3f);     // ladder feedback at full resonance (self-oscillation from ~4; 4.6
+                                 // until 0.0.8: fitted to the original's self-oscillating kick)
 SF_TUNABLE_H(kResCurve, 1.0f);   // the knob's curve up to kResEdge: 1 straight, above 1 gentler low down
 SF_TUNABLE_H(kResEdge, 0.7f);    // the knob where it reaches 4: "settings above 7 cause the filter
                                  // to self-oscillate" (the original's manual)

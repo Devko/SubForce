@@ -92,7 +92,7 @@ From the test suite (`make test` prints these):
 | Pulse width swept by a bus | every edge corrected: the largest step between two samples is 1.5 (an uncorrected edge is 2) |
 | Worst alias, hard sync | −65 dB |
 | Decimator | passband flat to 20 kHz within 0.001 dB, stopband from 24.2 kHz at −85 dB |
-| Self-oscillation | past 70% of the knob, as the original's (65%: none; 76%: rms 0.07); tracks the cutoff 15–50 cents flat (110 Hz–7 kHz), as a ladder does |
+| Self-oscillation | past 70% of the knob, as the original's (65%: none; 76%: rms 0.065); tracks the cutoff 10–30 cents flat (110 Hz–7 kHz), as a ladder does |
 | Slopes | 5.4 / 10.9 / 16.3 / 21.7 dB per octave between 880 Hz and 1.76 kHz with a 400 Hz cutoff (6/12/18/24 nominal, reached further up) |
 | Bass loss | 65% resonance (just under the edge): the passband drops by 13 dB, the ladder's 1 / (1 + r) |
 | Multidrive | 0 → 100%: +4 dB louder, much denser; at 50% a triangle's 2nd harmonic at −20 dB (asymmetric, tube-like), none clean |

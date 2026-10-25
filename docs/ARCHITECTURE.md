@@ -80,7 +80,8 @@ flowchart LR
 
 The feedback is the original's: the mixer's own output back into its feedback channel, one high-rate
 sample late, through that channel's overload (a cubic clipper), AC coupled at 150 Hz and
-band-limited at 7 kHz like an analog stage; its loop gain reaches unity at 85% of the knob.
+band-limited at 7 kHz like an analog stage; its knob is steeper than the other levels (k³ against
+k²), and its loop gain reaches unity at 89% of the knob.
 
 Everything from the oscillators to the VCA runs at **88.2 kHz** (2x), in one loop per sample:
 
