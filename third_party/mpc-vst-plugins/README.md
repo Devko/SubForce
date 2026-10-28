@@ -45,6 +45,9 @@ Re-apply them after re-copying upstream.
 7. `tools/release.py` and `tools/release/install.sh` (marked `SubWerk local patch 7`): the -Werk
    rename. `release.py --previous-name <old name>` tells the installer the plugin's old folder
    (`<vendor> - VST - <old name>`); the installer carries the `--user-data` out of it into the new
-   folder (the new folder's own copies win) and removes it once MPC.settings is written. The settings
-   entry needs nothing new: the uid didn't change, and entries with the same uid were already
-   replaced. `test/install_test.sh` (`make test-install`) covers it.
+   folder and removes it once MPC.settings is written. The new folder's own copies win, except while
+   MPC.settings still points into the old folder (an earlier run stopped before the settings were
+   written, so the old plugin kept running and saving there). A folder whose `plugin-meta.xml` has
+   another uid is left alone, with a warning. The settings entry needs nothing new: the uid didn't
+   change, and entries with the same uid were already replaced. `test/install_test.sh`
+   (`make test-install`) covers it.

@@ -29,6 +29,9 @@ OLDROOT="$MPC_LEGACY_ROOT$(dirname "$LEGACY_SO")"   # the previous layout kept t
 LEGACY=0; [ -f "$OLDFILE" ] && LEGACY=1; MIGRATED=""
 PREV="$SYNTHS/$PREV_SKIN"; PREVIOUS=0   # SubWerk local patch 7
 [ -n "$PREV_SKIN" ] && [ "$PREV_SKIN" != "$SKIN" ] && [ -d "$PREV" ] && PREVIOUS=1
+if [ $PREVIOUS = 1 ] && [ -f "$PREV/plugin-meta.xml" ] && ! grep -q " uid=\"$UID_HEX\"" "$PREV/plugin-meta.xml"; then
+    PREVIOUS=0; echo "warning: $PREV belongs to another plugin (not uid $UID_HEX); left as it is"
+fi
 
 # MPC_INSTALL_TEST=1 skips the device checks so tests can run against a copy of MPC.settings.
 if [ -z "$MPC_INSTALL_TEST" ]; then
@@ -91,11 +94,15 @@ if [ -f MODES ]; then   # a zip unpacked on Windows or copied file by file loses
         fi
     done < MODES
 fi
+# SubWerk local patch 7: the same layout under the old name. While MPC.settings still points into it, the old plugin is
+# the live one (an earlier run stopped before the settings were written), so its files are the newest even over the
+# new folder's copies; otherwise the new folder's win.
+LIVE=0; [ $PREVIOUS = 1 ] && grep -qF "file=\"$PREV/" "$SETTINGS" && LIVE=1
 for d in $USER_DATA; do
-    if [ -e "$NEW/$d" ]; then          # an earlier install of this layout: its files win over the shipped ones
-        rm -rf "$STAGE/$d"; mkdir -p "$(dirname "$STAGE/$d")"; cp -a "$NEW/$d" "$STAGE/$d"
-    elif [ $PREVIOUS = 1 ] && [ -e "$PREV/$d" ]; then   # SubWerk local patch 7: the same layout under the old name
+    if [ $PREVIOUS = 1 ] && [ -e "$PREV/$d" ] && { [ $LIVE = 1 ] || [ ! -e "$NEW/$d" ]; }; then   # SubWerk local patch 7
         rm -rf "$STAGE/$d"; mkdir -p "$(dirname "$STAGE/$d")"; cp -a "$PREV/$d" "$STAGE/$d"
+    elif [ -e "$NEW/$d" ]; then          # an earlier install of this layout: its files win over the shipped ones
+        rm -rf "$STAGE/$d"; mkdir -p "$(dirname "$STAGE/$d")"; cp -a "$NEW/$d" "$STAGE/$d"
     elif [ $LEGACY = 1 ] && [ -d "$OLDROOT/$d" ]; then   # the old layout: merged over what the package ships
         mkdir -p "$STAGE/$d"; cp -a "$OLDROOT/$d/." "$STAGE/$d/"; MIGRATED="$MIGRATED $d"
     fi

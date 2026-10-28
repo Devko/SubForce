@@ -24,6 +24,7 @@ old_install() {
     printf 'x 1\nf_cut=500\n' > "$1/$PREV/Presets/Mine.sfp"
     echo "Pads/Warm.sfp" > "$1/$PREV/preset_favorites.txt"
     echo "not a plugin" > "$1/$PREV/$OLDSO"
+    sed -e "s|/$SKIN/$SO|/$PREV/$OLDSO|" -e "s| name=\"[^\"]*\"| name=\"$OLDNAME\"|" "$META" > "$1/$PREV/plugin-meta.xml"
     entry=$(sed -e "s|%payload-path%/$SKIN/$SO|$1/$PREV/$OLDSO|" -e "s| name=\"[^\"]*\"| name=\"$OLDNAME\"|" "$META")
     printf '<?xml version="1.0" encoding="UTF-8"?>\n<PROPERTIES>\n  <VALUE name="pluginList-arm">\n    <KNOWNPLUGINS>\n      %s\n    </KNOWNPLUGINS>\n  </VALUE>\n</PROPERTIES>\n' "$entry" > "$T/MPC.settings"
 }
@@ -53,6 +54,23 @@ name=second_run_is_noop; fresh; old_install "$T/Synths"
 install "$T/Synths" && install "$T/Synths" && ok || bad "a second install failed: $(cat "$T/out.txt")"
 moved "$T/Synths"
 ! grep -q "moved your files" "$T/out.txt" && ok || bad "the second run moved files again"
+
+name=interrupted_first_run; fresh; old_install "$T/Synths"
+sed -i '/<\/PROPERTIES>/d' "$T/MPC.settings"   # the settings check stops the run after the new folder is in place
+install "$T/Synths" && bad "the broken MPC.settings didn't stop the first run" || ok
+[ -d "$T/Synths/$SKIN" ] && [ -d "$T/Synths/$PREV" ] && ok || bad "expected both folders after the stopped run"
+printf 'y 1\n' > "$T/Synths/$PREV/Presets/Later.sfp"   # saved with the old plugin, still the registered one
+echo "</PROPERTIES>" >> "$T/MPC.settings"
+install "$T/Synths" && ok || bad "the re-run failed: $(cat "$T/out.txt")"
+[ -f "$T/Synths/$SKIN/Presets/Later.sfp" ] && ok || bad "the preset saved between the two runs was lost"
+moved "$T/Synths"
+
+name=foreign_old_folder_kept; fresh; old_install "$T/Synths"
+sed -i "s| uid=\"$UID_HEX\"| uid=\"00000000\"|" "$T/Synths/$PREV/plugin-meta.xml"   # another plugin's folder by that name
+install "$T/Synths" && ok || bad "install failed: $(cat "$T/out.txt")"
+[ -f "$T/Synths/$PREV/Presets/Mine.sfp" ] && ok || bad "another plugin's folder was touched"
+[ ! -e "$T/Synths/$SKIN/Presets/Mine.sfp" ] && ok || bad "another plugin's presets were copied in"
+grep -q "belongs to another plugin" "$T/out.txt" && ok || bad "no warning about the other plugin's folder"
 
 name=fresh_install; fresh
 install "$T/Synths" && ok || bad "install failed: $(cat "$T/out.txt")"
