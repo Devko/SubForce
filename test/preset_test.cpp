@@ -43,6 +43,10 @@ void testState() {
     // Out of range values clamp; BOM and CRLF are fine; other text is refused.
     CHECK(c.load("\xEF\xBB\xBFsubwerk 1\r\nf_cut=99999\r\n") == 1 && std::fabs(c.value(sf::P_F_CUT) - 20000.0f) < 1.0f);
     CHECK(c.load("polywerk 4\nvolume=0\n") == 0 && c.load("") == 0 && c.load("subwerk x\n") == 0);
+    // A project or preset saved before the rename starts with the old header: it loads, the next save writes the new one.
+    Host old;
+    CHECK(old.load("subforce 1\nf_cut=500\n") == 1 && std::fabs(old.value(sf::P_F_CUT) - 500.0f) < 0.1f);   // werk-rename: keep
+    CHECK(old.chunk().compare(0, 10, "subwerk 1\n") == 0);
     CHECK(c.e->dispatcher(c.e, vst::effSetChunk, 0, 0, nullptr, 0.0f) == 0);
     // The loaded patch is what plays (a 2' octave a project asked for).
     Host d;

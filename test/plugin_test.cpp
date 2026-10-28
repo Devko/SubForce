@@ -3,12 +3,14 @@
 // deltaFrames, 0..1 params). Built with ASan/UBSan by `make test`, for the Force's CPU under
 // qemu by `make test-arm`.
 #include "host.h"
+#include "../plugin/paths.h"
 #include "../plugin/surface.h"
 
 #include <complex>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -380,6 +382,22 @@ void testStress() {
     CHECK(worst < 2.0f);
 }
 
+// The SSD preset folder of the old name moves to the new one, once, and never over a folder already there.
+void testLegacyDir() {
+    std::printf("== the old SSD preset folder\n");
+    namespace fs = std::filesystem;
+    const std::string old = fixtureDir() + "/legacy/old", now = fixtureDir() + "/legacy/new";
+    fs::create_directories(old);
+    std::ofstream(old + "/a.sfp") << "x";
+    CHECK(sf::migrateLegacyDir(old, now) && fs::exists(now + "/a.sfp") && !fs::exists(old));   // it moves
+    fs::create_directories(old);
+    std::ofstream(old + "/b.sfp") << "y";
+    CHECK(!sf::migrateLegacyDir(old, now) && fs::exists(old + "/b.sfp") && fs::exists(now + "/a.sfp") &&
+          !fs::exists(now + "/b.sfp"));   // the new one exists: both stay as they are
+    fs::remove_all(old);
+    CHECK(!sf::migrateLegacyDir(old, now + "2") && !fs::exists(now + "2"));   // no old one: nothing happens
+}
+
 } // namespace
 
 long long sft::g_msPerEvent = 1000;
@@ -409,6 +427,7 @@ int main() {
     modTests();
     presetTests();
     testStress();
+    testLegacyDir();
 
     std::error_code ec;
     std::filesystem::remove_all(root, ec);
