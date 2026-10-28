@@ -37,8 +37,14 @@ are (SubWerk uses patches 1-4; it has no meters).
    `surface/skin_polish.py`). With the browser renderer a meter still needs `strip=`.
 Re-apply them after re-copying upstream.
 
-## Local patch (SubWerk)
+## Local patches (SubWerk)
 
 6. `tools/release.py` (marked `SubWerk local patch 6`): the generated `INSTALL.md` gave every
    `--user-data` entry a trailing slash, files too (`preset_favorites.txt/`); now only folders get one.
    Worth sending upstream.
+7. `tools/release.py` and `tools/release/install.sh` (marked `SubWerk local patch 7`): the -Werk
+   rename. `release.py --previous-name <old name>` tells the installer the plugin's old folder
+   (`<vendor> - VST - <old name>`); the installer carries the `--user-data` out of it into the new
+   folder (the new folder's own copies win) and removes it once MPC.settings is written. The settings
+   entry needs nothing new: the uid didn't change, and entries with the same uid were already
+   replaced. `test/install_test.sh` (`make test-install`) covers it.

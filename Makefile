@@ -49,7 +49,7 @@ ARM_SO   := $(BUILD)/arm/subwerk.so
 ARM_SO_STAGES := $(BUILD)/arm/subwerk_stages.so
 ARM_BENCH := $(BUILD)/arm/sfbench
 
-.PHONY: all surface skin test test-arm test-arm-pgo bench arm-plugin arm-bench arm-bench-stages bench-device preview demos preset-levels plugin-package plugin-install clean FORCE
+.PHONY: all surface skin test test-arm test-arm-pgo bench arm-plugin arm-bench arm-bench-stages bench-device preview demos preset-levels plugin-package test-install plugin-install clean FORCE
 # A recipe that fails leaves no half-written target behind for the next make to trust.
 .DELETE_ON_ERROR:
 # The stage-timing build too: a -DSF_STAGE_TIMING break shows here, not at bench time.
@@ -242,7 +242,13 @@ plugin-package: $(ARM_SO) $(SKIN)
 		--about "SubWerk analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, white, pink or dark noise, a mixer feedback loop, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode, 108 presets." \
 		--requires "root SSH (MockbaMod); MPC OS 3.x for the pages" \
 		--user-data Presets --user-data preset_favorites.txt --user-data preset_recent.txt \
-		-o dist
+		--previous-name "$(strip $(PREV_NAME))" -o dist
+
+# The package's installer against scratch folders: an upgrade from the old name moves the user's files over.
+# (Used as $(strip $(PREV_NAME)): make keeps the space before a trailing comment.)
+PREV_NAME := SubForce # werk-rename: keep
+test-install: plugin-package
+	sh test/install_test.sh dist/SubWerk-$(PLUGIN_VERSION)-mpc-armv7.zip "$(strip $(PREV_NAME))"
 
 # Install on a device: stops MPC, backs up + edits MPC.settings, restarts MPC. Save the MPC
 # project first. Usage: make plugin-install FORCE=root@<ip>
