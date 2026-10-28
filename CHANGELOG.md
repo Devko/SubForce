@@ -11,7 +11,7 @@ plugin's name. Nothing about the sound changes.
 
 - MPC's plugin list shows **SubWerk**, and the plugin lives in `/sdcard/Synths/Devko - VST - SubWerk`.
 - Your presets, favorites and recents move over by themselves: the installer carries them out of the old `Devko - VST - SubForce` folder and removes it, and the first start renames `/media/AkaiForce/SubForce Presets` to `SubWerk Presets`. <!-- werk-rename: keep -->
-- Projects saved with SubForce: to be confirmed on the device before the release. <!-- werk-rename: keep -->
+- Projects saved with SubForce open with SubWerk and their settings: the plugin keeps SubForce's plugin ID, and it reads presets and projects saved under the old name (checked on a Force). <!-- werk-rename: keep -->
 
 ## 0.0.9
 
