@@ -1,4 +1,4 @@
-# SubForce: an analog-style monosynth as a VST2 instrument for MPC OS (Force / MPC standalone).
+# SubWerk: an analog-style monosynth as a VST2 instrument for MPC OS (Force / MPC standalone).
 # Builds on Linux or WSL. Native: g++ (tests, x86 bench). Device: arm-linux-gnueabihf-g++ 11 or newer
 # (libstdc++ is linked dynamically; MPC OS has it). Releases come from CI, built against glibc 2.31 so
 # they load on MPC OS 2.x and 3.x; a newer distribution's cross toolchain needs a newer glibc (3.x only).
@@ -33,7 +33,7 @@ SSH      := ssh -n $(SSH_OPTS)
 MV       := third_party/mpc-vst-plugins
 SURF     := surface
 SURF_OUT := $(SURF)/build
-SKIN_DIR := $(SURF_OUT)/skin/Devko - VST - SubForce
+SKIN_DIR := $(SURF_OUT)/skin/Devko - VST - SubWerk
 GEN      := $(SURF_OUT)/param_ids.h $(SURF_OUT)/factory_presets.h
 SKIN     := $(SURF_OUT)/skin.stamp
 
@@ -45,15 +45,15 @@ INC      := -I$(SURF_OUT) -Iplugin
 # (NEON flushes denormals, so it isn't IEEE-exact). Not -ffast-math: keep isfinite() honest.
 ARM_OPT  := -O3 -march=armv7-a -mtune=cortex-a17 -mfpu=neon-vfpv4 -mfloat-abi=hard \
             -funsafe-math-optimizations -fno-math-errno -fno-tree-loop-distribute-patterns
-ARM_SO   := $(BUILD)/arm/subforce.so
-ARM_SO_STAGES := $(BUILD)/arm/subforce_stages.so
+ARM_SO   := $(BUILD)/arm/subwerk.so
+ARM_SO_STAGES := $(BUILD)/arm/subwerk_stages.so
 ARM_BENCH := $(BUILD)/arm/sfbench
 
 .PHONY: all surface skin test test-arm test-arm-pgo bench arm-plugin arm-bench arm-bench-stages bench-device preview demos preset-levels plugin-package plugin-install clean FORCE
 # A recipe that fails leaves no half-written target behind for the next make to trust.
 .DELETE_ON_ERROR:
 # The stage-timing build too: a -DSF_STAGE_TIMING break shows here, not at bench time.
-all: test arm-plugin $(BUILD)/subforce_stages.so
+all: test arm-plugin $(BUILD)/subwerk_stages.so
 
 # --- generated --------------------------------------------------------------------------------
 # surface.py: params.json, layout.conf, vst.json and build/param_ids.h (the C++ side). Needs only
@@ -105,14 +105,14 @@ $(BUILD)/arm/plugin_test: $(TESTS) $(wildcard test/*.h) $(SRC) $(HDR) $(GEN)
 
 # x86 numbers say nothing about the Force; this only checks the bench and the .so paths work
 # (the plain plugin, then the stage-timing build).
-bench: $(BUILD)/subforce.so $(BUILD)/subforce_stages.so $(BUILD)/sfbench
-	$(BUILD)/sfbench $(BUILD)/subforce.so -s 1 -c -1
-	$(BUILD)/sfbench $(BUILD)/subforce_stages.so -s 1 -c -1
+bench: $(BUILD)/subwerk.so $(BUILD)/subwerk_stages.so $(BUILD)/sfbench
+	$(BUILD)/sfbench $(BUILD)/subwerk.so -s 1 -c -1
+	$(BUILD)/sfbench $(BUILD)/subwerk_stages.so -s 1 -c -1
 
 X86_SO_CMD = $(CXX) -std=c++17 -O3 -fno-tree-loop-distribute-patterns -fPIC -fvisibility=hidden -fno-gnu-unique -Wall -Wextra -pthread $(INC) -shared -Wl,--no-undefined
-$(BUILD)/subforce.so: $(SRC) $(HDR) $(GEN) plugin/exports.map | $(BUILD)
+$(BUILD)/subwerk.so: $(SRC) $(HDR) $(GEN) plugin/exports.map | $(BUILD)
 	$(X86_SO_CMD) -Wl,--version-script=plugin/exports.map $(SRC) -o $@
-$(BUILD)/subforce_stages.so: $(SRC) $(HDR) $(GEN) plugin/exports_stages.map | $(BUILD)
+$(BUILD)/subwerk_stages.so: $(SRC) $(HDR) $(GEN) plugin/exports_stages.map | $(BUILD)
 	$(X86_SO_CMD) -Wl,--version-script=plugin/exports_stages.map -DSF_STAGE_TIMING $(SRC) -o $@
 
 $(BUILD)/sfbench: tools/bench.cpp $(HDR) $(GEN) | $(BUILD)
@@ -140,7 +140,7 @@ $(BUILD)/demos_tune: tools/demos.cpp $(SRC) $(HDR) $(GEN) | $(BUILD)
 # instantiations and typeinfo -fvisibility leaves; -fno-gnu-unique keeps it unloadable);
 # --no-undefined because an unresolved symbol otherwise only shows up as MPC crashing on load.
 ARM_SO_FLAGS = -std=c++17 $(ARM_OPT) -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -fno-gnu-unique -Wall -Wextra -Wno-psabi -pthread $(INC)
-ARM_SO_LINK  = -shared -Wl,--no-undefined -Wl,-soname,subforce.so -Wl,--version-script=plugin/exports.map
+ARM_SO_LINK  = -shared -Wl,--no-undefined -Wl,-soname,subwerk.so -Wl,--version-script=plugin/exports.map
 ARM_SO_CMD   = $(ARM_CXX) $(ARM_SO_FLAGS) $(ARM_SO_LINK)
 
 # Profile-guided: on by default when ARM programs can run here (qemu-arm installed, as test-arm
@@ -199,12 +199,12 @@ else
 endif
 
 # The profiling build: the same plugin with timers between the render stages (dsp/stages.h)
-# and one more export, SubForceStageTimes, which sfbench reads. Never shipped. A plain build
+# and one more export, SubWerkStageTimes, which sfbench reads. Never shipped. A plain build
 # (not profile-guided): its times read a little higher than the shipped .so's.
 arm-bench-stages: $(ARM_SO_STAGES) $(ARM_BENCH)
 $(ARM_SO_STAGES): $(SRC) $(HDR) $(GEN) plugin/exports_stages.map $(ARM_SO_STAMP)
 	mkdir -p $(BUILD)/arm
-	$(ARM_CXX) $(ARM_SO_FLAGS) -shared -Wl,--no-undefined -Wl,-soname,subforce.so \
+	$(ARM_CXX) $(ARM_SO_FLAGS) -shared -Wl,--no-undefined -Wl,-soname,subwerk.so \
 		-Wl,--version-script=plugin/exports_stages.map -DSF_STAGE_TIMING $(SRC) -o $@
 	$(ARM_PREFIX)strip --strip-unneeded $@
 
@@ -221,9 +221,9 @@ BENCH_ARGS ?= -s 3
 bench-device: $(ARM_SO) $(ARM_SO_STAGES) $(ARM_BENCH)
 	scp -q $(SSH_OPTS) $(ARM_SO) $(ARM_SO_STAGES) $(ARM_BENCH) $(FORCE):/tmp/
 	$(SSH) $(FORCE) 'r=0; \
-		/tmp/sfbench /tmp/subforce.so $(BENCH_ARGS) -c 1 || r=1; \
-		/tmp/sfbench /tmp/subforce_stages.so $(BENCH_ARGS) -c 1 || r=1; \
-		rm -f /tmp/sfbench /tmp/subforce.so /tmp/subforce_stages.so; exit $$r'
+		/tmp/sfbench /tmp/subwerk.so $(BENCH_ARGS) -c 1 || r=1; \
+		/tmp/sfbench /tmp/subwerk_stages.so $(BENCH_ARGS) -c 1 || r=1; \
+		rm -f /tmp/sfbench /tmp/subwerk.so /tmp/subwerk_stages.so; exit $$r'
 
 # Release zip: plugin + skin + sd88me's installer (stops MPC, backs up and edits
 # MPC.settings, restarts MPC).
@@ -238,8 +238,8 @@ plugin-package: $(ARM_SO) $(SKIN)
 		echo "warning: this .so needs glibc $$g: it loads on MPC OS 3.x only, and the plugin catalog refuses it."; \
 		echo "         Release packages come from CI (glibc 2.31, docs/BUILDING.md#release-builds)."; fi
 	$(PY) $(MV)/tools/release.py --so $(ARM_SO) --skin "$(SKIN_DIR)" --entry $(SURF_OUT)/pluginlist-entry.xml \
-		--version $(PLUGIN_VERSION) --repo Devko/SubForce --license MIT \
-		--about "SubForce analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, white, pink or dark noise, a mixer feedback loop, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode, 108 presets." \
+		--version $(PLUGIN_VERSION) --repo Devko/SubWerk --license MIT \
+		--about "SubWerk analog-style monosynth (preview): 2 oscillators with continuous wave shape and hard sync, sub oscillator, white, pink or dark noise, a mixer feedback loop, a 4-pole ladder filter (6-24 dB) with Multidrive, 2 DAHDSR envelopes, 2 mod busses, glide, Duo mode, 108 presets." \
 		--requires "root SSH (MockbaMod); MPC OS 3.x for the pages" \
 		--user-data Presets --user-data preset_favorites.txt --user-data preset_recent.txt \
 		-o dist
@@ -249,9 +249,9 @@ plugin-package: $(ARM_SO) $(SKIN)
 PKG_TMP := /tmp/sfpkg
 plugin-install: plugin-package
 	rm -rf $(PKG_TMP) && mkdir -p $(PKG_TMP)
-	python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' dist/SubForce-$(PLUGIN_VERSION)-mpc-armv7.zip $(PKG_TMP)
-	tar -C $(PKG_TMP) -cf - SubForce-$(PLUGIN_VERSION) | ssh $(SSH_OPTS) $(FORCE) 'rm -rf /tmp/SubForce-$(PLUGIN_VERSION) && tar -C /tmp -xf -'
-	$(SSH) $(FORCE) 'sh /tmp/SubForce-$(PLUGIN_VERSION)/install.sh -y'
+	python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' dist/SubWerk-$(PLUGIN_VERSION)-mpc-armv7.zip $(PKG_TMP)
+	tar -C $(PKG_TMP) -cf - SubWerk-$(PLUGIN_VERSION) | ssh $(SSH_OPTS) $(FORCE) 'rm -rf /tmp/SubWerk-$(PLUGIN_VERSION) && tar -C /tmp -xf -'
+	$(SSH) $(FORCE) 'sh /tmp/SubWerk-$(PLUGIN_VERSION)/install.sh -y'
 
 $(BUILD):
 	mkdir -p $(BUILD)

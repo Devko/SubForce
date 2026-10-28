@@ -61,7 +61,7 @@ std::string pluginDir() {
     return dir;
 }
 
-std::vector<Root> presetRoots() { return roots("SF_PRESET_ROOTS", "Presets", "/media/AkaiForce/SubForce Presets"); }
+std::vector<Root> presetRoots() { return roots("SF_PRESET_ROOTS", "Presets", "/media/AkaiForce/SubWerk Presets"); }
 
 std::string dataDir() {
     if (const char* e = std::getenv("SF_DATA_DIR")) return e;

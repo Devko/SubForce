@@ -1,7 +1,7 @@
-// SubForce's demo track: a melodic-techno build in F minor played through the built SubForce, layer by
+// SubWerk's demo track: a melodic-techno build in F minor played through the built SubWerk, layer by
 // layer (bass sequence, pluck, gliding lead, pad), each entering clean and then through its own
-// EffectForce (an insert on that part), level-matched; then all together, a breakdown with a riser, a
-// drop on an impact (both SubForce too) and an ending. A mix bus on the master (EQ, glue), mastered at
+// EffectWerk (an insert on that part), level-matched; then all together, a breakdown with a riser, a
+// drop on an impact (both SubWerk too) and an ending. A mix bus on the master (EQ, glue), mastered at
 // -10 LUFS. No drums: the synth on its own. Written from what melodic-techno production tutorials
 // teach, in our own parts: a bass on the chord roots off the beat with 1-5-octave jumps and velocity
 // accents, a sparse arp the delay completes, cutoffs that never stand still, several moves stacked at
@@ -223,7 +223,7 @@ struct Inst {
     std::vector<std::string> lastText;
     double sumSq = 0.0, peak = 0.0;   // for the level report
     size_t loudBlocks = 0;
-    // An insert (EffectForce on this part): the part's sound goes through it, mixed dry/effected by
+    // An insert (EffectWerk on this part): the part's sound goes through it, mixed dry/effected by
     // `wet`, which glides to `wetTo` at `wetStep` per sample; `fxGain` levels the effected sound.
     Inst* insert = nullptr;
     bool isInsert = false;
@@ -315,7 +315,7 @@ struct Session {
         }
         in->gain = std::pow(10.0, gainDb / 20.0);
         in->pan = pan;
-        const std::string plug = libName == "pf" ? "PolyForce" : libName == "sf" ? "SubForce" : "EffectForce";
+        const std::string plug = libName == "pf" ? "PolyWerk" : libName == "sf" ? "SubWerk" : "EffectWerk";
         cue(0.0, "{\"type\": \"inst\", \"i\": \"" + name + "\", \"plug\": \"" + plug + "\"}");
         insts.push_back(std::move(in));
         return insts.back().get();
@@ -333,7 +333,7 @@ struct Session {
         host->insert = fxIn;
         return fxIn;
     }
-    // EffectForce with `preset` as an insert on `host`: watched, not mixed on its own.
+    // EffectWerk with `preset` as an insert on `host`: watched, not mixed on its own.
     Inst* addInsert(Inst* host, const std::string& name, const std::string& preset) {
         Inst* fxIn = add(name, "ef", preset, 0.0);
         fxIn->isInsert = true;
@@ -468,7 +468,7 @@ struct Session {
     void run(double endBeat, std::ofstream& state, std::vector<float>& outL, std::vector<float>& outR) {
         std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.beat < b.beat; });
         std::stable_sort(ramps.begin(), ramps.end(), [](const Ramp& a, const Ramp& b) { return a.b0 < b.b0; });
-        // Before the first beat: the transport stopped, silence played until PolyForce's tables are in.
+        // Before the first beat: the transport stopped, silence played until PolyWerk's tables are in.
         g_time.sampleRate = kSr;
         g_time.tempo = kBpm;
         g_time.timeSigNumerator = g_time.timeSigDenominator = 4;
@@ -525,7 +525,7 @@ struct Session {
                 }
                 float* o[2] = {L.data(), R.data()};
                 in->e->processReplacing(in->e, nullptr, o, kBlock);
-                if (Inst* fi = in->insert) {   // through its EffectForce, dry and effected mixed by `wet`
+                if (Inst* fi = in->insert) {   // through its EffectWerk, dry and effected mixed by `wet`
                     std::vector<float> dL(L), dR(R);
                     float* io[2] = {L.data(), R.data()};
                     fi->e->processReplacing(fi->e, io, io, kBlock);
@@ -676,7 +676,7 @@ const int kFillOff[4] = {0, 7, 12, 14}, kFillVel[4] = {104, 110, 118, 126};
 // solo: -1 plays everything; 0..3 only that layer (the level match measures layers on their own).
 void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainDb, int solo) {
     Inst* master = s.addState("bus", "ef",
-                              "effectforce 1\neq_on=On\neq_lc=28\neq_hf=9000\neq_hg=1.5\n"
+                              "effectwerk 1\neq_on=On\neq_lc=28\neq_hf=9000\neq_hg=1.5\n"
                               "cmp_on=On\ncmp_thr=-14\ncmp_ratio=2\ncmp_att=0.03\ncmp_rel=0.25\n", 0.0);
     master->watched = true;
     s.fx = master;
@@ -689,39 +689,39 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     struct Layer { const char* name; const char* sf; const char* fx; double gainDb; };
     const Layer layers[] = {
         {"bass", "02_Bass/16_Grit_Roller",
-         "effectforce 1\ncmp_on=On\ncmp_thr=-16\ncmp_ratio=3\ncmp_att=0.01\ncmp_rel=0.12\n"
+         "effectwerk 1\ncmp_on=On\ncmp_thr=-16\ncmp_ratio=3\ncmp_att=0.01\ncmp_rel=0.12\n"
          "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8.\ndly_fb=0.25\ndly_hc=3000\ndly_mix=0.12\n"
          "rev_on=On\nrev_mode=Plate\nrev_decay=1.2\nrev_mix=0.1\n", 0.0},
         {"arp", "04_Keys/01_Pluck",
-         "effectforce 1\neq_on=On\neq_lc=150\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.35\n"
+         "effectwerk 1\neq_on=On\neq_lc=150\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.35\n"
          "pls_on=On\npls_mode=Gate\npls_div=1/16\npls_pattern=Pump\npls_depth=0.5\npls_length=1\npls_smooth=0.03\n"
          "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8\ndly_fb=0.45\ndly_hc=5000\ndly_mix=0.38\n"
          "rev_on=On\nrev_mode=Hall\nrev_size=0.75\nrev_decay=3.5\nrev_mod=0.4\nrev_mix=0.22\n", -3.0},
         {"lead", "03_Lead/08_Afterglow_Lead",
-         "effectforce 1\neq_on=On\neq_lc=180\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.3\n"
+         "effectwerk 1\neq_on=On\neq_lc=180\nchr_on=On\nchr_mode=Dimension\nchr_mix=0.3\n"
          "dly_on=On\ndly_mode=Ping-Pong\ndly_div=1/4.\ndly_fb=0.45\ndly_hc=4500\ndly_wow=0.15\ndly_mix=0.3\n"
          "rev_on=On\nrev_mode=Hall\nrev_size=0.8\nrev_decay=4\nrev_mod=0.4\nrev_mix=0.25\n", -2.0},
         {"pad", "07_Pad/01_Slow_Bloom_Duo",
-         "effectforce 1\neq_on=On\neq_lc=120\nchr_on=On\nchr_mode=Ensemble\nchr_mix=0.5\n"
+         "effectwerk 1\neq_on=On\neq_lc=120\nchr_on=On\nchr_mode=Ensemble\nchr_mix=0.5\n"
          "pls_on=On\npls_mode=Gate\npls_div=1/16\npls_pattern=Pump\npls_depth=0.6\npls_length=1\npls_smooth=0.03\n"
          "rev_on=On\nrev_mode=Hall\nrev_size=0.85\nrev_decay=7\nrev_mod=0.5\nrev_shim=0.35\nrev_mix=0.5\nout_gain=5\n", -5.0},
     };
     std::vector<Inst*> L;
     for (int k = 0; k < 4; ++k) {
-        Inst* in = s.add(layers[k].name, "sf", std::string("SubForce/presets/Factory/") + layers[k].sf + ".sfp", layers[k].gainDb);
+        Inst* in = s.add(layers[k].name, "sf", std::string("SubWerk/presets/Factory/") + layers[k].sf + ".sfp", layers[k].gainDb);
         in->watched = true;
         s.addInsertState(in, std::string("fx_") + layers[k].name, layers[k].fx);
         in->fxGain = std::pow(10.0, (k < static_cast<int>(fxGainDb.size()) ? fxGainDb[k] : 0.0) / 20.0);
         L.push_back(in);
     }
     Inst *bass = L[0], *arp = L[1], *lead = L[2], *pad = L[3];
-    // The build's effects, SubForce too: a riser into the drop, an impact on it.
-    Inst* riser = s.add("riser", "sf", "SubForce/presets/Factory/05_FX/05_Riser_Engine.sfp", -7.0);
+    // The build's effects, SubWerk too: a riser into the drop, an impact on it.
+    Inst* riser = s.add("riser", "sf", "SubWerk/presets/Factory/05_FX/05_Riser_Engine.sfp", -7.0);
     riser->watched = true;
-    s.addInsertState(riser, "fx_riser", "effectforce 1\neq_on=On\neq_lc=200\ndly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8.\n"
+    s.addInsertState(riser, "fx_riser", "effectwerk 1\neq_on=On\neq_lc=200\ndly_on=On\ndly_mode=Ping-Pong\ndly_div=1/8.\n"
                                         "dly_fb=0.5\ndly_mix=0.3\nrev_on=On\nrev_mode=Hall\nrev_decay=6\nrev_mix=0.45\n");
-    Inst* boom = s.add("boom", "sf", "SubForce/presets/Factory/05_FX/07_Impact_Boom.sfp", -3.0);
-    s.addInsertState(boom, "fx_boom", "effectforce 1\nrev_on=On\nrev_mode=Hall\nrev_size=0.9\nrev_decay=5\nrev_mix=0.3\n");
+    Inst* boom = s.add("boom", "sf", "SubWerk/presets/Factory/05_FX/07_Impact_Boom.sfp", -3.0);
+    s.addInsertState(boom, "fx_boom", "effectwerk 1\nrev_on=On\nrev_mode=Hall\nrev_size=0.9\nrev_decay=5\nrev_mix=0.3\n");
     auto plays = [&](Inst* in) { return solo < 0 || in == L[static_cast<size_t>(solo)]; };
     auto N = [&](Inst* in, double beat, double len, int key, int vel) {
         if (plays(in)) s.note(in, beat, len, key, vel);
@@ -842,7 +842,7 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     s.wet(bass, bar(6) - 0.02, 1.0f, 0.02);
     s.cue(bar(6), "{\"type\": \"mode\", \"mode\": \"fx\"}");
     s.page(bar(6), bass->insert, "COMP");
-    s.caption(bar(6), "+ EffectForce", "Compression, a short ping-pong and a plate: the bass stays tight");
+    s.caption(bar(6), "+ EffectWerk", "Compression, a short ping-pong and a plate: the bass stays tight");
     segs.push_back({"bass", bar(2), bar(6), bar(6), bar(10)});
 
     // ---- the pluck -----------------------------------------------------------------------------------------
@@ -860,7 +860,7 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     s.wet(arp, bar(14) - 0.02, 1.0f, 0.02);
     s.cue(bar(14), "{\"type\": \"mode\", \"mode\": \"fx\"}");
     s.page(bar(14), arp->insert, "DELAY");
-    s.caption(bar(14), "+ EffectForce", "A 1/8 ping-pong lands in the gaps; chorus, a pump and a hall");
+    s.caption(bar(14), "+ EffectWerk", "A 1/8 ping-pong lands in the gaps; chorus, a pump and a hall");
     segs.push_back({"arp", bar(10), bar(14), bar(14), bar(18)});
 
     // ---- the lead ------------------------------------------------------------------------------------------
@@ -878,7 +878,7 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     s.wet(lead, bar(22) - 0.02, 1.0f, 0.02);
     s.cue(bar(22), "{\"type\": \"mode\", \"mode\": \"fx\"}");
     s.page(bar(22), lead->insert, "DELAY");
-    s.caption(bar(22), "+ EffectForce", "A dotted-quarter tape delay, chorus and a hall; the echo thrown up at the phrase's end");
+    s.caption(bar(22), "+ EffectWerk", "A dotted-quarter tape delay, chorus and a hall; the echo thrown up at the phrase's end");
     move(bass, 18, 26, "f_cut", 900, 1200, 0.04, 2);
     move(arp, 18, 26, "f_cut", 1100, 900, 0.03, 4);
     throwAt(26);
@@ -927,7 +927,7 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     move(lead, 37, 38, "o2_freq", 7.0, -0.1, 0.0, 1);
     move(lead, 34, 37.5, "glide", 60, 420, 0.0, 2);
     s.page(bar(36), riser, "FILTER");
-    s.caption(bar(36), "Riser: Riser Engine", "Noise and a saw-swept filter, from SubForce too, cutoff opening");
+    s.caption(bar(36), "Riser: Riser Engine", "Noise and a saw-swept filter, from SubWerk too, cutoff opening");
     N(riser, bar(36), bar(2) - 0.1, 53, 110);
     move(riser, 36, 38, "f_cut", 400, 7000, 0.0, 2);
 
@@ -957,7 +957,7 @@ void song(Session& s, std::vector<Seg>& segs, const std::vector<double>& fxGainD
     leadLine(38, melodyB, {0.0, 16.0}, {{4.5, 7.0}, {12.5, 14.0}, {16.5, 19.0}, {28.5, 32.0}});
     move(pad, 38, 46, "f_cut", 1800, 2600, 0.05, 4);
     s.page(bar(42), master, "COMP");
-    s.caption(bar(42), "EffectForce on the master", "EQ and glue over six SubForce parts, each through its own EffectForce");
+    s.caption(bar(42), "EffectWerk on the master", "EQ and glue over six SubWerk parts, each through its own EffectWerk");
 
     // ---- the end: the filters close, the halls ring out -------------------------------------------------
     s.section(bar(46), "Ending");
@@ -1003,9 +1003,9 @@ int main(int argc, char** argv) {
     setenv("EF_FIXED_SEED", "1", 1);
 
     Session s;
-    s.libs.push_back(loadLib("pf", kDev + "PolyForce/build/polyforce.so", kDev + "PolyForce/surface/params.json"));
-    s.libs.push_back(loadLib("sf", kDev + "SubForce/build/subforce.so", kDev + "SubForce/surface/params.json"));
-    s.libs.push_back(loadLib("ef", kDev + "EffectForce/build/effectforce.so", kDev + "EffectForce/surface/params.json"));
+    s.libs.push_back(loadLib("pf", kDev + "PolyWerk/build/polywerk.so", kDev + "PolyWerk/surface/params.json"));
+    s.libs.push_back(loadLib("sf", kDev + "SubWerk/build/subwerk.so", kDev + "SubWerk/surface/params.json"));
+    s.libs.push_back(loadLib("ef", kDev + "EffectWerk/build/effectwerk.so", kDev + "EffectWerk/surface/params.json"));
     if (snapshot) {   // one instance's state, a beat after its preset loads
         s.add("snap", argv[2], argv[3], 0.0)->watched = true;
         std::ofstream state(argv[4]);
@@ -1018,9 +1018,9 @@ int main(int argc, char** argv) {
     std::vector<double> fxGainDb(4, 0.0);
     for (int solo = 0; solo < 3; ++solo) {
         Session m;
-        m.libs.push_back(loadLib("pf", kDev + "PolyForce/build/polyforce.so", kDev + "PolyForce/surface/params.json"));
-        m.libs.push_back(loadLib("sf", kDev + "SubForce/build/subforce.so", kDev + "SubForce/surface/params.json"));
-        m.libs.push_back(loadLib("ef", kDev + "EffectForce/build/effectforce.so", kDev + "EffectForce/surface/params.json"));
+        m.libs.push_back(loadLib("pf", kDev + "PolyWerk/build/polywerk.so", kDev + "PolyWerk/surface/params.json"));
+        m.libs.push_back(loadLib("sf", kDev + "SubWerk/build/subwerk.so", kDev + "SubWerk/surface/params.json"));
+        m.libs.push_back(loadLib("ef", kDev + "EffectWerk/build/effectwerk.so", kDev + "EffectWerk/surface/params.json"));
         std::vector<Seg> segs;
         song(m, segs, {}, solo);
         std::ofstream none("/dev/null");

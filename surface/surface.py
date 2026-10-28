@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SubForce touchscreen surface: the ONE place the plugin's parameters and pages are defined.
+"""SubWerk touchscreen surface: the ONE place the plugin's parameters and pages are defined.
 
 Writes, next to this file:
   params.json        ordered VST parameter list (index = position; append-only once released:
@@ -24,7 +24,7 @@ Before writing anything the layout is checked the way shadow_skin.py would (unkn
 option counts, when=, Q-Link sets) plus geometry with shadow_skin's own sizes (inside the plugin
 area, no overlaps within a page, nothing in a card's title band, open popup lists inside the
 plugin area, bitmap-font glyphs) and the parameter names MPC shows (short, unique), so a broken
-page fails here instead of on the device. The layout machinery is PolyForce's, unchanged.
+page fails here instead of on the device. The layout machinery is PolyWerk's, unchanged.
 
 Run: python3 surface/surface.py   (make surface does this)
 """
@@ -41,8 +41,8 @@ STEPPER_RANGE = 1023        # a list stepper's VST range: 0..1023 items (stepIte
 BROWSER_CATS = 16           # category tiles on the browser page (2 x 8)
 BROWSER_ITEMS = 24          # preset tiles (3 x 8)
 
-VST = {"name": "SubForce", "vendor": "Devko", "uid": "SbFc", "version": 1000,
-       "so": "subforce.so", "params": "params.json", "layout": "layout.conf"}
+VST = {"name": "SubWerk", "vendor": "Devko", "uid": "SbFc", "version": 1000,
+       "so": "subwerk.so", "params": "params.json", "layout": "layout.conf"}
 
 
 # --- parameters ------------------------------------------------------------------------------
@@ -276,8 +276,8 @@ def params_json():
 
 
 # --- touchscreen pages -------------------------------------------------------------------------
-# PolyForce's look (style=td3 rounded cards on one flat colour; bg and box the same, so the opaque image of a
-# control never shows a box behind it), in SubForce's amber. Plugin area 1280x628 at y = 86..714. Every tab: a
+# PolyWerk's look (style=td3 rounded cards on one flat colour; bg and box the same, so the opaque image of a
+# control never shows a box behind it), in SubWerk's amber. Plugin area 1280x628 at y = 86..714. Every tab: a
 # header row (the status line from x=24), then cards at y=158 and y=440 (h=270) or one full-height card
 # (h=552), x=24 w=1232 or halves at x=24 / 648 (w=608). Nothing may sit in a card's title band (y .. y+44: td3
 # draws the title rule at y+38). skin_polish.py (run by `make skin` after the generator) redraws the knob
@@ -382,7 +382,7 @@ class Layout:
     def toggle(self, cx, cy, key):
         self.add('toggle cx=%d cy=%d label="%s" key=%s' % (cx, cy, PARAMS[key]["name"], key))
 
-    def meter(self, cx, cy, w, h, key):   # display only: shadow_skin's filmstrip meter, no look (PolyForce patch)
+    def meter(self, cx, cy, w, h, key):   # display only: shadow_skin's filmstrip meter, no look (PolyWerk patch)
         self.add('meter cx=%d cy=%d w=%d h=%d key=%s' % (cx, cy, w, h, key))
 
     def tiles(self, x, y, w, cols, rows, th, gap, key):
@@ -1001,7 +1001,7 @@ constexpr int kNumSyncDivisions = %d;
 
 # --- factory presets: presets/Factory/<NN_Category>/<NN_Name>.sfp, embedded in the .so ---------
 PRESET_DIR = os.path.join(HERE, "..", "presets", "Factory")
-PRESET_MAGIC = "subforce "
+PRESET_MAGIC = "subwerk "
 NUMBER = re.compile(r"^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$")
 PRESET_NAME_MAX = 18      # an item tile on the browser page (816 px / 3 columns)
 CATEGORY_NAME_MAX = 12    # a category tile (320 px / 2 columns), shown in capitals

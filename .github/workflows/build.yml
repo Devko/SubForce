@@ -53,10 +53,10 @@ jobs:
       - name: Catalog check
         run: >-
           python3 third_party/mpc-vst-plugins/tools/catalog_check.py dist/*-mpc-armv7.zip
-          --catalog --expect-id subforce --expect-repo Devko/SubForce
+          --catalog --expect-id subwerk --expect-repo Devko/SubWerk
       - uses: actions/upload-artifact@v4
         with:
-          name: SubForce-mpc-armv7
+          name: SubWerk-mpc-armv7
           path: dist/*-mpc-armv7.zip
           if-no-files-found: error
       # The release's notes are CHANGELOG.md's section for the tag's version ("## X.Y.Z"): the catalog shows

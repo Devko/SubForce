@@ -11,9 +11,9 @@
 ## The budget
 
 MPC renders 128-frame blocks: **2902 µs per block**, per plugin instance. A plugin passes at
-**p99 ≤ 15%** and **max ≤ 50%** of the block (warns up to 35% / 80%), the rule PolyForce uses.
+**p99 ≤ 15%** and **max ≤ 50%** of the block (warns up to 35% / 80%), the rule PolyWerk uses.
 
-SubForce is one voice, so its cost depends little on the patch: Init (one saw) and the heaviest
+SubWerk is one voice, so its cost depends little on the patch: Init (one saw) and the heaviest
 case (everything on, both busses in Hi range) differ by about 1.5% of the block; only noise, the
 feedback loop, Analog and Hi-range busses add work, and only while they are up.
 
@@ -49,7 +49,7 @@ steps (it reads the clock between stages, so it reads higher than the plain buil
 
 ## Why it is cheap
 
-- **One voice.** Everything PolyForce spends on voice management and vectorising across voices
+- **One voice.** Everything PolyWerk spends on voice management and vectorising across voices
   isn't needed.
 - **No divisions waiting on each other.** VFP's divider takes ~18 cycles and accepts one every
   ~14 (measured on the device); the Phase 0 voice queued 14 of them per sample. Now:

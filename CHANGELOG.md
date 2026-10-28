@@ -4,6 +4,15 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
+## Unreleased: SubForce is now SubWerk <!-- werk-rename: keep -->
+
+**A new name, the same synth.** "Force" is the name of Akai's device, so it no longer belongs in this
+plugin's name. Nothing about the sound changes.
+
+- MPC's plugin list shows **SubWerk**, and the plugin lives in `/sdcard/Synths/Devko - VST - SubWerk`.
+- Your presets, favorites and recents move over by themselves: the installer carries them out of the old `Devko - VST - SubForce` folder and removes it, and the first start renames `/media/AkaiForce/SubForce Presets` to `SubWerk Presets`. <!-- werk-rename: keep -->
+- Projects saved with SubForce: to be confirmed on the device before the release. <!-- werk-rename: keep -->
+
 ## 0.0.9
 
 **Resonance and feedback calibrated** against recordings of the original's factory presets, on
@@ -33,11 +42,11 @@ the envelopes go, where the grit comes from (noise, the feedback loop, audio-rat
 than resonance), octave layers, velocity, tempo-locked movement. Eight basses, eight leads, seven
 plucks and stabs (Keys), five sequences, five pads and drones, one riser; all level-matched. The
 [user guide](docs/USER_GUIDE.md#the-melodic-set) lists them with how to play them and the effect
-chains they are made for. Nothing is copied; the names are SubForce's own.
+chains they are made for. Nothing is copied; the names are SubWerk's own.
 
 **Q-Links on track edit → automation:** MPC rebuilds its parameter screen whenever a plugin asks it to
 redraw its texts, and a Q-Link turned meanwhile can lose its value (found by a port author on the
-plugin catalog's wrapper, 2026-10-21). SubForce never asked when a sound parameter changed; the
+plugin catalog's wrapper, 2026-10-21). SubWerk never asked when a sound parameter changed; the
 texts that do change (the status line's CPU and voice figures, a bus's rate after its rate mode, the
 browser's lines) now ask at most once per 50 ms, instead of up to every 12 ms. And the build stops if a
 parameter ever changes its index (`surface/params.lock`): projects, automation and Q-Link maps store
@@ -47,7 +56,7 @@ them by index.
 
 **Multidrive** calibrated against recordings of the original's factory presets: decoded knob
 positions played on the recordings' notes, and the engine's constants fitted to them. At full the
-original is grittier than SubForce was: the second stage (after the ladder) now clips harder (its
+original is grittier than SubWerk was: the second stage (after the ladder) now clips harder (its
 gain at full 2.0, was 1.5) and the drive into the ladder goes to 9×, was 8×. About half of what the
 fit asked for, as only two sounds settled it. Below about a third of the knob the change is slight.
 The factory presets are re-levelled (−16 LUFS, most within ±0.3 dB).
@@ -148,7 +157,7 @@ Closer to the original's modulation, from its manual, and 14 more presets:
 The first regular release: the plugin catalog lists it with a download button and its installers offer
 it (0.0.1 was a prerelease, its beta channel, which neither does by default).
 
-- **2 dB louder**, level with MPC's own instruments and with PolyForce: the factory presets play at
+- **2 dB louder**, level with MPC's own instruments and with PolyWerk: the factory presets play at
   −16 LUFS on their demo phrases (was −18), no peak over −1 dBFS (the highest −1.8 dBFS); the
   engine's output is 2 dB up, Init and saved sounds too.
 - Release builds: a plain `vX.Y.Z` tag publishes a regular release, a suffixed one (`v0.1.0-beta`) a

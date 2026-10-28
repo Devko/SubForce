@@ -6,7 +6,7 @@ draws (names, values, readouts, list rows) is set in Titillium Web at the same b
 colours. Geometry comes from each repo's own vendored shadow_skin.py, so the pages follow the
 layouts as they are.
 
-    skin = Skin(r"D:/DEV/EffectForce")
+    skin = Skin(r"D:/DEV/EffectWerk")
     img = skin.page("PERFORM", values, texts)   # 1280x628 RGB
 """
 import importlib.util

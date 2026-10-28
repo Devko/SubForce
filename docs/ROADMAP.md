@@ -72,9 +72,9 @@ link their wrapper, and never asked on a sound parameter's write; what we took o
 - ✅ Performance on the Force: NEON ladder (four stages in vector lanes, the loop as an affine
   chain), no divisions in the oscillators, four-lane cutoff coefficients, cheaper control and idle:
   Init 3.64% → 2.79% of the block, idle 0.38% → 0.17%
-- ✅ Fixes: buttons and the preset stepper on the Force (PolyForce's device-run rules), Multi
+- ✅ Fixes: buttons and the preset stepper on the Force (PolyWerk's device-run rules), Multi
   trigger on key releases, poly aftertouch, CC 121, flush-to-zero scope, per-instance random seeds,
-  device diagnostics (`/tmp/subforce.trace`)
+  device diagnostics (`/tmp/subwerk.trace`)
 - ✅ The original's behaviour, from its manuals: the mixer's own feedback loop, resonance self-oscillating
   past 70%, asymmetric Multidrive, linear attack, loop through the release, pink noise
 - ✅ 30 more factory presets (57 in 7 categories), many for melodic techno
@@ -98,7 +98,7 @@ link their wrapper, and never asked on a sound parameter's write; what we took o
   one of 10 more destinations, mod wheel / pressure / velocity control, retrigger
 - ✅ Mono and Duo, last / low / high priority, multi / single trigger, pedal; glide Rate / Time / Exp,
   Always / Legato, per oscillator
-- ✅ Plugin from PolyForce's groundwork: VST2 glue, touchscreen logic and stepping, preset library
+- ✅ Plugin from PolyWerk's groundwork: VST2 glue, touchscreen logic and stepping, preset library
   and browser, favorites, user presets, randomize, state text, CPU meter
 - ✅ Six touchscreen pages and Q-Link sets, an amber skin
 - ✅ 27 factory presets in 5 categories, level-matched at −18 LUFS (57 in 7 since Phase 1)
@@ -124,18 +124,18 @@ link their wrapper, and never asked on a sound parameter's write; what we took o
 | Feature | Why not (now) |
 |---|---|
 | Built-in effects | MPC's insert effects do the job |
-| Polyphony | That is PolyForce |
-| Microtuning | PolyForce has it; little call on a bass/lead monosynth so far |
+| Polyphony | That is PolyWerk |
+| Microtuning | PolyWerk has it; little call on a bass/lead monosynth so far |
 | MPE | Untested whether MPC passes per-note channels to a VST2 |
 
 ## Decisions
 
-- 2026-10-05 — **Own repository**, the plugin groundwork taken from PolyForce, the engine new.
+- 2026-10-05 — **Own repository**, the plugin groundwork taken from PolyWerk, the engine new.
 - 2026-10-05 — **2x oversampling** for the whole voice (oscillators to VCA), polyBLEP oscillators.
 - 2026-10-05 — **The ladder's bass loss kept** (no compensation), as on the original.
 - 2026-10-05 — **Factory presets at −18 LUFS** on their demo phrase, peaks under −3 dBFS.
-- 2026-10-05 — **−16 LUFS, peaks under −1 dBFS** (0.0.2): PolyForce at −19 played clearly quieter
-  than MPC's own instruments on the Force; SubForce goes to PolyForce's new level. The engine's
+- 2026-10-05 — **−16 LUFS, peaks under −1 dBFS** (0.0.2): PolyWerk at −19 played clearly quieter
+  than MPC's own instruments on the Force; SubWerk goes to PolyWerk's new level. The engine's
   output is 2 dB up (the quietest presets' volume was at the knob's top already).
 - 2026-10-05 — **Regular releases** from plain `vX.Y.Z` tags: the catalog hides prereleases (no
   download button) and its installers never offer them.

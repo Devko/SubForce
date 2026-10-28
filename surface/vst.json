@@ -1,9 +1,9 @@
 {
- "name": "SubForce",
+ "name": "SubWerk",
  "vendor": "Devko",
  "uid": "SbFc",
  "version": 1000,
- "so": "subforce.so",
+ "so": "subwerk.so",
  "params": "params.json",
  "layout": "layout.conf"
 }

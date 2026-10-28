@@ -170,7 +170,7 @@ std::vector<float> render(const std::string& state, const std::string& category,
 std::vector<float> sweep(float res, float drive, double seconds) {
     AEffect* e = VSTPluginMain(master);
     e->dispatcher(e, vst::effOpen, 0, 0, nullptr, 0.0f);
-    const std::string state = "subforce 1\nvolume=0\nmix_sub=0.4\nf_env=0\nf_kb=0\nae_s=1\nae_r=0.3\nf_res=" +
+    const std::string state = "subwerk 1\nvolume=0\nmix_sub=0.4\nf_env=0\nf_kb=0\nae_s=1\nae_r=0.3\nf_res=" +
                               std::to_string(res) + "\nf_drive=" + std::to_string(drive) + "\n";
     e->dispatcher(e, vst::effSetChunk, 0, static_cast<intptr_t>(state.size()), const_cast<char*>(state.data()), 0.0f);
     VstMidiEvent m{};

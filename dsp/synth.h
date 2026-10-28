@@ -1,5 +1,5 @@
 #pragma once
-// The SubForce engine: one analog-style voice in the spirit of a classic American monosynth.
+// The SubWerk engine: one analog-style voice in the spirit of a classic American monosynth.
 //
 //   Osc 1 (+ square sub) ─┐
 //   Osc 2 (hard sync) ────┤ mixer ─┬─► Multidrive ─► 4-pole ladder (6/12/18/24 dB) ─► drive ─► VCA ─► out

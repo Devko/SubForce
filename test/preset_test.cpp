@@ -23,7 +23,7 @@ void testState() {
     a.set(sf::P_M2_DEST, sf::MD_VOLUME);
     a.set(sf::P_AE_R, 1.5f);
     const std::string s = a.chunk();
-    CHECK(s.compare(0, 11, "subforce 1\n") == 0);
+    CHECK(s.compare(0, 10, "subwerk 1\n") == 0);
     CHECK(s.find("f_cut=333\n") != std::string::npos && s.find("ae_r=1.5\n") != std::string::npos);
     Host b;
     CHECK(b.load(s) == 1);
@@ -37,17 +37,17 @@ void testState() {
     c.set(sf::P_F_RES, 0.5f);
     c.set(sf::P_F_DRIVE, 0.7f);
     c.set(sf::P_F_KB, 1.5f);
-    CHECK(c.load("subforce 1\nf_cut=100\nnot_a_param=3\nf_drive=abc\nf_kb=1,5\n") == 1);
+    CHECK(c.load("subwerk 1\nf_cut=100\nnot_a_param=3\nf_drive=abc\nf_kb=1,5\n") == 1);
     CHECK(std::fabs(c.value(sf::P_F_CUT) - 100.0f) < 0.1f && std::fabs(c.value(sf::P_F_RES) - 0.5f) < 1e-4f);
     CHECK(std::fabs(c.value(sf::P_F_DRIVE) - 0.7f) < 1e-4f && std::fabs(c.value(sf::P_F_KB) - 1.5f) < 1e-4f);   // left as they were
     // Out of range values clamp; BOM and CRLF are fine; other text is refused.
-    CHECK(c.load("\xEF\xBB\xBFsubforce 1\r\nf_cut=99999\r\n") == 1 && std::fabs(c.value(sf::P_F_CUT) - 20000.0f) < 1.0f);
-    CHECK(c.load("polyforce 4\nvolume=0\n") == 0 && c.load("") == 0 && c.load("subforce x\n") == 0);
+    CHECK(c.load("\xEF\xBB\xBFsubwerk 1\r\nf_cut=99999\r\n") == 1 && std::fabs(c.value(sf::P_F_CUT) - 20000.0f) < 1.0f);
+    CHECK(c.load("polywerk 4\nvolume=0\n") == 0 && c.load("") == 0 && c.load("subwerk x\n") == 0);
     CHECK(c.e->dispatcher(c.e, vst::effSetChunk, 0, 0, nullptr, 0.0f) == 0);
     // The loaded patch is what plays (a 2' octave a project asked for).
     Host d;
     d.bare();
-    CHECK(d.load("subforce 1\no1_oct=4\nmix_o1=0.8\nf_cut=20000\nf_env=0\nf_kb=0\ndrift=0\n") == 1);
+    CHECK(d.load("subwerk 1\no1_oct=4\nmix_o1=0.8\nf_cut=20000\nf_env=0\nf_kb=0\ndrift=0\n") == 1);
     d.on(45);
     d.run(kBlocksPerSec / 4);
     d.run(kBlocksPerSec / 2);
@@ -89,7 +89,7 @@ void testPresets() {
     CHECK(h.chunk().find("\npreset=" + L->items[static_cast<size_t>(at + 1)].key + "\n") != std::string::npos);
     // A preset that went missing is ignored: NEXT steps on from where the stepper stood.
     const std::string here = h.display(sf::P_PRESET);
-    h.load("subforce 1\npreset=plugin:User/Gone.sfp\n");
+    h.load("subwerk 1\npreset=plugin:User/Gone.sfp\n");
     CHECK(h.display(sf::P_PRESET) == "PRESET  Gone");
     h.press(sf::P_PRESET_NEXT);
     h.run(4);
@@ -102,7 +102,7 @@ void testPresets() {
     h.press(sf::P_PRESET_PREV);
     CHECK(std::fabs(h.value(sf::P_F_CUT) - 300.0f) < 0.5f);
     const std::string lastKey = L->items.back().key;
-    h.load("subforce 1\npreset=" + lastKey + "\n");
+    h.load("subwerk 1\npreset=" + lastKey + "\n");
     h.set(sf::P_F_CUT, 300.0f);
     h.press(sf::P_PRESET_NEXT);
     CHECK(std::fabs(h.value(sf::P_F_CUT) - 300.0f) < 0.5f && h.display(sf::P_PRESET) == "PRESET  " + L->label(lastKey));
@@ -129,10 +129,10 @@ void testPresets() {
 
     // A preset file added while MPC runs shows up in a new instance, and when browsing.
     std::filesystem::create_directories(root + "/Pads");
-    std::ofstream(root + "/Pads/Warm.sfp") << "subforce 1\nf_cut=900\n";
+    std::ofstream(root + "/Pads/Warm.sfp") << "subwerk 1\nf_cut=900\n";
     Host fresh;
     CHECK(sf::presetLibrary().listing()->find("plugin:Pads/Warm.sfp") >= 0);
-    std::ofstream(root + "/Pads/Cold.sfp") << "subforce 1\nf_cut=300\n";
+    std::ofstream(root + "/Pads/Cold.sfp") << "subwerk 1\nf_cut=300\n";
     fresh.setN(sf::P_CAT_1, 1.0f);   // a category tap looks at the folders again
     CHECK(sf::presetLibrary().listing()->find("plugin:Pads/Cold.sfp") >= 0);
     // A file renamed under the listing: the stepper moves past it instead of sticking.

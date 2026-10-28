@@ -767,11 +767,11 @@ void testAnalog() {
     {
         Host h;
         CHECK(!unitOf(h).empty());
-        CHECK(h.load("subforce 1\nf_cut=500\nunit=12345\n") == 1 && unitOf(h) == "12345");
-        CHECK(h.load("subforce 1\nf_cut=600\n") == 1 && unitOf(h) == "1" && h.load("subforce 1\nf_cut=700\n") == 1 &&
+        CHECK(h.load("subwerk 1\nf_cut=500\nunit=12345\n") == 1 && unitOf(h) == "12345");
+        CHECK(h.load("subwerk 1\nf_cut=600\n") == 1 && unitOf(h) == "1" && h.load("subwerk 1\nf_cut=700\n") == 1 &&
               unitOf(h) == "1");
         // A preset never changes it.
-        h.load("subforce 1\nunit=12345\n");
+        h.load("subwerk 1\nunit=12345\n");
         h.press(sf::P_PRE_INIT);
         CHECK(unitOf(h) == "12345" && std::fabs(h.get(sf::P_F_CUT) - sf::PARAM_INFO[sf::P_F_CUT].def) < 1e-5f);
     }
@@ -779,11 +779,11 @@ void testAnalog() {
     // (a duplicated track) gives it the next free one; alone, it is that unit again.
     {
         Host a, b;
-        CHECK(a.load("subforce 1\nunit=777\n") == 1 && b.load("subforce 1\nunit=777\n") == 1 && unitOf(a) == "777" &&
+        CHECK(a.load("subwerk 1\nunit=777\n") == 1 && b.load("subwerk 1\nunit=777\n") == 1 && unitOf(a) == "777" &&
               !unitOf(b).empty() && unitOf(b) != "777");
     }
     Host c;
-    CHECK(c.load("subforce 1\nunit=777\n") == 1 && unitOf(c) == "777");
+    CHECK(c.load("subwerk 1\nunit=777\n") == 1 && unitOf(c) == "777");
 
     // The unit reaches the sound: a project's unit plays as that unit did, another unit doesn't.
     auto playUnit = [](const char* state) {
@@ -795,8 +795,8 @@ void testAnalog() {
         h.run(kBlocksPerSec / 2);
         return h.L;
     };
-    const auto u111 = playUnit("subforce 1\nunit=111\n"), again = playUnit("subforce 1\nunit=111\n"),
-               u222 = playUnit("subforce 1\nunit=222\n");
+    const auto u111 = playUnit("subwerk 1\nunit=111\n"), again = playUnit("subwerk 1\nunit=111\n"),
+               u222 = playUnit("subwerk 1\nunit=222\n");
     double same = 0.0, other = 0.0;
     for (size_t i = 0; i < u111.size(); ++i) {
         same = std::max(same, std::fabs(static_cast<double>(u111[i]) - again[i]));

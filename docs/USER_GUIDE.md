@@ -17,7 +17,7 @@ One voice, played like a classic 37-key American paraphonic analog monosynth (*t
 these docs): two oscillators and a sub into a mixer, a 4-pole transistor ladder, two envelopes and
 two mod busses, with the panel's habits kept — push the mixer and the filter overdrives, turn the
 resonance up and the bass thins out, take it past 70% and the filter sings on its own. Where the
-original's manual says how its panel behaves, SubForce does the same: the feedback loop, the
+original's manual says how its panel behaves, SubWerk does the same: the feedback loop, the
 resonance knob, Multidrive's character, the envelopes' attack and loop, the pink noise.
 
 ## The screen
@@ -78,7 +78,7 @@ step per Q-Link detent or data-wheel click.
     bandwidth, from 40 kHz down to about 20 kHz), and the oscillators are AC coupled into the mixer
     (a square's top sags at bass notes).
   - **Per note**: every note a slightly different wave shape, cutoff (±0.3 semitones) and resonance.
-  - **The unit**: every SubForce instance is a slightly different instrument — its own tuning error
+  - **The unit**: every SubWerk instance is a slightly different instrument — its own tuning error
     per oscillator (±1.5 cents), square width, cutoff, resonance and envelope times (±3%). A project
     keeps its instances' units; a new instance is a new unit; presets don't change it.
 
@@ -221,7 +221,7 @@ level-matched (−16 LUFS on their demo phrase, peaks under −1 dBFS). Pick the
 step through them on KEYS.
 
 - **SAVE** writes `User NNN.sfp` to `Presets/User/` in the plugin folder (`/sdcard/Synths/Devko -
-  VST - SubForce/`). There is no text entry on the device, so presets are numbered; a number is
+  VST - SubWerk/`). There is no text entry on the device, so presets are numbered; a number is
   never used twice. Rename them on a computer; the
   name shows in the browser. Files added, renamed or deleted while MPC runs show up when you browse
   (or in a new instance).
@@ -232,10 +232,10 @@ step through them on KEYS.
 - **BROWSE**: the first two categories are FAVORITES and RECENT. The heart toggle marks the loaded
   preset as a favorite. **RND** loads a random preset of the category shown (never the one loaded);
   it isn't RANDOM, which changes the sound.
-- Presets on the Force's internal drive: `/media/AkaiForce/SubForce Presets/` (any folders inside
+- Presets on the Force's internal drive: `/media/AkaiForce/SubWerk Presets/` (any folders inside
   become categories, loose files go to "Unsorted"; a folder named like a factory category shows as
   "<Name> (files)").
-- A preset file is plain text (`subforce 1` and `key=value` lines of real values), the same as an MPC
+- A preset file is plain text (`subwerk 1` and `key=value` lines of real values), the same as an MPC
   project stores.
 
 ## Melodic techno
@@ -244,7 +244,7 @@ The original is all over melodic techno, Stephan Bodzin's above all: two of them
 its successor on stage, "the backbone of his music and his live set" (DJ Mag) — basslines
 sequenced from the computer, leads played by hand, and constant rides of cutoff, resonance, drive
 and glide. These presets are built on what is documented about that way of playing (no artist's
-patch is copied, the names are SubForce's own, and no artist endorses SubForce):
+patch is copied, the names are SubWerk's own, and no artist endorses SubWerk):
 
 | Preset | What it is | Play it |
 |---|---|---|
@@ -268,7 +268,7 @@ Flute, Tearing Sync, Fuzz Square, Hollow Haze, Downlifter, Impact Boom, Feedback
 Loop Ticker.
 
 Tips: 121–125 BPM; basslines live between about A0 and F2; ride Cutoff, Resonance, Multidrive and
-EG Amount on the FILTER Q-Link set (Q-Links 1–4); use MPC's delay and reverb on the track (SubForce
+EG Amount on the FILTER Q-Link set (Q-Links 1–4); use MPC's delay and reverb on the track (SubWerk
 has no effects of its own, on purpose).
 
 ### In the direction of KVNDRA
@@ -299,7 +299,7 @@ Most of his sound is in the effects: put a long reverb (or two) and a delay on t
 34 sounds (0.0.8) drawn up from an analysis of several hundred melodic-techno presets made for a
 software analog: what their designers do per role (where the filter rests, how far the envelope
 sweeps, how short the envelopes are, where the grit comes from, which effects), measured, and
-turned into SubForce's own sounds. Nothing is copied, and the names are SubForce's.
+turned into SubWerk's own sounds. Nothing is copied, and the names are SubWerk's.
 
 What sets them apart from the classic patches: the filter rests dark (100–300 Hz) and the filter EG
 sweeps four to five and a half octaves; key tracking low; resonance low, the edge from noise, the
@@ -344,11 +344,11 @@ velocity on the amp and the filter EG; movement locked to MPC's tempo.
 | **Pad / Wide Saw Texture** | Two saws 20 cents apart, Analog up, a slow wave shimmer: the closest to a supersaw | Hold notes into chorus and reverb |
 | **FX / Night Riser** | Saw and white noise; the filter climbs over 4 s, a 1/16 tremolo | Hold through the 4 bars before a drop |
 
-The effects are half of these sounds (SubForce has none of its own, on purpose: one effect rack per
-track is lighter on the Force than effects in every synth). [EffectForce](https://github.com/Devko/EffectForce)
+The effects are half of these sounds (SubWerk has none of its own, on purpose: one effect rack per
+track is lighter on the Force than effects in every synth). [EffectWerk](https://github.com/Devko/EffectWerk)
 0.0.3 has a **Melodic** category made for them; MPC's own effects work too:
 
-| For | EffectForce | The chain |
+| For | EffectWerk | The chain |
 |---|---|---|
 | Bass | *Melodic Bass* | A compressor; a short 1/8 delay and a small plate, both low (wet about 10%) |
 | Leads | *Lead Delay Plate*, *Lead Throw* | Low cut ~150 Hz; a dotted 1/8 delay, feedback ~40%, repeats darkened (high cut ~4 kHz), wet ~20%; then a plate or hall, long, no pre-delay, wet 15–25% (*Lead Throw*: the echoes ducked under the playing, rising in the gaps) |
@@ -370,4 +370,4 @@ track is lighter on the Force than effects in every synth). [EffectForce](https:
 | Note on for a key already down | restrikes it (Multi retriggers); one note-off then releases it: a key is either down or up, as on a keyboard |
 | CC 120 / 121 / 123 | all sound off / reset all controllers (bend, wheel, pressure, pedal) / all notes off (latched envelopes too) |
 
-SubForce listens on every MIDI channel.
+SubWerk listens on every MIDI channel.

@@ -9,7 +9,7 @@
 
 namespace sf {
 namespace {
-constexpr const char* kMagic = "subforce ";
+constexpr const char* kMagic = "subwerk ";
 
 // Numbers in the C locale whatever the process's is (a "0,5" would misread every preset).
 std::string number(float v) {

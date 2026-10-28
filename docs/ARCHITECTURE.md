@@ -11,17 +11,17 @@
 
 ## Overview
 
-SubForce is a single shared object, `subforce.so`, that MPC loads through its VST2 host, plus a
+SubWerk is a single shared object, `subwerk.so`, that MPC loads through its VST2 host, plus a
 touchscreen skin generated at build time. The plugin side (VST2 glue, the touchscreen logic, the
-preset library, the build, test and bench tooling) is PolyForce's, trimmed to presets only; the
-engine is SubForce's own.
+preset library, the build, test and bench tooling) is PolyWerk's, trimmed to presets only; the
+engine is SubWerk's own.
 
 ```mermaid
 flowchart LR
   S[surface/surface.py] -->|params, layout, C++ headers| P[plugin/ VST2 glue]
   S -->|params.json, layout.conf| G[skin generator] --> K[skin: TUI.json + PNGs]
   D[dsp/ engine] --> P
-  P --> SO[subforce.so]
+  P --> SO[subwerk.so]
 ```
 
 - **`surface/surface.py`** is the single source of the parameter list and the touchscreen pages.
@@ -54,7 +54,7 @@ flowchart LR
 | `plugin/presets.*` | Factory and user presets |
 | `plugin/state.*` | The state text shared by projects and preset files |
 | `plugin/paths.*` | Plugin folder, preset roots, data folder, atomic file writes |
-| `plugin/trace.*` | Device diagnostics: every `setParameter` logged while `/tmp/subforce.trace` exists ([Building](BUILDING.md#diagnostics-on-the-device)) |
+| `plugin/trace.*` | Device diagnostics: every `setParameter` logged while `/tmp/subwerk.trace` exists ([Building](BUILDING.md#diagnostics-on-the-device)) |
 | `plugin/vst2.h` | A hand-written slice of the VST2 ABI (no Steinberg SDK) |
 | `surface/skin_polish.py` | Redraws the knob strips, trigger buttons and stepper arrows after the skin generator |
 | `presets/Factory/` | Factory presets: `NN_Category/NN_Name.sfp`, a folder per browser category |
@@ -121,7 +121,7 @@ it, every control value starting at its target.
 
 ## Talking to MPC
 
-PolyForce's rules, device-proven on the Force:
+PolyWerk's rules, device-proven on the Force:
 
 - MPC only notices value changes the plugin makes (lit browser tiles, the stepper, snapped steps)
   when they are pushed with `audioMasterAutomate`, and only re-reads texts after
@@ -143,7 +143,7 @@ PolyForce's rules, device-proven on the Force:
   back is ignored.
 - A tap on a button toggles the value MPC read back, and a button always reads back 0, so every
   tap arrives as a 1 with no release in between: each 1 is a press, and the plugin springs the
-  button back to 0 from the next block. (Both rules come from PolyForce's first device run: a
+  button back to 0 from the next block. (Both rules come from PolyWerk's first device run: a
   rising-edge button and a stepper measuring from MPC's previous value each worked once.)
 - MPC sends a second toggle about 0.7 s after a tap on a tile; a revert within 1 s is ignored.
 - To see what MPC sends on a device, see [diagnostics](BUILDING.md#diagnostics-on-the-device).
@@ -155,7 +155,7 @@ PolyForce's rules, device-proven on the Force:
   deliberate: a parameter that moves stops `surface.py`; `GEN_VST_RELOCK=1` accepts the break. Every
   release so far (v0.0.1–v0.0.7) only appended. Sound parameters (kind `synth`) are saved and automatable;
   the surface's own values (the stepper, tiles, Rand Amount) are not.
-- **Saved state** (projects and `.sfp` preset files) is the text format `subforce 1`: `key=value`
+- **Saved state** (projects and `.sfp` preset files) is the text format `subwerk 1`: `key=value`
   lines of *real* values (Hz, seconds, semitones…) plus, in a project, the preset key and the unit
   (Analog's tolerances: a project keeps its instances' units; one saved before units is unit 1; no
   two live instances are the same unit). Ranges can change without remapping saved

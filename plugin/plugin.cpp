@@ -1,4 +1,4 @@
-// SubForce as a VST2 instrument for MPC OS (Force / MPC standalone).
+// SubWerk as a VST2 instrument for MPC OS (Force / MPC standalone).
 //
 // The engine (dsp/synth.h) behind the touchscreen pages generated from surface/surface.py;
 // plugin/surface.* decides what every parameter does, and the status line carries a CPU meter
@@ -492,7 +492,7 @@ extern "C" __attribute__((visibility("default"))) AEffect* VSTPluginMain(audioMa
 // The profiling build only (make arm-bench-stages): the engine's time per render stage since
 // the last call, in microseconds, with the stages' names; tools/bench.cpp reads it with dlsym.
 // Returns the number of stages written.
-extern "C" __attribute__((visibility("default"))) int SubForceStageTimes(double* us, const char** names, int max) {
+extern "C" __attribute__((visibility("default"))) int SubWerkStageTimes(double* us, const char** names, int max) {
     if (!us || !names || max < sf::STG_COUNT) return 0;   // all stages or none (each read starts them over)
     for (int i = 0; i < sf::STG_COUNT; ++i) {
         us[i] = static_cast<double>(sf::g_stageNs[i]) * 1e-3;

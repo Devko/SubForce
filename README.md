@@ -1,11 +1,13 @@
-# SubForce
+# SubWerk
 
 **An analog-style monosynth that runs natively inside MPC on the Akai Force.**
 
-SubForce is a VST2 instrument for MPC OS's built-in plugin host, with its own touchscreen pages
+*Formerly SubForce.* <!-- werk-rename: keep -->
+
+SubWerk is a VST2 instrument for MPC OS's built-in plugin host, with its own touchscreen pages
 and Q-Link sets. It tips its hat to a classic 37-key American paraphonic analog monosynth (*the
 original* in these docs), built on the same plugin groundwork as its sibling
-[PolyForce](https://github.com/Devko/PolyForce). The name, DSP and presets are all SubForce's own.
+[PolyWerk](https://github.com/Devko/PolyWerk). The name, DSP and presets are all SubWerk's own.
 
 > [!NOTE]
 > **Preview (0.0.x).** The engine, plugin, touchscreen pages and factory presets are complete and
@@ -14,7 +16,7 @@ original* in these docs), built on the same plugin groundwork as its sibling
 > still change before v0.1: sounds are saved by name and survive that,
 > but recorded automation (stored by parameter index) could then move a different control.
 
-![SubForce's FILTER page](docs/img/filter.png)
+![SubWerk's FILTER page](docs/img/filter.png)
 
 *The FILTER page, rendered offline from the skin (on the device MPC fills in the values).*
 
@@ -81,19 +83,19 @@ the plugin's own entry points into `build/demos-out/` (WAV, and all of them back
 
 ## Installation
 
-Download a release package (`SubForce-<version>-mpc-armv7.zip`) from
-[Releases](https://github.com/Devko/SubForce/releases), or build one with `make plugin-package`
+Download a release package (`SubWerk-<version>-mpc-armv7.zip`) from
+[Releases](https://github.com/Devko/SubWerk/releases), or build one with `make plugin-package`
 (see [Building](docs/BUILDING.md)). Unzip it and follow the `INSTALL.md` inside. In short:
 
 ```sh
-scp -r SubForce-<version> root@<device-ip>:/tmp/
-ssh -t root@<device-ip> sh /tmp/SubForce-<version>/install.sh
+scp -r SubWerk-<version> root@<device-ip>:/tmp/
+ssh -t root@<device-ip> sh /tmp/SubWerk-<version>/install.sh
 ```
 
 The installer asks for confirmation (`-y` skips it), **stops MPC** (save your project first),
-copies the plugin to `/sdcard/Synths/Devko - VST - SubForce/`, backs up and edits `MPC.settings`,
+copies the plugin to `/sdcard/Synths/Devko - VST - SubWerk/`, backs up and edits `MPC.settings`,
 and starts MPC again. Running it again upgrades in place and keeps your own presets (in
-`Presets/User/` inside that folder) and favorites. Then add **SubForce** to a track from MPC's
+`Presets/User/` inside that folder) and favorites. Then add **SubWerk** to a track from MPC's
 instrument plugins.
 
 To uninstall, run the package's `uninstall.sh` the same way: it stops MPC, removes the plugin and
@@ -106,8 +108,8 @@ On Linux or WSL (developed on Ubuntu 24.04):
 
 ```sh
 make test            # the full test suite under ASan/UBSan
-make arm-plugin      # build/arm/subforce.so for the device
-make plugin-package  # dist/SubForce-<version>-mpc-armv7.zip
+make arm-plugin      # build/arm/subwerk.so for the device
+make plugin-package  # dist/SubWerk-<version>-mpc-armv7.zip
 ```
 
 Release packages come from CI (glibc 2.31, profile-guided, checked with the plugin catalog's own
@@ -135,13 +137,13 @@ Details in the [roadmap](docs/ROADMAP.md).
 
 ## License
 
-SubForce is released under the [MIT License](LICENSE). Third-party components keep their own
+SubWerk is released under the [MIT License](LICENSE). Third-party components keep their own
 licenses (below).
 
 ## Credits
 
 - Plugin groundwork (VST2 glue, touchscreen logic, preset library, build and bench tooling):
-  [PolyForce](https://github.com/Devko/PolyForce), MIT.
+  [PolyWerk](https://github.com/Devko/PolyWerk), MIT.
 - The ladder's cheap nonlinear zero-delay solution: Teemu "mystran" Voipio's
   "cheap non-linear zero-delay filters" (KVR forum, 2012). The decimator's structure and
   coefficient formulas: Laurent de Soras's HIIR (WTFPL). Pink noise: Paul Kellet's "economy"
@@ -152,6 +154,6 @@ licenses (below).
 - Interface font: [Titillium Web](https://fonts.google.com/specimen/Titillium+Web), SIL Open
   Font License 1.1 (`surface/fonts/OFL.txt`).
 
-SubForce is an independent project, not affiliated with or endorsed by Moog Music, Akai
+SubWerk is an independent project, not affiliated with or endorsed by Moog Music, Akai
 Professional / inMusic or Steinberg, nor by any artist named in its documentation. Akai, Force and
 MPC are trademarks of inMusic Brands; VST is a trademark of Steinberg Media Technologies GmbH.

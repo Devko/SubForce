@@ -123,7 +123,7 @@ void testBasics() {
     CHECK((h.e->flags & vst::effFlagsIsSynth) && (h.e->flags & vst::effFlagsProgramChunks));
     char b[256] = {};
     h.e->dispatcher(h.e, vst::effGetEffectName, 0, 0, b, 0.0f);
-    CHECK(std::string(b) == "SubForce");
+    CHECK(std::string(b) == "SubWerk");
     CHECK(h.e->dispatcher(h.e, vst::effCanDo, 0, 0, const_cast<char*>("receiveVstMidiEvent"), 0.0f) == 1);
     CHECK(h.e->dispatcher(h.e, vst::effCanDo, 0, 0, const_cast<char*>("sendVstMidiEvent"), 0.0f) == -1);
     CHECK(h.e->dispatcher(h.e, vst::effGetPlugCategory, 0, 0, nullptr, 0.0f) == vst::kPlugCategSynth);

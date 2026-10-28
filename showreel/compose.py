@@ -1,8 +1,8 @@
-"""SubForce's preset demo video: the pages as they play (skin.py), the preset and its effect, whether it
-is clean or through EffectForce, over the rendered demo (render.cpp's out/mix.wav, state.jsonl,
+"""SubWerk's preset demo video: the pages as they play (skin.py), the preset and its effect, whether it
+is clean or through EffectWerk, over the rendered demo (render.cpp's out/mix.wav, state.jsonl,
 cues.jsonl), encoded with ffmpeg.
 
-    python compose.py                                   # the whole demo: out/subforce_demo.mp4
+    python compose.py                                   # the whole demo: out/subwerk_demo.mp4
     python compose.py --from 3.87 --to 34.84 --name part   # a part (seconds)
     python compose.py --still 70                        # one frame as out/still.png (for checking)
 """
@@ -23,8 +23,8 @@ from skin import Skin  # noqa: E402
 OUT = os.path.join(HERE, "out")
 VW, VH, FPS = 1920, 1080, 30
 DEV = r"D:\DEV"
-FONT_BOLD = os.path.join(DEV, "EffectForce", "surface", "fonts", "TitilliumWeb-Bold.ttf")
-FONT_SEMI = os.path.join(DEV, "EffectForce", "surface", "fonts", "TitilliumWeb-SemiBold.ttf")
+FONT_BOLD = os.path.join(DEV, "EffectWerk", "surface", "fonts", "TitilliumWeb-Bold.ttf")
+FONT_SEMI = os.path.join(DEV, "EffectWerk", "surface", "fonts", "TitilliumWeb-SemiBold.ttf")
 BG = (12, 13, 16)
 INK = (233, 233, 240)
 DIM = (150, 152, 166)
@@ -32,7 +32,7 @@ FAINT = (52, 55, 64)
 
 # instance -> plugin, from the cues ("inst"); every plugin's colour is its skin's accent
 INSTANCES = {}
-ACCENT = {"PolyForce": (63, 208, 192), "SubForce": (242, 165, 65), "EffectForce": (160, 140, 245)}
+ACCENT = {"PolyWerk": (63, 208, 192), "SubWerk": (242, 165, 65), "EffectWerk": (160, 140, 245)}
 PAGE_SCALE = 1.25
 PAGE_X, PAGE_Y = (VW - int(1280 * PAGE_SCALE)) // 2, 132
 PAGE_W, PAGE_H = int(1280 * PAGE_SCALE), int(628 * PAGE_SCALE)
@@ -210,7 +210,7 @@ def draw_caption(d, tl, t, accent, width):
 
 def draw_crossfader(d, tl, t, accent, alpha):
     st = tl.state["ef"]
-    sk = tl.skins["EffectForce"]
+    sk = tl.skins["EffectWerk"]
     v = st["vals"][sk.index["xfade"]]
     x0, x1, y = PAGE_X + PAGE_W - 470, PAGE_X + PAGE_W - 60, PAGE_Y + PAGE_H + 78
     text(d, ((x0 + x1) / 2, y - 46), "CROSSFADER", 20, mix(BG, DIM, alpha), bold=False, anchor="mm")
@@ -228,14 +228,14 @@ def title_card(t, dur):
     d = ImageDraw.Draw(im)
     a = ease(t / 0.8) * (1.0 - ease((t - (dur - 0.45)) / 0.45))
     rise = 24 * (1.0 - ease(t / 0.7))
-    text(d, (VW / 2, 420 + rise), "SubForce", 150, mix(BG, ACCENT["SubForce"], a), anchor="mm")
-    text(d, (VW / 2, 560), "A melodic-techno build, nothing but SubForce", 56, mix(BG, INK, a), anchor="mm")
+    text(d, (VW / 2, 420 + rise), "SubWerk", 150, mix(BG, ACCENT["SubWerk"], a), anchor="mm")
+    text(d, (VW / 2, 560), "A melodic-techno build, nothing but SubWerk", 56, mix(BG, INK, a), anchor="mm")
     b = a * ease((t - 0.4) / 0.6)
     first = "Each layer comes in clean, then goes through "
-    w1, w2 = font(34, False).getlength(first), font(34).getlength("EffectForce")
+    w1, w2 = font(34, False).getlength(first), font(34).getlength("EffectWerk")
     x0 = (VW - w1 - w2) / 2
     text(d, (x0, 650), first, 34, mix(BG, DIM, b), bold=False, anchor="lm")
-    text(d, (x0 + w1, 650), "EffectForce", 34, mix(BG, ACCENT["EffectForce"], b), anchor="lm")
+    text(d, (x0 + w1, 650), "EffectWerk", 34, mix(BG, ACCENT["EffectWerk"], b), anchor="lm")
     text(d, (VW / 2, 790), "An analog-style monosynth that runs inside MPC on the Akai Force", 28, mix(BG, DIM, b * 0.9),
          bold=False, anchor="mm")
     return im
@@ -246,7 +246,7 @@ def outro_card(t):
     d = ImageDraw.Draw(im)
     a = ease(t / 0.6)
     text(d, (VW / 2, 250), "Free and open source (MIT)", 64, mix(BG, INK, a), anchor="mm")
-    rows = [("SubForce", "github.com/Devko/SubForce"), ("EffectForce", "github.com/Devko/EffectForce")]
+    rows = [("SubWerk", "github.com/Devko/SubWerk"), ("EffectWerk", "github.com/Devko/EffectWerk")]
     for k, (name, url) in enumerate(rows):
         b = a * ease((t - 0.2 - 0.15 * k) / 0.5)
         y = 400 + 90 * k
@@ -256,18 +256,18 @@ def outro_card(t):
          bold=False, anchor="mm")
     text(d, (VW / 2, 790), "Needs root SSH access to the Force (e.g. MockbaMod)  ·  tested on MPC OS 3.9", 30,
          mix(BG, DIM, a), bold=False, anchor="mm")
-    text(d, (VW / 2, 960), "Every sound is SubForce, through EffectForce; rendered offline through the plugins' own code, "
+    text(d, (VW / 2, 960), "Every sound is SubWerk, through EffectWerk; rendered offline through the plugins' own code, "
          "the pages drawn with the values they reported", 22, mix(BG, FAINT, a * 1.6), bold=False, anchor="mm")
     return im
 
 
 def draw_mode(d, tl, t, alpha):
-    """Clean or through EffectForce (or all together): a pill right of the caption."""
+    """Clean or through EffectWerk (or all together): a pill right of the caption."""
     c = tl.last(tl.modes, t)
     if not c:
         return
     a = alpha * ease((t - c["t"]) / 0.25)
-    label, col = {"clean": ("CLEAN", ACCENT["SubForce"]), "fx": ("THROUGH EFFECTFORCE", ACCENT["EffectForce"]),
+    label, col = {"clean": ("CLEAN", ACCENT["SubWerk"]), "fx": ("THROUGH EFFECTWERK", ACCENT["EffectWerk"]),
                   "together": ("ALL TOGETHER", INK)}[c["mode"]]
     w = font(30).getlength(label)
     x1, y = PAGE_X + PAGE_W, PAGE_Y + PAGE_H + 64
@@ -289,7 +289,7 @@ def render_frame(tl, f, cache):
             im = outro_card(t - sec["t"])
         return im
     pg = tl.last(tl.pages, t)
-    plug = INSTANCES[pg["i"]] if pg else "SubForce"
+    plug = INSTANCES[pg["i"]] if pg else "SubWerk"
     accent = ACCENT[plug]
     im = Image.new("RGB", (VW, VH), BG)
     d = ImageDraw.Draw(im)
@@ -331,7 +331,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="t0", type=float, default=0.0)
     ap.add_argument("--to", dest="t1", type=float, default=None)
-    ap.add_argument("--name", default="subforce_demo")
+    ap.add_argument("--name", default="subwerk_demo")
     ap.add_argument("--still", type=float, default=None)
     ap.add_argument("--crf", type=int, default=18)
     args = ap.parse_args()

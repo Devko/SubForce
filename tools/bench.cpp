@@ -11,7 +11,7 @@
 // filter envelope, Duo on two keys), the heavy patch retriggered every 50 ms with glide, and the
 // heavy patch with both busses in Hi range, or with an LFO on EG Time and a Hi-range bus.
 // Hermetic: the plugin reads no user folders and saves nothing.
-// A profiling build of the plugin (make arm-bench-stages: subforce_stages.so) also reports where
+// A profiling build of the plugin (make arm-bench-stages: subwerk_stages.so) also reports where
 // each case's time goes.
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "dlopen: %s\n", dlerror());
         return 1;
     }
-    auto stages = reinterpret_cast<StageFn>(dlsym(lib, "SubForceStageTimes"));
+    auto stages = reinterpret_cast<StageFn>(dlsym(lib, "SubWerkStageTimes"));
     std::printf("%s, %d s per case, %s\n", argv[1], seconds, stages ? "profiling build" : "plain build");
     const char* names[] = {"idle (no note)", "Init, one held note", "heavy patch, Duo", "heavy, retrig + glide 50 ms",
                            "heavy, both busses Hi range", "heavy, EG Time LFO + Hi FM"};

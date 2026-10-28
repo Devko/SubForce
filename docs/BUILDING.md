@@ -15,7 +15,7 @@
 
 ## Requirements
 
-SubForce builds on Linux or WSL; it is developed on Ubuntu 24.04.
+SubWerk builds on Linux or WSL; it is developed on Ubuntu 24.04.
 
 | Tool | Needed for |
 |---|---|
@@ -41,10 +41,10 @@ for a virtual environment.
 
 ```sh
 make test                      # the full suite under ASan/UBSan
-make arm-plugin                # build/arm/subforce.so
+make arm-plugin                # build/arm/subwerk.so
 make demos                     # every factory preset as a WAV, in build/demos-out/
 make skin preview              # the skin, and every page as surface/build/page_*.png
-make plugin-package            # dist/SubForce-<version>-mpc-armv7.zip
+make plugin-package            # dist/SubWerk-<version>-mpc-armv7.zip
 ```
 
 `surface/surface.py` is the single source of the parameter list and the touchscreen pages. Every
@@ -67,11 +67,11 @@ the break).
 | `preset-levels` | Set every factory preset's volume for `PRESET_LUFS` (default −16) on its demo phrase, never peaking over −1 dBFS |
 | `build/demos_tune` | The demo tool with the engine's tuning constants settable (`-DSF_TUNE`): for fitting them to recordings (below) |
 | `bench` | x86 bench: only proves the bench and the profiling build work |
-| `arm-plugin` | `build/arm/subforce.so`; profile-guided when `qemu-arm` is installed |
+| `arm-plugin` | `build/arm/subwerk.so`; profile-guided when `qemu-arm` is installed |
 | `arm-bench` | `build/arm/sfbench`, the CPU bench for the device |
-| `arm-bench-stages` | `build/arm/subforce_stages.so`, the profiling build (never shipped) |
+| `arm-bench-stages` | `build/arm/subwerk_stages.so`, the profiling build (never shipped) |
 | `bench-device` | Run the CPU bench on a device (see [below](#benchmarking-on-the-device)) |
-| `plugin-package` | `dist/SubForce-<version>-mpc-armv7.zip` with the installer |
+| `plugin-package` | `dist/SubWerk-<version>-mpc-armv7.zip` with the installer |
 | `plugin-install` | Package, copy to the device and install without asking (`install.sh -y`: stops and restarts MPC) |
 | `clean` | Remove `build/` and `surface/build/` |
 
@@ -83,7 +83,7 @@ and slides; Lead, a legato melody with the mod wheel; Keys, an 8th-note arpeggio
 chords; FX and any other category, held notes. A new category folder plays the FX phrase unless
 `tools/demos.cpp` gets one for it.
 
-`build/demos` also renders other material, for comparing SubForce with recordings:
+`build/demos` also renders other material, for comparing SubWerk with recordings:
 
 ```sh
 build/demos --files <outdir> <category> <file.sfp>...   # preset files from anywhere, on a category's phrase
@@ -165,7 +165,7 @@ nothing, and fails if any case fails. Cases: idle, the Init patch on a held note
 make plugin-package
 ```
 
-Builds `dist/SubForce-<version>-mpc-armv7.zip`: the plugin and its skin as one folder, the installer
+Builds `dist/SubWerk-<version>-mpc-armv7.zip`: the plugin and its skin as one folder, the installer
 and uninstaller, a generated `INSTALL.md` and checksums. Shipped scripts run under BusyBox on the
 device, so the build refuses CRLF line endings in them.
 
@@ -184,7 +184,7 @@ pull request, the way the plugin catalog's own ports are built: the device build
 `arm32v7/gcc:11-bullseye` (GCC 11, glibc 2.31) under QEMU, profile-guided, with the test suite run
 against the objects the `.so` is linked from; the sanitizer suite runs on x86. The zip is checked
 with the catalog's own checker (`third_party/mpc-vst-plugins/tools/catalog_check.py --catalog`) and
-kept as the run's artifact (`SubForce-mpc-armv7`).
+kept as the run's artifact (`SubWerk-mpc-armv7`).
 
 Pushing a tag `vX.Y.Z` sets `PLUGIN_VERSION` from it and publishes the zip as a GitHub release,
 with `CHANGELOG.md`'s `## X.Y.Z` section as its notes; a tag without that section fails before
@@ -212,10 +212,10 @@ To see what MPC sends when a control is touched, turned or tapped, create the fl
 runs (no restart):
 
 ```sh
-ssh root@<ip> touch /tmp/subforce.trace
+ssh root@<ip> touch /tmp/subwerk.trace
 ```
 
-Within a second every SubForce instance appends one line per `setParameter` to `/tmp/subforce.log`:
+Within a second every SubWerk instance appends one line per `setParameter` to `/tmp/subwerk.log`:
 the time, the instance, the parameter, the value MPC sent, the value it had read back before and the
 plugin's value and text after; and a line when MPC saves or restores the state (`getChunk`,
 `setChunk`), so a project load shows whether MPC also sends parameters after it. Remove the flag

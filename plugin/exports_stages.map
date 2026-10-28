@@ -1,4 +1,4 @@
 {
-    global: VSTPluginMain; SubForceStageTimes;
+    global: VSTPluginMain; SubWerkStageTimes;
     local: *;
 };
