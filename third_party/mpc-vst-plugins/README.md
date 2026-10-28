@@ -48,6 +48,9 @@ Re-apply them after re-copying upstream.
    folder and removes it once MPC.settings is written. The new folder's own copies win, except while
    MPC.settings still points into the old folder (an earlier run stopped before the settings were
    written, so the old plugin kept running and saving there). A folder whose `plugin-meta.xml` has
-   another uid is left alone, with a warning. The settings entry needs nothing new: the uid didn't
-   change, and entries with the same uid were already replaced. `test/install_test.sh`
-   (`make test-install`) covers it.
+   another uid is left alone, with a warning. `release.py` refuses an old name that isn't a plain
+   name (letters, digits, spaces, `. _ -`; no `/` or `..`) or that is the current name. The settings
+   entry needs nothing new: the uid didn't change, and entries with the same uid were already
+   replaced. `test/install_test.sh` and `test/release_test.sh` (`make test-install`) cover it.
+   Expected side effect: `tools/catalog_check.py` regenerates `install.sh` from the template without
+   `@PREV_SKIN@` and so warns that it differs from the current template.

@@ -77,4 +77,12 @@ install "$T/Synths" && ok || bad "install failed: $(cat "$T/out.txt")"
 [ -f "$T/Synths/$SKIN/$SO" ] && ok || bad "$SO not installed"
 ! grep -q "moved your files" "$T/out.txt" && ok || bad "a fresh install says it moved files"
 
+name=no_previous_name; fresh; mkdir -p "$T/Synths/Other Plugin"; echo keep > "$T/Synths/Other Plugin/keep.txt"
+P2="$T/pkg2"; rm -rf "$P2"; cp -r "$PKG" "$P2"   # a package built without --previous-name: PREV_SKIN is empty
+sed -i "s|^PREV_SKIN='[^']*'|PREV_SKIN=''|" "$P2/install.sh"
+(cd "$P2" && grep -v '  install.sh$' SHA256SUMS > SHA256SUMS.new && sha256sum install.sh >> SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
+MPC_INSTALL_TEST=1 MPC_SETTINGS="$T/MPC.settings" MPC_LEGACY_ROOT="$T/legacy" sh "$P2/install.sh" -y -t "$T/Synths" > "$T/out.txt" 2>&1 &&
+    ok || bad "install failed: $(cat "$T/out.txt")"
+[ -f "$T/Synths/Other Plugin/keep.txt" ] && [ -f "$T/Synths/$SKIN/$SO" ] && ok || bad "the Synths folder lost files"
+
 if [ $fail = 0 ]; then echo "PASSED: $pass passed, 0 failed"; else echo "FAILED: $pass passed, $fail failed"; exit 1; fi

@@ -244,11 +244,12 @@ plugin-package: $(ARM_SO) $(SKIN)
 		--user-data Presets --user-data preset_favorites.txt --user-data preset_recent.txt \
 		--previous-name "$(strip $(PREV_NAME))" -o dist
 
-# The package's installer against scratch folders: an upgrade from the old name moves the user's files over.
-# (Used as $(strip $(PREV_NAME)): make keeps the space before a trailing comment.)
+# The package's installer against scratch folders: an upgrade from the old name moves the user's files over; and
+# release.py refuses an old name that isn't one. (Used as $(strip $(PREV_NAME)): make keeps the space before a comment.)
 PREV_NAME := SubForce # werk-rename: keep
 test-install: plugin-package
 	sh test/install_test.sh dist/SubWerk-$(PLUGIN_VERSION)-mpc-armv7.zip "$(strip $(PREV_NAME))"
+	sh test/release_test.sh "$(PY)" $(MV)/tools/release.py $(ARM_SO) "$(SKIN_DIR)" $(SURF_OUT)/pluginlist-entry.xml
 
 # Install on a device: stops MPC, backs up + edits MPC.settings, restarts MPC. Save the MPC
 # project first. Usage: make plugin-install FORCE=root@<ip>

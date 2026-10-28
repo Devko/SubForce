@@ -57,6 +57,11 @@ if os.path.basename(a.so) != so_name:
 skin_name = os.path.basename(os.path.normpath(a.skin))
 if skin_name != "%s - VST - %s" % (attr["manufacturer"], name):
     raise SystemExit("skin folder must be named '%s - VST - %s'" % (attr["manufacturer"], name))
+# SubWerk local patch 7: the installer deletes the folder this names, so only a plain name, and not the current one
+if a.previous_name and (not re.fullmatch(r"[A-Za-z0-9]([A-Za-z0-9 ._-]*[A-Za-z0-9._-])?", a.previous_name)
+                        or ".." in a.previous_name or a.previous_name == name):
+    raise SystemExit("--previous-name must be the plugin's old name (letters, digits, spaces, . _ -; no / or ..), "
+                     "not its current one: %r" % a.previous_name)
 for need in ("version.xml", "Plugin Skins/TUI.json"):
     if not os.path.exists(os.path.join(a.skin, need)):
         raise SystemExit("skin is missing " + need)
