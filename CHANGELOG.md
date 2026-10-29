@@ -4,10 +4,10 @@ Releases are built by CI from a `vX.Y.Z` tag (see [Building](docs/BUILDING.md#re
 section for the tag's version becomes the release's notes. While the version is 0.x the parameter list
 may still change between releases.
 
-## Unreleased: SubForce is now SubWerk <!-- werk-rename: keep -->
+## 0.0.10
 
-**A new name, the same synth.** "Force" is the name of Akai's device, so it no longer belongs in this
-plugin's name. Nothing about the sound changes.
+**SubForce is now SubWerk: a new name, the same synth.** <!-- werk-rename: keep -->
+"Force" is the name of Akai's device, so it no longer belongs in this plugin's name. Nothing about the sound changes.
 
 - MPC's plugin list shows **SubWerk**, and the plugin lives in `/sdcard/Synths/Devko - VST - SubWerk`.
 - Your presets, favorites and recents move over by themselves: the installer carries them out of the old `Devko - VST - SubForce` folder and removes it, and the first start renames `/media/AkaiForce/SubForce Presets` to `SubWerk Presets`. <!-- werk-rename: keep -->
